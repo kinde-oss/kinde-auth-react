@@ -1,0 +1,50 @@
+{
+  "name": "@kinde-oss/kinde-auth-react",
+  "version": "0.0.1",
+  "description": "Kinde React SDK for authentication",
+  "module": "dist/kinde-auth-react.esm.min.js",
+  "browser": "dist/kinde-auth-react.umd.min.js",
+  "main": "dist/kinde-auth-react.esm.min.js",
+  "scripts": {
+    "build": "rollup -c",
+    "test": "jest",
+    "watch": "rollup -c -w"
+  },
+  "author": {
+    "name": "Kinde",
+    "email": "engineering@kinde.com",
+    "url": "https://kinde.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kinde-oss/kinde-auth-pkce-js"
+  },
+  "bugs": "https://github.com/kinde-oss/kinde-auth-pkce-js",
+  "homepage": "https://kinde.com",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@babel/plugin-transform-runtime": "^7.17.0",
+    "@babel/preset-env": "^7.16.11",
+    "@babel/preset-react": "^7.16.7",
+    "eslint": "^8.8.0",
+    "eslint-config-prettier": "^8.3.0",
+    "jest": "^27.5.1",
+    "prettier": "^2.5.1",
+    "react-test-renderer": "^17.0.2",
+    "rollup": "^2.67.0"
+  },
+  "keywords": [
+    "Kinde",
+    "login",
+    "Authorization Code Grant Flow",
+    "PKCE",
+    "Single Page Application authentication",
+    "React authentication"
+  ],
+  "peerDependencies": {
+    "react": "^17.0.2"
+  },
+  "dependencies": {
+    "@kinde-oss/kinde-auth-pkce-js": "^0.0.1"
+  }
+}
