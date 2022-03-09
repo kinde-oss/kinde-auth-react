@@ -1,10 +1,16 @@
 import {terser} from 'rollup-plugin-terser';
 import pkg from './package.json';
+import babel from '@rollup/plugin-babel';
 
 export default {
-  input: 'src/main.js',
-
-  plugins: [terser()],
+  input: 'src/index.js',
+  plugins: [
+    babel({
+      presets: ['@babel/preset-react'],
+      babelHelpers: 'runtime'
+    }),
+    terser()
+  ],
   output: [
     {
       name: 'createKindeClient',
@@ -15,5 +21,6 @@ export default {
       file: pkg.module,
       format: 'es'
     }
-  ]
+  ],
+  external: ['react', 'react-dom']
 };
