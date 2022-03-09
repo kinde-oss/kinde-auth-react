@@ -3,12 +3,12 @@ import React, {
   useEffect,
   useMemo,
   useReducer,
-  useState
-} from 'react';
-import {KindeContext} from './KindeContext';
-import {initialState} from '../config/initialState';
-import {reducer} from './reducer';
-import createKindeClient from '@kinde/kinde-spa-js';
+  useState,
+} from "react";
+import { KindeContext } from "./KindeContext";
+import { initialState } from "../config/initialState";
+import { reducer } from "./reducer";
+import createKindeClient from "../../kinde-spa-js/src/main";
 
 const defaultOnRedirectCallback = () => {
   window.history.replaceState({}, document.title, window.location.pathname);
@@ -18,7 +18,7 @@ const KindeProvider = ({
   children,
   domain,
   redirectUri,
-  onRedirectCallback = defaultOnRedirectCallback
+  onRedirectCallback = defaultOnRedirectCallback,
 }) => {
   const [client, setClient] = useState();
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -29,7 +29,7 @@ const KindeProvider = ({
       const getClient = async () => {
         const kindeClient = await createKindeClient({
           domain,
-          redirect_uri: redirectUri
+          redirect_uri: redirectUri,
         });
         setClient(kindeClient);
       };
@@ -46,14 +46,14 @@ const KindeProvider = ({
     (async () => {
       if (client && isSubscribed) {
         try {
-          const {kindeState} = await client.handleRedirectCallback();
+          const { kindeState } = await client.handleRedirectCallback();
           onRedirectCallback(kindeState);
 
           const user = await client.getUser();
-          dispatch({type: 'INITIALISED', user});
+          dispatch({ type: "INITIALISED", user });
         } catch (error) {
           console.log(error);
-          dispatch({type: 'ERROR', error: 'login error'});
+          dispatch({ type: "ERROR", error: "login error" });
         }
       }
     })();
@@ -74,8 +74,8 @@ const KindeProvider = ({
       throw console.error(error);
     } finally {
       dispatch({
-        type: 'GET_ACCESS_TOKEN_COMPLETE',
-        user: await client.getUser()
+        type: "GET_ACCESS_TOKEN_COMPLETE",
+        user: await client.getUser(),
       });
     }
     return token;
@@ -88,8 +88,8 @@ const KindeProvider = ({
       console.error(error);
     } finally {
       dispatch({
-        type: 'HANDLE_REDIRECT_COMPLETE',
-        user: await client.getUser()
+        type: "HANDLE_REDIRECT_COMPLETE",
+        user: await client.getUser(),
       });
     }
   }, [client]);
@@ -101,7 +101,7 @@ const KindeProvider = ({
       login,
       register,
       logout,
-      handleRedirectCallback
+      handleRedirectCallback,
     };
   }, [state, getToken, login, register, logout, handleRedirectCallback]);
 
@@ -112,4 +112,4 @@ const KindeProvider = ({
   );
 };
 
-export {KindeProvider};
+export { KindeProvider };

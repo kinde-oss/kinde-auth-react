@@ -1,6 +1,6 @@
 const initialState = {
   isAuthenticated: false,
-  isLoading: true
+  isLoading: true,
 };
 
-export {initialState};
+export { initialState };

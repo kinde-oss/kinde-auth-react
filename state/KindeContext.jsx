@@ -1,9 +1,9 @@
-import {createContext} from 'react';
-import {initialState} from '../config/initialState';
+import { createContext } from "react";
+import { initialState } from "../config/initialState";
 
 const handleError = () => {
   throw new Error(
-    'Oops! Seems like you forgot to wrap your app in <KindeProvider>.'
+    "Oops! Seems like you forgot to wrap your app in <KindeProvider>."
   );
 };
 
@@ -13,9 +13,9 @@ const initialContext = {
   login: handleError,
   logout: handleError,
   register: handleError,
-  handleKindeRedirect: handleError
+  handleKindeRedirect: handleError,
 };
 
 const KindeContext = createContext(initialContext);
 
-export {KindeContext};
+export { KindeContext };

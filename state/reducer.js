@@ -3,7 +3,7 @@ const onInitialise = (state, action) => ({
   isAuthenticated: !!action.user,
   user: action.user,
   isLoading: false,
-  error: undefined
+  error: undefined,
 });
 
 const onComplete = (state, action) =>
@@ -12,19 +12,19 @@ const onComplete = (state, action) =>
     : {
         ...state,
         isAuthenticated: !!action.user,
-        user: action.user
+        user: action.user,
       };
 
 const onLogout = (state, action) => ({
   ...state,
   isAuthenticated: false,
-  user: undefined
+  user: undefined,
 });
 
 const onError = (state, action) => ({
   ...state,
   isLoading: false,
-  error: action.error
+  error: action.error,
 });
 
 const reducerMap = {
@@ -32,7 +32,7 @@ const reducerMap = {
   on_REDIRECT_COMPLETE: onComplete,
   GET_ACCESS_TOKEN_COMPLETE: onComplete,
   LOGOUT: onLogout,
-  ERROR: onError
+  ERROR: onError,
 };
 
 const reducer = (state, action) => {
@@ -41,4 +41,4 @@ const reducer = (state, action) => {
     : state;
 };
 
-export {reducer};
+export { reducer };
