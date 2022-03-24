@@ -6,7 +6,6 @@ export default {
   input: 'src/index.js',
   plugins: [
     babel({
-      presets: ['@babel/preset-react'],
       babelHelpers: 'runtime'
     }),
     terser()
