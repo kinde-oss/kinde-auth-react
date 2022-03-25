@@ -24,17 +24,15 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "@babel/plugin-transform-runtime": "^7.17.0",
-    "@babel/preset-env": "^7.16.11",
     "@babel/preset-react": "^7.16.7",
     "@rollup/plugin-babel": "^5.3.1",
     "eslint": "^8.8.0",
     "eslint-config-prettier": "^8.3.0",
-    "jest": "^27.5.1",
     "prettier": "^2.5.1",
+    "rollup": "^2.67.0",
+    "rollup-plugin-terser": "^7.0.2",
     "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "react-test-renderer": "^17.0.2",
-    "rollup": "^2.67.0"
+    "react-dom": "^17.0.2"
   },
   "keywords": [
     "Kinde",
