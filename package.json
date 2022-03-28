@@ -49,5 +49,8 @@
   "files": [
     "dist"
   ],
-  "private": false
+  "private": false,
+  "dependencies": {
+    "@kinde-oss/kinde-auth-pkce-js": "^0.0.3"
+  }
 }
