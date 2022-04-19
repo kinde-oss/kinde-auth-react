@@ -33,11 +33,13 @@
     "eslint": "^8.8.0",
     "eslint-config-prettier": "^8.3.0",
     "jest": "^27.5.1",
+    "msw": "^0.39.2",
     "prettier": "^2.5.1",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "rollup": "^2.67.0",
-    "rollup-plugin-terser": "^7.0.2"
+    "rollup-plugin-terser": "^7.0.2",
+    "whatwg-fetch": "^3.6.2"
   },
   "keywords": [
     "Kinde",
@@ -62,6 +64,10 @@
     "transform": {
       "^.+\\.[t|j]sx?$": "babel-jest"
     },
-    "testRegex": "/__tests__/.+test.jsx?$"
+    "testRegex": "/__tests__/.+test.jsx?$",
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ],
+    "testURL": "https://www.example.com/"
   }
 }
