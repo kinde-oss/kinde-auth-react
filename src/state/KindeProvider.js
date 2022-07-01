@@ -19,8 +19,7 @@ const KindeProvider = ({
   domain,
   redirectUri,
   onRedirectCallback = defaultOnRedirectCallback,
-  logoutUri = redirectUri,
-  orgId
+  logoutUri = redirectUri
 }) => {
   const [client, setClient] = useState();
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -32,8 +31,7 @@ const KindeProvider = ({
         const kindeClient = await createKindeClient({
           domain,
           redirect_uri: redirectUri,
-          logout_uri: logoutUri,
-          org_id: orgId
+          logout_uri: logoutUri
         });
         setClient(kindeClient);
       };
@@ -43,7 +41,7 @@ const KindeProvider = ({
       console.error(err);
     }
     return () => (isSubscribed = false);
-  }, [domain, redirectUri, logoutUri, orgId]);
+  }, [domain, redirectUri, logoutUri]);
 
   useEffect(() => {
     let isSubscribed = true;
