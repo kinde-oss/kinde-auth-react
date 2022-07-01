@@ -43,14 +43,14 @@
     "React authentication"
   ],
   "peerDependencies": {
-    "react": "^17.0.2 || ^18.0.0",
-    "react-dom": "^17.0.2 || ^18.0.0"
+    "react": "^17.0.2 || ^18",
+    "react-dom": "^17.0.2 || ^18"
   },
   "files": [
     "dist"
   ],
   "private": false,
   "dependencies": {
-    "@kinde-oss/kinde-auth-pkce-js": "^0.0.6"
+    "@kinde-oss/kinde-auth-pkce-js": "^0.0.9"
   }
 }

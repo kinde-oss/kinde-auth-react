@@ -62,11 +62,16 @@ const KindeProvider = ({
     return () => (isSubscribed = false);
   }, [client, onRedirectCallback]);
 
-  const login = useCallback(() => client.login(), [client]);
+  const login = useCallback((options) => client.login(options), [client]);
 
-  const register = useCallback(() => client.register(), [client]);
+  const register = useCallback((options) => client.register(options), [client]);
 
-  const logout = useCallback(() => client.logout(), [client]);
+  const logout = useCallback((options) => client.logout(options), [client]);
+
+  const createOrg = useCallback(
+    (options) => client.createOrg(options),
+    [client]
+  );
 
   const getToken = useCallback(async () => {
     let token;
@@ -103,9 +108,18 @@ const KindeProvider = ({
       login,
       register,
       logout,
-      handleRedirectCallback
+      handleRedirectCallback,
+      createOrg
     };
-  }, [state, getToken, login, register, logout, handleRedirectCallback]);
+  }, [
+    state,
+    getToken,
+    login,
+    register,
+    logout,
+    handleRedirectCallback,
+    createOrg
+  ]);
 
   return (
     <KindeContext.Provider value={contextValue}>
