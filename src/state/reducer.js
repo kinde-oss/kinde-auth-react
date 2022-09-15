@@ -29,7 +29,7 @@ const onError = (state, action) => ({
 
 const reducerMap = {
   INITIALISED: onInitialise,
-  on_REDIRECT_COMPLETE: onComplete,
+  ON_REDIRECT_COMPLETE: onComplete,
   GET_ACCESS_TOKEN_COMPLETE: onComplete,
   LOGOUT: onLogout,
   ERROR: onError

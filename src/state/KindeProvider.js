@@ -81,11 +81,6 @@ const KindeProvider = ({
       token = await client.getToken();
     } catch (error) {
       throw console.error(error);
-    } finally {
-      dispatch({
-        type: 'GET_ACCESS_TOKEN_COMPLETE',
-        user: await client.getUser()
-      });
     }
     return token;
   }, [client]);
@@ -95,11 +90,6 @@ const KindeProvider = ({
       return await client.handleRedirectCallback();
     } catch (error) {
       console.error(error);
-    } finally {
-      dispatch({
-        type: 'HANDLE_REDIRECT_COMPLETE',
-        user: await client.getUser()
-      });
     }
   }, [client]);
 
