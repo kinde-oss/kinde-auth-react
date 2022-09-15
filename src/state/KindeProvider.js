@@ -15,6 +15,7 @@ const defaultOnRedirectCallback = () => {
 };
 
 const KindeProvider = ({
+  clientId,
   children,
   domain,
   redirectUri,
@@ -29,6 +30,7 @@ const KindeProvider = ({
     try {
       const getClient = async () => {
         const kindeClient = await createKindeClient({
+          client_id: clientId,
           domain,
           redirect_uri: redirectUri,
           logout_uri: logoutUri
@@ -41,7 +43,7 @@ const KindeProvider = ({
       console.error(err);
     }
     return () => (isSubscribed = false);
-  }, [domain, redirectUri, logoutUri]);
+  }, [clientId, domain, redirectUri, logoutUri]);
 
   useEffect(() => {
     let isSubscribed = true;
