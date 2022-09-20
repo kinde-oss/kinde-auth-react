@@ -17,9 +17,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/kinde-oss/kinde-auth-pkce-js"
+    "url": "https://github.com/kinde-oss/kinde-auth-react"
   },
-  "bugs": "https://github.com/kinde-oss/kinde-auth-pkce-js",
+  "bugs": "https://github.com/kinde-oss/kinde-auth-react",
   "homepage": "https://kinde.com",
   "license": "Apache-2.0",
   "devDependencies": {
