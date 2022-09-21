@@ -5,6 +5,7 @@
   "module": "dist/kinde-auth-react.esm.min.js",
   "browser": "dist/kinde-auth-react.umd.min.js",
   "main": "dist/kinde-auth-react.esm.min.js",
+  "types": "index.d.ts",
   "scripts": {
     "build": "rollup -c",
     "test": "jest",
