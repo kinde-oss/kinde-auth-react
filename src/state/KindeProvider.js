@@ -52,6 +52,9 @@ const KindeProvider = ({
     (async () => {
       if (client && isSubscribed) {
         try {
+          const {kindeState} = await client.handleRedirectCallback();
+          onRedirectCallback(kindeState);
+
           const user = await client.getUser();
           dispatch({type: 'INITIALISED', user});
         } catch (error) {
@@ -61,7 +64,7 @@ const KindeProvider = ({
       }
     })();
     return () => (isSubscribed = false);
-  }, [client]);
+  }, [client, onRedirectCallback]);
 
   const login = useCallback((options) => client.login(options), [client]);
 
@@ -82,6 +85,14 @@ const KindeProvider = ({
       throw console.error(error);
     }
     return token;
+  }, [client]);
+
+  const handleRedirectCallback = useCallback(async () => {
+    try {
+      return await client.handleRedirectCallback();
+    } catch (error) {
+      console.error(error);
+    }
   }, [client]);
 
   const contextValue = useMemo(() => {
