@@ -15,12 +15,13 @@ const defaultOnRedirectCallback = () => {
 };
 
 const KindeProvider = ({
+  audience,
   clientId,
   children,
   domain,
   redirectUri,
   onRedirectCallback = defaultOnRedirectCallback,
-  logoutUri = redirectUri
+  logoutUri
 }) => {
   const [client, setClient] = useState();
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -30,6 +31,7 @@ const KindeProvider = ({
     try {
       const getClient = async () => {
         const kindeClient = await createKindeClient({
+          audience,
           client_id: clientId,
           domain,
           redirect_uri: redirectUri,
@@ -100,18 +102,9 @@ const KindeProvider = ({
       login,
       register,
       logout,
-      handleRedirectCallback,
       createOrg
     };
-  }, [
-    state,
-    getToken,
-    login,
-    register,
-    logout,
-    handleRedirectCallback,
-    createOrg
-  ]);
+  }, [state, getToken, login, register, logout, createOrg]);
 
   return (
     <KindeContext.Provider value={contextValue}>
