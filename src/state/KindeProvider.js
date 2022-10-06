@@ -35,7 +35,8 @@ const KindeProvider = ({
           client_id: clientId,
           domain,
           redirect_uri: redirectUri,
-          logout_uri: logoutUri
+          logout_uri: logoutUri,
+          on_redirect_callback: onRedirectCallback
         });
         setClient(kindeClient);
       };
