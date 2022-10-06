@@ -9,7 +9,6 @@ const handleError = () => {
 
 const initialContext = {
   ...initialState,
-  getUser: handleError,
   getToken: handleError,
   login: handleError,
   logout: handleError,
