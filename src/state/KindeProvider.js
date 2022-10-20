@@ -19,6 +19,7 @@ const KindeProvider = ({
   clientId,
   children,
   domain,
+  isDangerouslyUseLocalStorage = false,
   redirectUri,
   onRedirectCallback = defaultOnRedirectCallback,
   logoutUri
@@ -34,6 +35,7 @@ const KindeProvider = ({
           audience,
           client_id: clientId,
           domain,
+          is_dangerously_use_local_storage: isDangerouslyUseLocalStorage,
           redirect_uri: redirectUri,
           logout_uri: logoutUri,
           on_redirect_callback: onRedirectCallback
@@ -46,7 +48,14 @@ const KindeProvider = ({
       console.error(err);
     }
     return () => (isSubscribed = false);
-  }, [audience, clientId, domain, redirectUri, logoutUri]);
+  }, [
+    audience,
+    clientId,
+    domain,
+    isDangerouslyUseLocalStorage,
+    redirectUri,
+    logoutUri
+  ]);
 
   useEffect(() => {
     let isSubscribed = true;
