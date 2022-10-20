@@ -18,4 +18,4 @@ yarn add @kinde-oss/kinde-auth-react
 
 ## How to use
 
-The easiest way to get up and going is following this guide on our docs site [https://kinde.com/docs/sdks/react-sdk](https://kinde.com/docs/sdks/react-sdk)
+The easiest way to get up and going is following this guide on our docs site [https://kinde.com/docs/developer-tools/react-sdk](https://kinde.com/docs/developer-tools/react-sdk)
