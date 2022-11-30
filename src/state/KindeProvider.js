@@ -59,10 +59,10 @@ const KindeProvider = ({
 
   useEffect(() => {
     let isSubscribed = true;
-    (async () => {
+    (() => {
       if (client && isSubscribed) {
         try {
-          const user = await client.getUser();
+          const user = client.getUser();
           dispatch({type: 'INITIALISED', user});
         } catch (error) {
           console.log(error);
