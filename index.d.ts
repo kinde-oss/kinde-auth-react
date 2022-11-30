@@ -1,7 +1,7 @@
 import React from 'react';
 
-export function useKindeAuth(): State & KindeToken;
-export function KindeProvider({
+export declare function useKindeAuth(): State & KindeClient;
+export declare function KindeProvider({
   children
 }: {
   children: any;
@@ -30,6 +30,7 @@ export type KindeToken = {
 export type KindeClient = {
   getToken: () => Promise<string | undefined>;
   getUser: () => Promise<KindeUser | undefined>;
+  handleRedirectCallback: () => Promise<{kindeState: KindeToken} | undefined>;
   login: (options: any) => Promise<void>;
   logout: () => Promise<void>;
   register: (options: any) => Promise<void>;
