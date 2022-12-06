@@ -16,6 +16,7 @@ const defaultOnRedirectCallback = () => {
 
 const KindeProvider = ({
   audience,
+  scope,
   clientId,
   children,
   domain,
@@ -33,6 +34,7 @@ const KindeProvider = ({
       const getClient = async () => {
         const kindeClient = await createKindeClient({
           audience,
+          scope,
           client_id: clientId,
           domain,
           is_dangerously_use_local_storage: isDangerouslyUseLocalStorage,
@@ -50,6 +52,7 @@ const KindeProvider = ({
     return () => (isSubscribed = false);
   }, [
     audience,
+    scope,
     clientId,
     domain,
     isDangerouslyUseLocalStorage,
@@ -77,7 +80,26 @@ const KindeProvider = ({
 
   const register = useCallback((options) => client.register(options), [client]);
 
-  const logout = useCallback((options) => client.logout(options), [client]);
+  const logout = useCallback(() => client.logout(), [client]);
+
+  const getClaim = useCallback(
+    (claim, tokenType) => client.getClaim(claim, tokenType),
+    [client]
+  );
+
+  const getPermissions = useCallback(() => client.getPermissions(), [client]);
+
+  const getPermission = useCallback(
+    (key) => client.getPermission(key),
+    [client]
+  );
+
+  const getOrganization = useCallback(() => client.getOrganization(), [client]);
+
+  const getUserOrganizations = useCallback(
+    () => client.getUserOrganizations(),
+    [client]
+  );
 
   const createOrg = useCallback(
     (options) => client.createOrg(options),
@@ -101,9 +123,26 @@ const KindeProvider = ({
       login,
       register,
       logout,
-      createOrg
+      createOrg,
+      getClaim,
+      getPermissions,
+      getPermission,
+      getOrganization,
+      getUserOrganizations
     };
-  }, [state, getToken, login, register, logout, createOrg]);
+  }, [
+    state,
+    getToken,
+    login,
+    register,
+    logout,
+    createOrg,
+    getClaim,
+    getPermissions,
+    getPermission,
+    getOrganization,
+    getUserOrganizations
+  ]);
 
   return (
     <KindeContext.Provider value={contextValue}>
