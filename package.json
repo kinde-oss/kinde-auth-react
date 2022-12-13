@@ -22,7 +22,7 @@
   },
   "bugs": "https://github.com/kinde-oss/kinde-auth-react",
   "homepage": "https://kinde.com",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "devDependencies": {
     "@babel/plugin-transform-runtime": "^7.17.0",
     "@babel/preset-react": "^7.16.7",
@@ -49,7 +49,8 @@
     "react-dom": "^17.0.2 || ^18"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE.md"
   ],
   "private": false,
   "dependencies": {
