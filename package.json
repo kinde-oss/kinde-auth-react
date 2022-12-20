@@ -1,6 +1,6 @@
 {
   "name": "@kinde-oss/kinde-auth-react",
-  "version": "1.0.9",
+  "version": "1.0.11",
   "description": "Kinde React SDK for authentication",
   "type": "module",
   "module": "dist/kinde-auth-react.esm.js",
@@ -22,7 +22,7 @@
   },
   "bugs": "https://github.com/kinde-oss/kinde-auth-react",
   "homepage": "https://kinde.com",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "devDependencies": {
     "@babel/plugin-transform-runtime": "^7.17.0",
     "@babel/preset-react": "^7.16.7",
@@ -59,11 +59,12 @@
     "react-dom": "^17.0.2 || ^18"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE.md"
   ],
   "private": false,
   "dependencies": {
     "@auth0/auth0-react": "^1.12.0",
-    "@kinde-oss/kinde-auth-pkce-js": "^1.0.8"
+    "@kinde-oss/kinde-auth-pkce-js": "^1.0.10"
   }
 }

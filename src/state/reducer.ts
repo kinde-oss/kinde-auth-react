@@ -9,14 +9,6 @@ const onInitialise = (state: State, action: Pick<State, 'user'>): State => ({
   error: undefined
 });
 
-const onComplete = (state: State, action: Partial<State>): State =>
-  state.user?.updated_at === action.user?.updated_at
-    ? state
-    : {
-        ...state,
-        isAuthenticated: !!action.user,
-        user: action.user
-      };
 
 const onLogout = (state: State): State => ({
   ...state,
@@ -32,8 +24,6 @@ const onError = (state: State, action: Partial<State>): State => ({
 
 const reducerMap = {
   INITIALISED: onInitialise,
-  ON_REDIRECT_COMPLETE: onComplete,
-  GET_ACCESS_TOKEN_COMPLETE: onComplete,
   LOGOUT: onLogout,
   ERROR: onError
 };
