@@ -3,7 +3,6 @@ export type KindeUser = {
   id: string | null;
   family_name: string | null;
   email: string | null;
-  updated_at: number;
 };
 
 export type State = {

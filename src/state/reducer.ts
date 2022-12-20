@@ -1,6 +1,8 @@
-import {KindeUser, State} from './types';
+import { KindeUser, State } from './types';
 
-type Action = {type: 'INITIALISED'; user: KindeUser} | {type: 'ERROR', error: string};
+type Action =
+  | { type: 'INITIALISED'; user: KindeUser }
+  | { type: 'ERROR'; error: string };
 const onInitialise = (state: State, action: Pick<State, 'user'>): State => ({
   ...state,
   isAuthenticated: Boolean(action.user),
