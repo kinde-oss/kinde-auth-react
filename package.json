@@ -1,6 +1,6 @@
 {
   "name": "@kinde-oss/kinde-auth-react",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Kinde React SDK for authentication",
   "module": "dist/kinde-auth-react.esm.js",
   "main": "dist/kinde-auth-react.umd.min.js",
@@ -59,6 +59,7 @@
   },
   "files": [
     "dist",
+    "src",
     "LICENSE.md"
   ],
   "private": false,
