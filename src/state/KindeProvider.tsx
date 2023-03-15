@@ -9,6 +9,7 @@ import React, {
 import { initialState } from './initialState';
 import { KindeContext } from './KindeContext';
 import { reducer } from './reducer';
+import { version } from '../utils/version';
 
 const defaultOnRedirectCallback = () => {
   window.history.replaceState({}, document.title, window.location.pathname);
@@ -52,7 +53,9 @@ export const KindeProvider = ({
           is_dangerously_use_local_storage: isDangerouslyUseLocalStorage,
           redirect_uri: redirectUri,
           logout_uri: logoutUri,
-          on_redirect_callback: onRedirectCallback
+          on_redirect_callback: onRedirectCallback,
+          _framework: 'React',
+          _frameworkVersion: version
         });
         setClient(kindeClient);
       };
