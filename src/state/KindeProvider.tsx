@@ -16,11 +16,11 @@ const defaultOnRedirectCallback = () => {
 };
 
 type KindeProviderProps = {
-  audience: string;
-  scope: string;
-  clientId: string;
+  audience?: string;
+  scope?: string;
+  clientId?: string;
   domain: string;
-  logoutUri: string;
+  logoutUri?: string;
   redirectUri: string;
   children: React.ReactNode;
   isDangerouslyUseLocalStorage?: boolean;
