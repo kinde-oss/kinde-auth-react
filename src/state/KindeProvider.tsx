@@ -17,14 +17,14 @@ const defaultOnRedirectCallback = () => {
 
 type KindeProviderProps = {
   audience?: string;
-  scope?: string;
+  children: React.ReactNode;
   clientId?: string;
   domain: string;
+  isDangerouslyUseLocalStorage?: boolean;
   logoutUri?: string;
   redirectUri: string;
-  children: React.ReactNode;
-  isDangerouslyUseLocalStorage?: boolean;
   onRedirectCallback?: () => void;
+  scope?: string;
 };
 export const KindeProvider = ({
   audience,
