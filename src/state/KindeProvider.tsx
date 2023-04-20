@@ -109,6 +109,30 @@ export const KindeProvider = ({
     [client]
   );
 
+  const getFlag = useCallback(
+    (code: string, defaultValue?: any, flagType?: 's' | 'b' | 'i') =>
+      client!.getFlag(code, defaultValue, flagType),
+    [client]
+  );
+
+  const getBooleanFlag = useCallback(
+    (code: string, defaultValue?: any) =>
+      client!.getBooleanFlag(code, defaultValue),
+    [client]
+  );
+
+  const getIntegerFlag = useCallback(
+    (code: string, defaultValue?: any) =>
+      client!.getIntegerFlag(code, defaultValue),
+    [client]
+  );
+
+  const getStringFlag = useCallback(
+    (code: string, defaultValue?: any) =>
+      client!.getStringFlag(code, defaultValue),
+    [client]
+  );
+
   const getPermissions = useCallback(() => client!.getPermissions(), [client]);
 
   const getPermission = useCallback(
@@ -149,10 +173,14 @@ export const KindeProvider = ({
       register,
       logout,
       createOrg,
+      getBooleanFlag,
       getClaim,
+      getFlag,
+      getIntegerFlag,
       getPermissions,
       getPermission,
       getOrganization,
+      getStringFlag,
       getUserOrganizations
     };
   }, [

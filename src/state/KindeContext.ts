@@ -10,6 +10,10 @@ export interface KindeContextProps extends State {
   logout: KindeClient['logout'];
   createOrg: KindeClient['createOrg'];
   getClaim: KindeClient['getClaim'];
+  getFlag: KindeClient['getFlag'];
+  getBooleanFlag: KindeClient['getBooleanFlag'];
+  getIntegerFlag: KindeClient['getIntegerFlag'];
+  getStringFlag: KindeClient['getStringFlag'];
   getPermissions: KindeClient['getPermissions'];
   getPermission: KindeClient['getPermission'];
   getOrganization: KindeClient['getOrganization'];
