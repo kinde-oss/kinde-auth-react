@@ -10,7 +10,7 @@
     "test": "jest",
     "watch": "rollup -c -w",
     "release": "release-it",
-    "lint": "eslint"
+    "lint": "eslint --ignore-path .eslintignore --ext .js,.ts ."
   },
   "author": {
     "name": "Kinde",
