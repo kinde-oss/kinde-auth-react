@@ -5,7 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install dependencies and build 🔧
         run: npm ci
       - name: Initialize Git user
