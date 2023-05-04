@@ -8,7 +8,9 @@
   "scripts": {
     "build": "genversion --es6 src/utils/version.js && rollup -c",
     "test": "jest",
-    "watch": "rollup -c -w"
+    "watch": "rollup -c -w",
+    "release": "release-it",
+    "lint": "eslint --ignore-path .eslintignore --ext .js,.ts ."
   },
   "author": {
     "name": "Kinde",
@@ -40,6 +42,7 @@
     "prettier": "^2.5.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "release-it": "^15.10.3",
     "rollup": "^3.7.0",
     "rollup-plugin-dts": "^5.0.0",
     "rollup-plugin-peer-deps-external": "^2.2.4",
