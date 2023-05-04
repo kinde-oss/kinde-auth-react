@@ -7,9 +7,6 @@
     "before:init": ["git pull", "npm run lint"],
     "after:bump": "npx auto-changelog -p && npm run build"
   },
-  "github": {
-    "release": true
-  },
   "npm": {
     "publish": true
   }
