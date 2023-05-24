@@ -1,27 +1,23 @@
-# Kinde React SDK
+# Kinde React
 
-Kinde React SDK for authentication.
+The Kinde SDK for React.
 
-
-[![NPM](https://img.shields.io/npm/v/@kinde-oss/kinde-auth-react.svg)](https://www.npmjs.com/package/@kinde-oss/kinde-auth-react)
-[![Documentation](https://img.shields.io/badge/Kinde-Docs-green.svg)](https://kinde.com/docs)
-[![Slack](https://img.shields.io/badge/Chat-Slack-pink.svg)](https://join.slack.com/t/thekindecommunity/shared_invite/zt-1pwhkx0gg-se1H8nY9Y8CwAY6Ppzi~Nw)
-[![Twitter](https://img.shields.io/twitter/follow/HeyKinde?style=social)](https://twitter.com/intent/follow?screen_name=HeyKinde)
-
-## Install
-
-Run the following command using npm:
-
-```
-npm install @kinde-oss/kinde-auth-react
-```
-
-If you prefer Yarn, use this command instead:
-
-```
-yarn add @kinde-oss/kinde-auth-react
-```
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://makeapullrequest.com) [![Kinde Docs](https://img.shields.io/badge/Kinde-Docs-eee?style=flat-square)](https://kinde.com/docs/developer-tools/react-sdk) [![Kinde Community](https://img.shields.io/badge/Kinde-Community-eee?style=flat-square)](https://thekindecommunity.slack.com)
 
 ## Documentation
 
-The easiest way to get up and going is following the [React setup guide](https://kinde.com/docs/developer-tools/react-sdk) on our docs site
+Please refer to the Kinde [React SDK document](https://kinde.com/docs/developer-tools/react-sdk).
+
+## Publishing
+
+The core team handles publishing.
+
+To publish a new package version, use the “Release and Publish to NPM” action in the “Actions” tab.
+
+## Contributing
+
+Please refer to Kinde’s [contributing guidelines](https://github.com/kinde-oss/.github/blob/489e2ca9c3307c2b2e098a885e22f2239116394a/CONTRIBUTING.md).
+
+## License
+
+By contributing to Kinde, you agree that your contributions will be licensed under its MIT License.
