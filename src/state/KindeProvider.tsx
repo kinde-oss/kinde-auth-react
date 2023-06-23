@@ -10,6 +10,7 @@ import { initialState } from './initialState';
 import { KindeContext } from './KindeContext';
 import { reducer } from './reducer';
 import { version } from '../utils/version';
+import { KindeUser, State } from './types';
 
 const defaultOnRedirectCallback = () => {
   window.history.replaceState({}, document.title, window.location.pathname);
@@ -23,7 +24,7 @@ type KindeProviderProps = {
   isDangerouslyUseLocalStorage?: boolean;
   logoutUri?: string;
   redirectUri: string;
-  onRedirectCallback?: () => void;
+  onRedirectCallback?: (user: KindeUser, state?: State) => void;
   scope?: string;
 };
 export const KindeProvider = ({
