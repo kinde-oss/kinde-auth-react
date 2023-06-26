@@ -24,7 +24,7 @@ type KindeProviderProps = {
   isDangerouslyUseLocalStorage?: boolean;
   logoutUri?: string;
   redirectUri: string;
-  onRedirectCallback?: (user: KindeUser, state?: State) => void;
+  onRedirectCallback?: (user: KindeUser, state?: object) => void;
   scope?: string;
 };
 export const KindeProvider = ({
