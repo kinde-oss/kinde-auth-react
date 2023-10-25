@@ -10,7 +10,9 @@
     "test": "jest",
     "watch": "rollup -c -w",
     "release": "release-it",
-    "lint": "eslint --ignore-path .eslintignore --ext .js,.ts ."
+    "lint": "eslint --ignore-path .eslintignore --ext .js,.ts .",
+    "dev:prepare": "git clone https://github.com/kinde-starter-kits/react-starter-kit playground && npm link && cd playground && mv .env_sample .env && npm uninstall @kinde-oss/kinde-auth-react && rm -rf .git && npm link @kinde-oss/kinde-auth-react",
+    "dev": "cd playground && npm start"
   },
   "author": {
     "name": "Kinde",
