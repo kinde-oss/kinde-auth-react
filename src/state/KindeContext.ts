@@ -18,6 +18,7 @@ export interface KindeContextProps extends State {
   getPermission: KindeClient['getPermission'];
   getOrganization: KindeClient['getOrganization'];
   getToken: KindeClient['getToken'];
+  getIdToken: KindeClient['getIdToken'];
   getUser: KindeClient['getUser'];
   getUserOrganizations: KindeClient['getUserOrganizations'];
 }

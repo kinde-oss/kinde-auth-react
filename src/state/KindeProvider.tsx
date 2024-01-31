@@ -166,10 +166,21 @@ export const KindeProvider = ({
     return token;
   }, [client]);
 
+  const getIdToken = useCallback(async () => {
+    let idToken;
+    try {
+      idToken = await client!.getIdToken();
+    } catch (error) {
+      throw console.error(error);
+    }
+    return idToken;
+  }, [client]);
+
   const contextValue = useMemo(() => {
     return {
       ...state,
       getToken,
+      getIdToken,
       login,
       register,
       logout,
@@ -187,6 +198,7 @@ export const KindeProvider = ({
   }, [
     state,
     getToken,
+    getIdToken,
     login,
     register,
     logout,
