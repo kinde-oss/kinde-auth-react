@@ -176,6 +176,11 @@ export const KindeProvider = ({
     return idToken;
   }, [client]);
 
+  const getUser = useCallback(
+    () => client!.getUser(),
+    [client]
+  );
+
   const contextValue = useMemo(() => {
     return {
       ...state,
@@ -193,7 +198,8 @@ export const KindeProvider = ({
       getPermission,
       getOrganization,
       getStringFlag,
-      getUserOrganizations
+      getUserOrganizations,
+      getUser
     };
   }, [
     state,
@@ -207,7 +213,8 @@ export const KindeProvider = ({
     getPermissions,
     getPermission,
     getOrganization,
-    getUserOrganizations
+    getUserOrganizations,
+    getUser
   ]);
 
   return (
