@@ -176,10 +176,7 @@ export const KindeProvider = ({
     return idToken;
   }, [client]);
 
-  const getUser = useCallback(
-    () => client!.getUser(),
-    [client]
-  );
+  const getUser = useCallback(() => client!.getUser(), [client]);
 
   const contextValue = useMemo(() => {
     return {
