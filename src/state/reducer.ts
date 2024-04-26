@@ -11,7 +11,6 @@ const onInitialise = (state: State, action: Pick<State, 'user'>): State => ({
   error: undefined
 });
 
-
 const onLogout = (state: State): State => ({
   ...state,
   isAuthenticated: false,
