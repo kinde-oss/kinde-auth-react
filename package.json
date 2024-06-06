@@ -71,6 +71,6 @@
   ],
   "private": false,
   "dependencies": {
-    "@kinde-oss/kinde-auth-pkce-js": "^3.1.0"
+    "@kinde-oss/kinde-auth-pkce-js": "^4.0.0-0"
   }
 }

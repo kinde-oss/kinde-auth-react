@@ -16,6 +16,13 @@ const defaultOnRedirectCallback = () => {
   window.history.replaceState({}, document.title, window.location.pathname);
 };
 
+type ErrorProps = {
+  error: string;
+  errorDescription: string;
+  state: string;
+  appState: Record<string, unknown>;
+};
+
 type KindeProviderProps = {
   audience?: string;
   children: React.ReactNode;
@@ -24,7 +31,8 @@ type KindeProviderProps = {
   isDangerouslyUseLocalStorage?: boolean;
   logoutUri?: string;
   redirectUri: string;
-  onRedirectCallback?: (user: KindeUser, state?: object) => void;
+  onRedirectCallback?: (user: KindeUser, state?: Record<string, unknown>) => void;
+  onErrorCallback?: (props: ErrorProps) => void;
   scope?: string;
 };
 export const KindeProvider = ({
@@ -36,6 +44,7 @@ export const KindeProvider = ({
   isDangerouslyUseLocalStorage = false,
   redirectUri,
   onRedirectCallback = defaultOnRedirectCallback,
+  onErrorCallback,
   logoutUri
 }: KindeProviderProps) => {
   const [client, setClient] =
@@ -55,6 +64,7 @@ export const KindeProvider = ({
           redirect_uri: redirectUri,
           logout_uri: logoutUri,
           on_redirect_callback: onRedirectCallback,
+          on_error_callback: onErrorCallback,
           _framework: 'React',
           _frameworkVersion: version
         });
