@@ -31,7 +31,10 @@ type KindeProviderProps = {
   isDangerouslyUseLocalStorage?: boolean;
   logoutUri?: string;
   redirectUri: string;
-  onRedirectCallback?: (user: KindeUser, state?: Record<string, unknown>) => void;
+  onRedirectCallback?: (
+    user: KindeUser,
+    state?: Record<string, unknown>
+  ) => void;
   onErrorCallback?: (props: ErrorProps) => void;
   scope?: string;
 };
@@ -85,7 +88,9 @@ export const KindeProvider = ({
     domain,
     isDangerouslyUseLocalStorage,
     redirectUri,
-    logoutUri
+    logoutUri,
+    onRedirectCallback,
+    onErrorCallback
   ]);
 
   useEffect(() => {
