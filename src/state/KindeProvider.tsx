@@ -90,7 +90,11 @@ export const KindeProvider = ({
     redirectUri,
     logoutUri,
     onRedirectCallback,
-    onErrorCallback
+    onErrorCallback,
+    getBooleanFlag,
+    getIntegerFlag,
+    getFlag,
+    getStringFlag
   ]);
 
   useEffect(() => {
