@@ -1,4 +1,9 @@
-import createKindeClient from '@kinde-oss/kinde-auth-pkce-js';
+import createKindeClient, {
+  AuthOptions,
+  ClaimTokenKey,
+  KindeFlagValueType,
+  OrgOptions
+} from '@kinde-oss/kinde-auth-pkce-js';
 import React, {
   useCallback,
   useEffect,
@@ -6,10 +11,10 @@ import React, {
   useReducer,
   useState
 } from 'react';
+import { version } from '../utils/version';
 import { initialState } from './initialState';
 import { KindeContext } from './KindeContext';
 import { reducer } from './reducer';
-import { version } from '../utils/version';
 import { KindeUser } from './types';
 
 const defaultOnRedirectCallback = () => {
@@ -83,7 +88,7 @@ export const KindeProvider = ({
     (() => {
       if (client && isSubscribed) {
         try {
-          const user = client!.getUser();
+          const user = client?.getUser();
           dispatch({ type: 'INITIALISED', user });
         } catch (error) {
           console.log(error);
@@ -96,70 +101,80 @@ export const KindeProvider = ({
     };
   }, [client]);
 
-  const login = useCallback((options: any) => client!.login(options), [client]);
-
-  const register = useCallback(
-    (options: any) => client!.register(options),
+  const login = useCallback(
+    (options?: AuthOptions) => client?.login(options) || Promise.resolve(),
     [client]
   );
 
-  const logout = useCallback(() => client!.logout(), [client]);
+  const register = useCallback(
+    (options?: AuthOptions) => client?.register(options) || Promise.resolve(),
+    [client]
+  );
+
+  const logout = useCallback(
+    () => client?.logout() || Promise.resolve(),
+    [client]
+  );
 
   const getClaim = useCallback(
-    (claim: string, tokenType?: string) => client!.getClaim(claim, tokenType),
+    (claim: string, tokenType?: ClaimTokenKey) =>
+      client?.getClaim(claim, tokenType) || null,
     [client]
   );
 
   const getFlag = useCallback(
-    (code: string, defaultValue?: any, flagType?: 's' | 'b' | 'i') =>
-      client!.getFlag(code, defaultValue, flagType),
+    (
+      code: string,
+      defaultValue?: KindeFlagValueType['s' | 'b' | 'i'],
+      flagType?: 's' | 'b' | 'i'
+    ) => client?.getFlag(code, defaultValue, flagType) || defaultValue,
     [client]
   );
 
   const getBooleanFlag = useCallback(
-    (code: string, defaultValue?: any) =>
-      client!.getBooleanFlag(code, defaultValue),
+    (code: string, defaultValue?: boolean) =>
+      client?.getBooleanFlag(code, defaultValue) || defaultValue || false,
     [client]
   );
 
   const getIntegerFlag = useCallback(
-    (code: string, defaultValue?: any) =>
-      client!.getIntegerFlag(code, defaultValue),
+    (code: string, defaultValue: number) =>
+      client?.getIntegerFlag(code, defaultValue) || defaultValue,
     [client]
   );
 
   const getStringFlag = useCallback(
-    (code: string, defaultValue?: any) =>
-      client!.getStringFlag(code, defaultValue),
+    (code: string, defaultValue: string) =>
+      client?.getStringFlag(code, defaultValue) || defaultValue,
     [client]
   );
 
-  const getPermissions = useCallback(() => client!.getPermissions(), [client]);
+  const getPermissions = useCallback(() => client?.getPermissions(), [client]);
 
   const getPermission = useCallback(
-    (key: string) => client!.getPermission(key),
+    (key: string) => client?.getPermission(key),
     [client]
   );
 
   const getOrganization = useCallback(
-    () => client!.getOrganization(),
+    () => client?.getOrganization(),
     [client]
   );
 
   const getUserOrganizations = useCallback(
-    () => client!.getUserOrganizations(),
+    () => client?.getUserOrganizations(),
     [client]
   );
 
   const createOrg = useCallback(
-    (options: any) => client!.createOrg(options),
+    (options?: OrgOptions) => client?.createOrg(options) || Promise.resolve(),
     [client]
   );
 
   const getToken = useCallback(async () => {
     let token;
     try {
-      token = await client!.getToken();
+      token = await client?.getToken();
     } catch (error) {
       throw console.error(error);
     }
@@ -169,14 +184,16 @@ export const KindeProvider = ({
   const getIdToken = useCallback(async () => {
     let idToken;
     try {
-      idToken = await client!.getIdToken();
+      idToken = await client?.getIdToken();
     } catch (error) {
       throw console.error(error);
     }
     return idToken;
   }, [client]);
 
-  const getUser = useCallback(() => client!.getUser(), [client]);
+  const getUser = useCallback(() => {
+    return client?.getUser() || undefined;
+  }, [client]);
 
   const contextValue = useMemo(() => {
     return {
@@ -215,6 +232,8 @@ export const KindeProvider = ({
   ]);
 
   return (
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     <KindeContext.Provider value={contextValue}>
       {children}
     </KindeContext.Provider>
