@@ -1,12 +1,12 @@
 {
   "name": "@kinde-oss/kinde-auth-react",
-  "version": "3.0.28",
+  "version": "3.0.29-beta.2",
   "description": "Kinde React SDK for authentication",
-  "module": "dist/kinde-auth-react.esm.js",
-  "main": "dist/kinde-auth-react.umd.min.js",
-  "types": "dist/index.d.ts",
+  "module": "./dist/kinde-auth-react.esm.js",
+  "main": "./dist/kinde-auth-react.umd.min.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "genversion --es6 src/utils/version.js && rollup -c",
+    "build": "genversion --es6 src/utils/version.ts && rollup -c",
     "test": "jest",
     "watch": "rollup -c -w",
     "release": "release-it",
