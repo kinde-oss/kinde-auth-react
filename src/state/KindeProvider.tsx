@@ -1,6 +1,8 @@
 import createKindeClient, {
   AuthOptions,
   ClaimTokenKey,
+  ErrorProps,
+  GetTokenOptions,
   KindeFlagValueType,
   OrgOptions
 } from '@kinde-oss/kinde-auth-pkce-js';
@@ -29,9 +31,14 @@ type KindeProviderProps = {
   isDangerouslyUseLocalStorage?: boolean;
   logoutUri?: string;
   redirectUri: string;
-  onRedirectCallback?: (user: KindeUser, state?: object) => void;
+  onRedirectCallback?: (
+    user: KindeUser,
+    state?: Record<string, unknown>
+  ) => void;
+  onErrorCallback?: (props: ErrorProps) => void;
   scope?: string;
 };
+
 export const KindeProvider = ({
   audience,
   scope,
@@ -41,6 +48,7 @@ export const KindeProvider = ({
   isDangerouslyUseLocalStorage = false,
   redirectUri,
   onRedirectCallback = defaultOnRedirectCallback,
+  onErrorCallback,
   logoutUri
 }: KindeProviderProps) => {
   const [client, setClient] =
@@ -60,6 +68,7 @@ export const KindeProvider = ({
           redirect_uri: redirectUri,
           logout_uri: logoutUri,
           on_redirect_callback: onRedirectCallback,
+          on_error_callback: onErrorCallback,
           _framework: 'React',
           _frameworkVersion: version
         });
@@ -171,25 +180,31 @@ export const KindeProvider = ({
     [client]
   );
 
-  const getToken = useCallback(async () => {
-    let token;
-    try {
-      token = await client?.getToken();
-    } catch (error) {
-      throw console.error(error);
-    }
-    return token;
-  }, [client]);
+  const getToken = useCallback(
+    async (options: GetTokenOptions) => {
+      let token;
+      try {
+        token = await client?.getToken(options);
+      } catch (error) {
+        throw console.error(error);
+      }
+      return token;
+    },
+    [client]
+  );
 
-  const getIdToken = useCallback(async () => {
-    let idToken;
-    try {
-      idToken = await client?.getIdToken();
-    } catch (error) {
-      throw console.error(error);
-    }
-    return idToken;
-  }, [client]);
+  const getIdToken = useCallback(
+    async (options: GetTokenOptions) => {
+      let idToken;
+      try {
+        idToken = await client?.getIdToken(options);
+      } catch (error) {
+        throw console.error(error);
+      }
+      return idToken;
+    },
+    [client]
+  );
 
   const getUser = useCallback(() => {
     return client?.getUser() || undefined;
