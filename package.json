@@ -2,13 +2,12 @@
   "name": "@kinde-oss/kinde-auth-react",
   "version": "4.0.4",
   "description": "Kinde React SDK for authentication",
-  "module": "./dist/kinde-auth-react.esm.js",
-  "main": "./dist/kinde-auth-react.umd.min.js",
+  "module": "./dist/kinde-auth-react.mjs",
+  "main": "./dist/kinde-auth-react.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "genversion --es6 src/utils/version.ts && rollup -c",
-    "test": "jest",
-    "watch": "rollup -c -w",
+    "build": "tsc && vite build",
+    "test": "vitest",
     "release": "release-it",
     "lint": "eslint --ignore-path .eslintignore --ext .js,.ts .",
     "lint:fix": "prettier --write .",
@@ -30,11 +29,7 @@
   "devDependencies": {
     "@babel/plugin-transform-runtime": "^7.17.0",
     "@babel/preset-react": "^7.16.7",
-    "@rollup/plugin-babel": "^6.0.3",
-    "@rollup/plugin-commonjs": "23.0.4",
-    "@rollup/plugin-node-resolve": "15.0.1",
-    "@rollup/plugin-terser": "^0.1.0",
-    "@rollup/plugin-typescript": "^10.0.1",
+    "@types/node": "^22.7.5",
     "@types/react": "18.0.26",
     "@typescript-eslint/eslint-plugin": "5.46.0",
     "@typescript-eslint/parser": "5.46.0",
@@ -50,7 +45,9 @@
     "rollup-plugin-dts": "^5.0.0",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-typescript2": "0.34.1",
-    "typescript": "4.9.4"
+    "typescript": "4.9.4",
+    "vite": "^5.4.8",
+    "vitest": "^2.1.2"
   },
   "keywords": [
     "Kinde",
@@ -71,7 +68,9 @@
   ],
   "private": false,
   "dependencies": {
-    "@kinde-oss/kinde-auth-pkce-js": "^4.2.2"
+    "@kinde-oss/kinde-auth-pkce-js": "^4.2.2",
+    "@vitejs/plugin-react": "^4.3.2",
+    "vite-plugin-dts": "^4.2.4"
   },
   "packageManager": "pnpm@8.14.1+sha256.2df78e65d433d7693b9d3fbdaf431b2d96bb4f96a2ffecd51a50efe16e50a6a8"
 }
