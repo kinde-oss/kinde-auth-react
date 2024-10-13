@@ -4,20 +4,20 @@ import createKindeClient, {
   ErrorProps,
   GetTokenOptions,
   KindeFlagValueType,
-  OrgOptions
-} from '@kinde-oss/kinde-auth-pkce-js';
+  OrgOptions,
+} from "@kinde-oss/kinde-auth-pkce-js";
 import React, {
   useCallback,
   useEffect,
   useMemo,
   useReducer,
-  useState
-} from 'react';
-import { version } from '../utils/version';
-import { initialState } from './initialState';
-import { KindeContext } from './KindeContext';
-import { reducer } from './reducer';
-import { KindeUser } from './types';
+  useState,
+} from "react";
+import { version } from "../utils/version";
+import { initialState } from "./initialState";
+import { KindeContext } from "./KindeContext";
+import { reducer } from "./reducer";
+import { KindeUser } from "./types";
 
 const defaultOnRedirectCallback = () => {
   window.history.replaceState({}, document.title, window.location.pathname);
@@ -33,7 +33,7 @@ type KindeProviderProps = {
   redirectUri: string;
   onRedirectCallback?: (
     user: KindeUser,
-    state?: Record<string, unknown>
+    state?: Record<string, unknown>,
   ) => void;
   onErrorCallback?: (props: ErrorProps) => void;
   scope?: string;
@@ -49,7 +49,7 @@ export const KindeProvider = ({
   redirectUri,
   onRedirectCallback = defaultOnRedirectCallback,
   onErrorCallback,
-  logoutUri
+  logoutUri,
 }: KindeProviderProps) => {
   const [client, setClient] =
     useState<Awaited<ReturnType<typeof createKindeClient>>>();
@@ -69,8 +69,8 @@ export const KindeProvider = ({
           logout_uri: logoutUri,
           on_redirect_callback: onRedirectCallback,
           on_error_callback: onErrorCallback,
-          _framework: 'React',
-          _frameworkVersion: version
+          _framework: "React",
+          _frameworkVersion: version,
         });
         setClient(kindeClient);
       };
@@ -89,7 +89,7 @@ export const KindeProvider = ({
     domain,
     isDangerouslyUseLocalStorage,
     redirectUri,
-    logoutUri
+    logoutUri,
   ]);
 
   useEffect(() => {
@@ -98,10 +98,10 @@ export const KindeProvider = ({
       if (client && isSubscribed) {
         try {
           const user = client?.getUser();
-          dispatch({ type: 'INITIALISED', user });
+          dispatch({ type: "INITIALISED", user });
         } catch (error) {
           console.log(error);
-          dispatch({ type: 'ERROR', error: 'login error' });
+          dispatch({ type: "ERROR", error: "login error" });
         }
       }
     })();
@@ -112,72 +112,72 @@ export const KindeProvider = ({
 
   const login = useCallback(
     (options?: AuthOptions) => client?.login(options) || Promise.resolve(),
-    [client]
+    [client],
   );
 
   const register = useCallback(
     (options?: AuthOptions) => client?.register(options) || Promise.resolve(),
-    [client]
+    [client],
   );
 
   const logout = useCallback(
     () => client?.logout() || Promise.resolve(),
-    [client]
+    [client],
   );
 
   const getClaim = useCallback(
     (claim: string, tokenType?: ClaimTokenKey) =>
       client?.getClaim(claim, tokenType) || null,
-    [client]
+    [client],
   );
 
   const getFlag = useCallback(
     (
       code: string,
-      defaultValue?: KindeFlagValueType['s' | 'b' | 'i'],
-      flagType?: 's' | 'b' | 'i'
+      defaultValue?: KindeFlagValueType["s" | "b" | "i"],
+      flagType?: "s" | "b" | "i",
     ) => client?.getFlag(code, defaultValue, flagType) || defaultValue,
-    [client]
+    [client],
   );
 
   const getBooleanFlag = useCallback(
     (code: string, defaultValue?: boolean) =>
       client?.getBooleanFlag(code, defaultValue) || defaultValue || false,
-    [client]
+    [client],
   );
 
   const getIntegerFlag = useCallback(
     (code: string, defaultValue: number) =>
       client?.getIntegerFlag(code, defaultValue) || defaultValue,
-    [client]
+    [client],
   );
 
   const getStringFlag = useCallback(
     (code: string, defaultValue: string) =>
       client?.getStringFlag(code, defaultValue) || defaultValue,
-    [client]
+    [client],
   );
 
   const getPermissions = useCallback(() => client?.getPermissions(), [client]);
 
   const getPermission = useCallback(
     (key: string) => client?.getPermission(key),
-    [client]
+    [client],
   );
 
   const getOrganization = useCallback(
     () => client?.getOrganization(),
-    [client]
+    [client],
   );
 
   const getUserOrganizations = useCallback(
     () => client?.getUserOrganizations(),
-    [client]
+    [client],
   );
 
   const createOrg = useCallback(
     (options?: OrgOptions) => client?.createOrg(options) || Promise.resolve(),
-    [client]
+    [client],
   );
 
   const getToken = useCallback(
@@ -190,7 +190,7 @@ export const KindeProvider = ({
       }
       return token;
     },
-    [client]
+    [client],
   );
 
   const getIdToken = useCallback(
@@ -203,7 +203,7 @@ export const KindeProvider = ({
       }
       return idToken;
     },
-    [client]
+    [client],
   );
 
   const getUser = useCallback(() => {
@@ -228,7 +228,7 @@ export const KindeProvider = ({
       getOrganization,
       getStringFlag,
       getUserOrganizations,
-      getUser
+      getUser,
     };
   }, [
     state,
@@ -243,7 +243,7 @@ export const KindeProvider = ({
     getPermission,
     getOrganization,
     getUserOrganizations,
-    getUser
+    getUser,
   ]);
 
   return (
