@@ -18,6 +18,7 @@ import { initialState } from "./initialState";
 import { KindeContext } from "./KindeContext";
 import { reducer } from "./reducer";
 import { KindeUser } from "./types";
+import { MemoryStorage, StorageKeys } from "@kinde/js-utils";
 
 const defaultOnRedirectCallback = () => {
   window.history.replaceState({}, document.title, window.location.pathname);
@@ -39,6 +40,14 @@ type KindeProviderProps = {
   scope?: string;
 };
 
+export enum LocalKeys {
+  domain = "domain",
+  clientId = "client_id",
+  audience = "audience",
+  redirectUri = "redirect_uri",
+  logoutUri = "logout_uri",
+}
+
 export const KindeProvider = ({
   audience,
   scope,
@@ -51,12 +60,28 @@ export const KindeProvider = ({
   onErrorCallback,
   logoutUri,
 }: KindeProviderProps) => {
+  /// TODO: Switch out dev mode for local storage
+  const [store] = useState(
+    !process.env.NODE_ENV || process.env.NODE_ENV === "development"
+      ? new MemoryStorage<LocalKeys>()
+      : new MemoryStorage<LocalKeys>(),
+  );
+
   const [client, setClient] =
     useState<Awaited<ReturnType<typeof createKindeClient>>>();
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    let isSubscribed = true;
+    Promise.all([store.setSessionItem(LocalKeys.domain, domain),
+    store.setSessionItem(LocalKeys.clientId, clientId),
+    store.setSessionItem(LocalKeys.audience, audience),
+    store.setSessionItem(LocalKeys.redirectUri, redirectUri),
+    store.setSessionItem(LocalKeys.logoutUri, logoutUri)]
+    )
+
+    
+
+
     try {
       const getClient = async () => {
         const kindeClient = await createKindeClient({
@@ -79,9 +104,7 @@ export const KindeProvider = ({
     } catch (err) {
       console.error(err);
     }
-    return () => {
-      isSubscribed = false;
-    };
+    return;
   }, [
     audience,
     scope,
@@ -229,6 +252,7 @@ export const KindeProvider = ({
       getStringFlag,
       getUserOrganizations,
       getUser,
+      store,
     };
   }, [
     state,
@@ -244,6 +268,7 @@ export const KindeProvider = ({
     getOrganization,
     getUserOrganizations,
     getUser,
+    store,
   ]);
 
   return (

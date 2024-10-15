@@ -5,6 +5,7 @@
   "module": "./dist/kinde-auth-react.mjs",
   "main": "./dist/kinde-auth-react.js",
   "types": "./dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "build": "tsc && vite build",
     "test": "vitest",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@babel/plugin-transform-runtime": "^7.17.0",
     "@babel/preset-react": "^7.16.7",
+    "@testing-library/react": "^16.0.1",
     "@types/node": "^22.7.5",
     "@types/react": "18.0.26",
     "@typescript-eslint/eslint-plugin": "5.46.0",
@@ -69,6 +71,7 @@
   "private": false,
   "dependencies": {
     "@kinde-oss/kinde-auth-pkce-js": "^4.2.2",
+    "@kinde/js-utils": "^0.4.1",
     "@vitejs/plugin-react": "^4.3.2",
     "vite-plugin-dts": "^4.2.4"
   },
