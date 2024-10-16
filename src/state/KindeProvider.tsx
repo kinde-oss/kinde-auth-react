@@ -18,7 +18,7 @@ import { initialState } from "./initialState";
 import { KindeContext } from "./KindeContext";
 import { reducer } from "./reducer";
 import { KindeUser } from "./types";
-import { MemoryStorage, StorageKeys } from "@kinde/js-utils";
+import { MemoryStorage } from "@kinde/js-utils";
 
 const defaultOnRedirectCallback = () => {
   window.history.replaceState({}, document.title, window.location.pathname);
@@ -72,15 +72,13 @@ export const KindeProvider = ({
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    Promise.all([store.setSessionItem(LocalKeys.domain, domain),
-    store.setSessionItem(LocalKeys.clientId, clientId),
-    store.setSessionItem(LocalKeys.audience, audience),
-    store.setSessionItem(LocalKeys.redirectUri, redirectUri),
-    store.setSessionItem(LocalKeys.logoutUri, logoutUri)]
-    )
-
-    
-
+    Promise.all([
+      store.setSessionItem(LocalKeys.domain, domain),
+      store.setSessionItem(LocalKeys.clientId, clientId),
+      store.setSessionItem(LocalKeys.audience, audience),
+      store.setSessionItem(LocalKeys.redirectUri, redirectUri),
+      store.setSessionItem(LocalKeys.logoutUri, logoutUri),
+    ]);
 
     try {
       const getClient = async () => {

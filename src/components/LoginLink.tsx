@@ -1,6 +1,4 @@
 import React, { useMemo, useEffect, useState } from "react";
-
-// Assuming these are correctly imported from your project
 import {
   LoginOptions,
   IssuerRouteTypes,
@@ -10,13 +8,12 @@ import {
 import { useKindeAuth } from "../hooks/useKindeAuth";
 import { LocalKeys } from "../state/KindeProvider";
 
-interface Props {
+interface Props extends Partial<LoginMethodParams> {
   children: React.ReactNode;
-  authParams: Partial<LoginMethodParams>;
 }
 
 // export function LoginLink({ children, ...props }: Props) {
-export function LoginLink({ children, authParams }: Props) {
+export function LoginLink({ children, ...props }: Props) {
   const auth = useKindeAuth();
 
   const [authUrl, setAuthUrl] = useState<string | null>(null);
@@ -26,22 +23,22 @@ export function LoginLink({ children, authParams }: Props) {
     const getAuthUrl = async () => {
       const authProps: LoginOptions = {
         audience: (await auth.store.getSessionItem(
-          LocalKeys.audience
+          LocalKeys.audience,
         )) as string,
         clientId: (await auth.store.getSessionItem(
-          LocalKeys.clientId
+          LocalKeys.clientId,
         )) as string,
         redirectURL: "",
         prompt: "login",
-        ...authParams,
+        ...props,
       };
       const domain = (await auth.store.getSessionItem(
-        LocalKeys.domain
+        LocalKeys.domain,
       )) as string;
       return generateAuthUrl(domain, IssuerRouteTypes.login, authProps);
     };
     return getAuthUrl();
-  }, [auth, authParams]);
+  }, [auth, props]);
 
   useEffect(() => {
     let isMounted = true; // Track if the component is still mounted

@@ -2,7 +2,7 @@ import createKindeClient from "@kinde-oss/kinde-auth-pkce-js";
 import { createContext } from "react";
 import { initialState } from "./initialState";
 import { State } from "./types";
-import { SessionManager } from "@kinde/js-utils";
+import { MemoryStorage } from "@kinde/js-utils";
 import { LocalKeys } from "./KindeProvider";
 
 type KindeClient = Awaited<ReturnType<typeof createKindeClient>>;
@@ -23,7 +23,7 @@ export interface KindeContextProps extends State {
   getIdToken: KindeClient["getIdToken"];
   getUser: KindeClient["getUser"];
   getUserOrganizations: KindeClient["getUserOrganizations"];
-  store: SessionManager<LocalKeys>;
+  store: MemoryStorage<LocalKeys>;
 }
 
 const initialContext = {

@@ -5,7 +5,7 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   test: {
-    root: "",
+    environment: 'jsdom',
   },
   build: {
     copyPublicDir: false,
