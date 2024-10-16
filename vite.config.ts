@@ -4,6 +4,9 @@ import dts from "vite-plugin-dts";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
+  test: {
+    root: "",
+  },
   build: {
     copyPublicDir: false,
     lib: {
@@ -19,7 +22,7 @@ export default defineConfig({
       external: ["react", "react-native"],
     },
   },
-  root: "lib",
+  // root: "lib",
   base: "",
   resolve: { alias: { src: resolve(__dirname, "./lib") } },
   plugins: [dts({ insertTypesEntry: true, outDir: "../dist" }), react()],
