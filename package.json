@@ -6,6 +6,16 @@
   "main": "./dist/kinde-auth-react.js",
   "types": "./dist/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.cjs",
+      "require": "./dist/main.js"
+    },
+    "./components": {
+      "import": "./dist/components.cjs",
+      "require": "./dist/components.js"
+    }
+  },
   "scripts": {
     "build": "tsc && vite build",
     "test": "vitest",

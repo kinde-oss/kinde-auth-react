@@ -10,13 +10,17 @@ export default defineConfig({
   build: {
     copyPublicDir: false,
     lib: {
-      entry: resolve(__dirname, "src/index.ts"),
+      entry: {
+        index: resolve(__dirname, "src/index.ts"),
+        components: resolve(__dirname, "src/components/index.ts"),
+      },
       formats: ["es", "cjs"],
       name: "@kinde-oss/kinde-auth-react",
-      fileName: "kinde-auth-react",
+      fileName: (format, entryName) =>
+        format === "es" ? `${entryName}.cjs` : `${entryName}.js`,
     },
     target: "esnext",
-    outDir: "../dist",
+    outDir: "dist",
     emptyOutDir: true,
     rollupOptions: {
       external: ["react", "react-native"],
@@ -24,6 +28,6 @@ export default defineConfig({
   },
   // root: "lib",
   base: "",
-  resolve: { alias: { src: resolve(__dirname, "./lib") } },
+  resolve: { alias: { src: resolve(__dirname, "/") } },
   plugins: [dts({ insertTypesEntry: true, outDir: "../dist" }), react()],
 });
