@@ -17,24 +17,24 @@ export function LoginLink({ children, ...props }: Props) {
   const auth = useKindeAuth();
 
   const [authUrl, setAuthUrl] = useState<string | null>(null);
-  console.log(authUrl);
 
   const authUrlPromise = useMemo(() => {
     const getAuthUrl = async () => {
       const authProps: LoginOptions = {
         audience: (await auth.store.getSessionItem(
-          LocalKeys.audience,
+          LocalKeys.audience
         )) as string,
         clientId: (await auth.store.getSessionItem(
-          LocalKeys.clientId,
+          LocalKeys.clientId
         )) as string,
         redirectURL: "",
         prompt: "login",
         ...props,
       };
       const domain = (await auth.store.getSessionItem(
-        LocalKeys.domain,
+        LocalKeys.domain
       )) as string;
+
       return generateAuthUrl(domain, IssuerRouteTypes.login, authProps);
     };
     return getAuthUrl();
@@ -45,7 +45,7 @@ export function LoginLink({ children, ...props }: Props) {
 
     authUrlPromise.then((url) => {
       if (isMounted) {
-        setAuthUrl(url.url.toString());
+        setAuthUrl(url?.url.toString());
       }
     });
 
