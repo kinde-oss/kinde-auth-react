@@ -15,5 +15,8 @@
     "skipLibCheck": true,
     "jsx": "react"
   },
-  "include": ["src/**/*", "types/**/*"]
+  "include": ["src/**/*", "types/**/*"],
+  "exclude": [
+    "src/**/*.test.tsx"
+  ]
 }

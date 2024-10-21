@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RegisterLink } from "./RegisterLink";
+import { RegisterLink } from ".";
 
 afterEach(() => {
   cleanup();
