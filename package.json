@@ -9,15 +9,17 @@
   "exports": {
     ".": {
       "import": "./dist/index.cjs",
-      "require": "./dist/main.js"
+      "require": "./dist/main.js",
+      "types": "./dist/types/index.d.ts"
     },
     "./components": {
       "import": "./dist/components.cjs",
-      "require": "./dist/components.js"
+      "require": "./dist/components.js",
+      "types": "./dist/types/components/index.d.ts"
     }
   },
   "scripts": {
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && mv types dist",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
     "release": "release-it",
@@ -88,7 +90,7 @@
   "private": false,
   "dependencies": {
     "@kinde-oss/kinde-auth-pkce-js": "^4.2.2",
-    "@kinde/js-utils": "^0.4.1"
+    "@kinde/js-utils": "0.4.1"
   },
   "packageManager": "pnpm@8.14.1+sha256.2df78e65d433d7693b9d3fbdaf431b2d96bb4f96a2ffecd51a50efe16e50a6a8"
 }
