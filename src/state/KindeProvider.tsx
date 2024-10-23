@@ -22,7 +22,6 @@ import {
   MemoryStorage,
   Scopes,
   generateAuthUrl,
-  getClaim,
 } from "@kinde/js-utils";
 
 const defaultOnRedirectCallback = () => {
@@ -310,7 +309,6 @@ export const KindeProvider = ({
       logout,
       createOrg,
       getBooleanFlag,
-      getClaim,
       getFlag,
       getIntegerFlag,
       getPermissions,
@@ -329,7 +327,6 @@ export const KindeProvider = ({
     register,
     logout,
     createOrg,
-    getClaim,
     getPermissions,
     getPermission,
     getOrganization,

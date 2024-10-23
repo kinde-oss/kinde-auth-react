@@ -1,40 +1,29 @@
 import React, { useMemo, useEffect, useState } from "react";
-import {
-  LoginOptions,
-  IssuerRouteTypes,
-  generateAuthUrl,
-  LoginMethodParams,
-} from "@kinde/js-utils";
 import { useKindeAuth } from "../hooks/useKindeAuth";
 import { LocalKeys } from "../state/KindeProvider";
 
-interface Props extends Partial<LoginMethodParams>, React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
+  redirectUrl?: string;
 }
 
-export function RegisterLink({ children, ...props }: Props) {
+export function LogoutLink({ children, ...props }: Props) {
   const auth = useKindeAuth();
 
   const [authUrl, setAuthUrl] = useState<string | null>(null);
 
   const authUrlPromise = useMemo(() => {
     const getAuthUrl = async () => {
-      const authProps: LoginOptions = {
-        audience: (await auth.store.getSessionItem(
-          LocalKeys.audience
-        )) as string,
-        clientId: (await auth.store.getSessionItem(
-          LocalKeys.clientId
-        )) as string,
-        redirectURL: "",
-        prompt: "register",
-        ...props,
-      };
       const domain = (await auth.store.getSessionItem(
         LocalKeys.domain
       )) as string;
 
-      return generateAuthUrl(domain, IssuerRouteTypes.register, authProps);
+      const params = new URLSearchParams()
+      if (props.redirectUrl) {
+        params.append("redirect", props.redirectUrl)
+      }
+
+      return new URL(`${domain}/logout?${params.toString()}`);
     };
     return getAuthUrl();
   }, [auth, props]);
@@ -44,7 +33,7 @@ export function RegisterLink({ children, ...props }: Props) {
 
     authUrlPromise.then((url) => {
       if (isMounted) {
-        setAuthUrl(url?.url.toString());
+        setAuthUrl(url.toString());
       }
     });
 

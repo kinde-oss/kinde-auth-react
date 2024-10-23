@@ -4,20 +4,19 @@ import {
   IssuerRouteTypes,
   generateAuthUrl,
   LoginMethodParams,
+  generateRandomString,
 } from "@kinde/js-utils";
 import { useKindeAuth } from "../hooks/useKindeAuth";
 import { LocalKeys } from "../state/KindeProvider";
 
-interface Props extends Partial<LoginMethodParams> {
+interface Props extends Partial<LoginMethodParams>, React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
 }
 
-// export function LoginLink({ children, ...props }: Props) {
 export function LoginLink({ children, ...props }: Props) {
   const auth = useKindeAuth();
 
   const [authUrl, setAuthUrl] = useState<string | null>(null);
-
   const authUrlPromise = useMemo(() => {
     const getAuthUrl = async () => {
       const authProps: LoginOptions = {
@@ -27,7 +26,7 @@ export function LoginLink({ children, ...props }: Props) {
         clientId: (await auth.store.getSessionItem(
           LocalKeys.clientId
         )) as string,
-        redirectURL: "",
+        redirectURL: props.redirectURL || import.meta.env.VITE_KINDE_REDIRECT_URL || window.location.origin,
         prompt: "login",
         ...props,
       };
@@ -35,13 +34,16 @@ export function LoginLink({ children, ...props }: Props) {
         LocalKeys.domain
       )) as string;
 
+      authProps.audience = "";
+      authProps.codeChallenge = generateRandomString();
+      authProps.codeChallengeMethod = "S256";
       return generateAuthUrl(domain, IssuerRouteTypes.login, authProps);
     };
     return getAuthUrl();
   }, [auth, props]);
 
   useEffect(() => {
-    let isMounted = true; // Track if the component is still mounted
+    let isMounted = true;
 
     authUrlPromise.then((url) => {
       if (isMounted) {
@@ -50,10 +52,9 @@ export function LoginLink({ children, ...props }: Props) {
     });
 
     return () => {
-      isMounted = false; // Cleanup: set isMounted to false on unmount
+      isMounted = false;
     };
-  }, [authUrlPromise]); // Run effect whenever authUrlPromise changes
+  }, [authUrlPromise]);
 
-  // Conditionally render the link to avoid errors
-  return authUrl ? <a href={authUrl}>{children}</a> : <></>;
+  return authUrl ? <button {...props} onClick={() => { document.location = authUrl}}>{children}</button> : <></>;
 }

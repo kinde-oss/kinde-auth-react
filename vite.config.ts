@@ -26,8 +26,7 @@ export default defineConfig({
       external: ["react", "react-native"],
     },
   },
-  // root: "lib",
-  base: "",
+  base: "src",
   resolve: { alias: { src: resolve(__dirname, "/") } },
   plugins: [dts({ insertTypesEntry: true, outDir: "../dist" }), react()],
 });
