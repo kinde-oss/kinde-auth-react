@@ -2,14 +2,14 @@ import createKindeClient from "@kinde-oss/kinde-auth-pkce-js";
 import { createContext } from "react";
 import { initialState } from "./initialState";
 import { State } from "./types";
-import { MemoryStorage } from "@kinde/js-utils";
-import { LocalKeys } from "./KindeProvider";
+import { LoginOptions, MemoryStorage } from "@kinde/js-utils";
+import { AuthOptions, LocalKeys } from "./KindeProvider";
 
 type KindeClient = Awaited<ReturnType<typeof createKindeClient>>;
 export interface KindeContextProps extends State {
-  login: KindeClient["login"];
-  register: KindeClient["register"];
-  logout: KindeClient["logout"];
+  login: (options?: AuthOptions | LoginOptions) => Promise<void>;
+  register: (options?: AuthOptions | LoginOptions) => Promise<void>;
+  logout: () => Promise<void>;
   createOrg: KindeClient["createOrg"];
   getClaim: KindeClient["getClaim"];
   getFlag: KindeClient["getFlag"] | undefined;
@@ -31,5 +31,5 @@ const initialContext = {
 };
 
 export const KindeContext = createContext<KindeContextProps>(
-  initialContext as KindeContextProps,
+  initialContext as KindeContextProps
 );

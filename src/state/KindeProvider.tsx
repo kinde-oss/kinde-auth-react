@@ -1,6 +1,4 @@
 import createKindeClient, {
-  AuthOptions,
-  ClaimTokenKey,
   ErrorProps,
   GetTokenOptions,
   KindeFlagValueType,
@@ -18,23 +16,64 @@ import { initialState } from "./initialState";
 import { KindeContext } from "./KindeContext";
 import { reducer } from "./reducer";
 import { KindeUser } from "./types";
-import { MemoryStorage } from "@kinde/js-utils";
+import {
+  IssuerRouteTypes,
+  LoginOptions,
+  MemoryStorage,
+  Scopes,
+  generateAuthUrl,
+  getClaim,
+} from "@kinde/js-utils";
 
 const defaultOnRedirectCallback = () => {
   window.history.replaceState({}, document.title, window.location.pathname);
 };
 
+export type AuthOptions = {
+  /** @deprecated use `orgCode` field instead */
+  org_code?: string;
+  /** @deprecated TODO: deprecated message */
+  app_state?: Record<string, unknown>;
+  /** @deprecated TODO: deprecated message */
+  authUrlParams?: {
+    audience?: string;
+    codeChallenge?: string;
+    codeChallengeMethod?: string;
+    connectionId?: string;
+    hasSuccessPage?: boolean;
+    isCreateOrg?: boolean;
+    lang?: string;
+    loginHint?: string;
+    nonce?: string;
+    orgCode?: string;
+    orgName?: string;
+    responseType?: string;
+    scope?: Scopes[];
+    state?: string;
+  };
+};
+
+const isAuthOptions = (
+  options: AuthOptions | LoginOptions | undefined
+): options is AuthOptions => {
+  return (
+    (options as AuthOptions).org_code !== undefined ||
+    (options as AuthOptions).app_state !== undefined ||
+    (options as AuthOptions).authUrlParams !== undefined
+  );
+};
+
 type KindeProviderProps = {
   audience?: string;
   children: React.ReactNode;
-  clientId?: string;
+  clientId: string;
   domain: string;
   isDangerouslyUseLocalStorage?: boolean;
   logoutUri?: string;
   redirectUri: string;
   onRedirectCallback?: (
     user: KindeUser,
-    state?: Record<string, unknown>,
+    state?: Record<string, unknown>
   ) => void;
   onErrorCallback?: (props: ErrorProps) => void;
   scope?: string;
@@ -64,7 +103,7 @@ export const KindeProvider = ({
   const [store] = useState(
     !process.env.NODE_ENV || process.env.NODE_ENV === "development"
       ? new MemoryStorage<LocalKeys>()
-      : new MemoryStorage<LocalKeys>(),
+      : new MemoryStorage<LocalKeys>()
   );
 
   const [client, setClient] =
@@ -131,74 +170,104 @@ export const KindeProvider = ({
     };
   }, [client]);
 
-  const login = useCallback(
-    (options?: AuthOptions) => client?.login(options) || Promise.resolve(),
-    [client],
-  );
+  const login = useCallback((options?: AuthOptions | LoginOptions) => {
+    let cleanedOptions: LoginOptions = {
+      clientId: clientId,
+      audience,
+      prompt: "login",
+      redirectURL: redirectUri,
+    };
+    if (isAuthOptions(options)) {
+      if ("org_code" in options) cleanedOptions.orgCode = options.org_code;
+      if ("authUrlParams" in options && options.authUrlParams) {
+        cleanedOptions = {
+          ...cleanedOptions,
+          ...options,
+        };
+      }
+    }
+    window.location.href = generateAuthUrl(
+      domain,
+      IssuerRouteTypes.login,
+      cleanedOptions
+    ).url.toString();
+  }, []);
 
-  const register = useCallback(
-    (options?: AuthOptions) => client?.register(options) || Promise.resolve(),
-    [client],
-  );
+  const register = useCallback((options?: AuthOptions | LoginOptions) => {
+    let cleanedOptions: LoginOptions = {
+      clientId: clientId,
+      audience,
+      prompt: "register",
+      redirectURL: redirectUri,
+    };
+    if (isAuthOptions(options)) {
+      if ("org_code" in options) cleanedOptions.orgCode = options.org_code;
+      if ("authUrlParams" in options && options.authUrlParams) {
+        cleanedOptions = {
+          ...cleanedOptions,
+          ...options,
+        };
+      }
+    }
+    window.location.href = generateAuthUrl(
+      domain,
+      IssuerRouteTypes.register,
+      cleanedOptions
+    ).url.toString();
+  }, []);
 
   const logout = useCallback(
     () => client?.logout() || Promise.resolve(),
-    [client],
-  );
-
-  const getClaim = useCallback(
-    (claim: string, tokenType?: ClaimTokenKey) =>
-      client?.getClaim(claim, tokenType) || null,
-    [client],
+    [client]
   );
 
   const getFlag = useCallback(
     (
       code: string,
       defaultValue?: KindeFlagValueType["s" | "b" | "i"],
-      flagType?: "s" | "b" | "i",
+      flagType?: "s" | "b" | "i"
     ) => client?.getFlag(code, defaultValue, flagType) || defaultValue,
-    [client],
+    [client]
   );
 
   const getBooleanFlag = useCallback(
     (code: string, defaultValue?: boolean) =>
       client?.getBooleanFlag(code, defaultValue) || defaultValue || false,
-    [client],
+    [client]
   );
 
   const getIntegerFlag = useCallback(
     (code: string, defaultValue: number) =>
       client?.getIntegerFlag(code, defaultValue) || defaultValue,
-    [client],
+    [client]
   );
 
   const getStringFlag = useCallback(
     (code: string, defaultValue: string) =>
       client?.getStringFlag(code, defaultValue) || defaultValue,
-    [client],
+    [client]
   );
 
   const getPermissions = useCallback(() => client?.getPermissions(), [client]);
 
   const getPermission = useCallback(
     (key: string) => client?.getPermission(key),
-    [client],
+    [client]
   );
 
   const getOrganization = useCallback(
     () => client?.getOrganization(),
-    [client],
+    [client]
   );
 
   const getUserOrganizations = useCallback(
     () => client?.getUserOrganizations(),
-    [client],
+    [client]
   );
 
   const createOrg = useCallback(
     (options?: OrgOptions) => client?.createOrg(options) || Promise.resolve(),
-    [client],
+    [client]
   );
 
   const getToken = useCallback(
@@ -211,7 +280,7 @@ export const KindeProvider = ({
       }
       return token;
     },
-    [client],
+    [client]
   );
 
   const getIdToken = useCallback(
@@ -224,7 +293,7 @@ export const KindeProvider = ({
       }
       return idToken;
     },
-    [client],
+    [client]
   );
 
   const getUser = useCallback(() => {
