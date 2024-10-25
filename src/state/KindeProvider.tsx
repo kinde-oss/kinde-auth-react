@@ -22,7 +22,12 @@ import {
   MemoryStorage,
   Scopes,
   generateAuthUrl,
+  generateRandomString,
+  getUserProfile,
 } from "@kinde/js-utils";
+import { handleRedirectToApp } from "../utils/handleRedirectToApp";
+import { createHmac } from "crypto";
+import { setupChallenge } from "../utils/setupChallenge";
 
 const defaultOnRedirectCallback = () => {
   window.history.replaceState({}, document.title, window.location.pathname);
@@ -105,9 +110,40 @@ export const KindeProvider = ({
       : new MemoryStorage<LocalKeys>()
   );
 
-  const [client, setClient] =
-    useState<Awaited<ReturnType<typeof createKindeClient>>>();
+  console.log("store", store);
+
+  // const [client, setClient] =
+  //   useState<Awaited<ReturnType<typeof createKindeClient>>>();
   const [state, dispatch] = useReducer(reducer, initialState);
+
+  const init = async () => {
+    const q = new URLSearchParams(window.location.search);
+    // Is a redirect from Kinde Auth server
+    if (isKindeRedirect(q)) {
+      await handleRedirectToApp(q, store);
+    } else {
+      // For onload / new tab / page refresh
+      // if (isUseCookie || isUseLocalStorage) {
+      //   await useRefreshToken();
+      // }
+    }
+  };
+
+  const isKindeRedirect = (searchParams: URLSearchParams) => {
+    // Check if the search params hve the code parameter
+    const hasOauthCode = searchParams.has("code");
+    const hasError = searchParams.has("error");
+    if (!hasOauthCode && !hasError) return false;
+    // Also check if redirect_uri matches current url
+    const { protocol, host, pathname } = window.location;
+
+    const currentRedirectUri = redirectUri || `${protocol}//${host}${pathname}`;
+
+    return (
+      currentRedirectUri === redirectUri ||
+      currentRedirectUri === `${redirectUri}/`
+    );
+  };
 
   useEffect(() => {
     Promise.all([
@@ -117,29 +153,7 @@ export const KindeProvider = ({
       store.setSessionItem(LocalKeys.redirectUri, redirectUri),
       store.setSessionItem(LocalKeys.logoutUri, logoutUri),
     ]);
-
-    try {
-      const getClient = async () => {
-        const kindeClient = await createKindeClient({
-          audience,
-          scope,
-          client_id: clientId,
-          domain,
-          is_dangerously_use_local_storage: isDangerouslyUseLocalStorage,
-          redirect_uri: redirectUri,
-          logout_uri: logoutUri,
-          on_redirect_callback: onRedirectCallback,
-          on_error_callback: onErrorCallback,
-          _framework: "React",
-          _frameworkVersion: version,
-        });
-        setClient(kindeClient);
-      };
-
-      void getClient();
-    } catch (err) {
-      console.error(err);
-    }
+    init();
     return;
   }, [
     audience,
@@ -151,45 +165,70 @@ export const KindeProvider = ({
     logoutUri,
   ]);
 
-  useEffect(() => {
-    let isSubscribed = true;
-    (() => {
-      if (client && isSubscribed) {
-        try {
-          const user = client?.getUser();
-          dispatch({ type: "INITIALISED", user });
-        } catch (error) {
-          console.log(error);
-          dispatch({ type: "ERROR", error: "login error" });
-        }
-      }
-    })();
-    return () => {
-      isSubscribed = false;
-    };
-  }, [client]);
+  // useEffect(() => {
+  //   let isSubscribed = true;
+  //   (() => {
+  //     if (client && isSubscribed) {
+  //       try {
+  //         const user = client?.getUser();
+  //         dispatch({ type: "INITIALISED", user });
+  //       } catch (error) {
+  //         console.log(error);
+  //         dispatch({ type: "ERROR", error: "login error" });
+  //       }
+  //     }
+  //   })();
+  //   return () => {
+  //     isSubscribed = false;
+  //   };
+  // }, [client]);
 
-  const login = useCallback((options?: AuthOptions | LoginOptions) => {
-    let cleanedOptions: LoginOptions = {
+  const login = useCallback(async (options?: AuthOptions | LoginOptions) => {
+    let authProps: LoginOptions = {
       clientId: clientId,
       audience,
       prompt: "login",
       redirectURL: redirectUri,
     };
+
     if (isAuthOptions(options)) {
-      if ("org_code" in options) cleanedOptions.orgCode = options.org_code;
-      if ("authUrlParams" in options && options.authUrlParams) {
-        cleanedOptions = {
-          ...cleanedOptions,
-          ...options,
+      const { org_code, authUrlParams, app_state, ...rest } = options;
+      if (org_code) authProps.orgCode = options.org_code;
+      if (authUrlParams) {
+        authProps = {
+          ...authProps,
+          ...authUrlParams,
         };
       }
+      if (app_state) {
+        // TODO: Implement app_state
+      }
+      authProps = {
+        ...authProps,
+        ...rest,
+      };
+    } else {
+      authProps = {
+        ...authProps,
+        ...options,
+      };
     }
-    window.location.href = generateAuthUrl(
-      domain,
-      IssuerRouteTypes.login,
-      cleanedOptions
-    ).url.toString();
+
+    const { codeChallenge, state } = await setupChallenge(store);
+    console.log("codeChallenge", codeChallenge);
+
+    authProps.audience = "";
+    authProps.codeChallenge = codeChallenge;
+    authProps.codeChallengeMethod = "S256";
+    authProps.state = state;
+
+    console.log("store", store);
+
+    // window.location.href = generateAuthUrl(
+    //   domain,
+    //   IssuerRouteTypes.login,
+    //   authProps
+    // ).url.toString();
   }, []);
 
   const register = useCallback((options?: AuthOptions | LoginOptions) => {
@@ -215,123 +254,123 @@ export const KindeProvider = ({
     ).url.toString();
   }, []);
 
-  const logout = useCallback(
-    () => client?.logout() || Promise.resolve(),
-    [client]
-  );
+  const logout = useCallback((redirectUrl?: string) => {
+    const params = new URLSearchParams();
+    if (redirectUrl) {
+      params.append("redirect", redirectUrl);
+    }
 
-  const getFlag = useCallback(
-    (
-      code: string,
-      defaultValue?: KindeFlagValueType["s" | "b" | "i"],
-      flagType?: "s" | "b" | "i"
-    ) => client?.getFlag(code, defaultValue, flagType) || defaultValue,
-    [client]
-  );
+    return new URL(`${domain}/logout?${params.toString()}`);
+  }, []);
 
-  const getBooleanFlag = useCallback(
-    (code: string, defaultValue?: boolean) =>
-      client?.getBooleanFlag(code, defaultValue) || defaultValue || false,
-    [client]
-  );
+  // const getFlag = useCallback(
+  //   (
+  //     code: string,
+  //     defaultValue?: KindeFlagValueType["s" | "b" | "i"],
+  //     flagType?: "s" | "b" | "i"
+  //   ) => client?.getFlag(code, defaultValue, flagType) || defaultValue,
+  //   [client]
+  // );
 
-  const getIntegerFlag = useCallback(
-    (code: string, defaultValue: number) =>
-      client?.getIntegerFlag(code, defaultValue) || defaultValue,
-    [client]
-  );
+  // const getBooleanFlag = useCallback(
+  //   (code: string, defaultValue?: boolean) =>
+  //     client?.getBooleanFlag(code, defaultValue) || defaultValue || false,
+  //   [client]
+  // );
 
-  const getStringFlag = useCallback(
-    (code: string, defaultValue: string) =>
-      client?.getStringFlag(code, defaultValue) || defaultValue,
-    [client]
-  );
+  // const getIntegerFlag = useCallback(
+  //   (code: string, defaultValue: number) =>
+  //     client?.getIntegerFlag(code, defaultValue) || defaultValue,
+  //   [client]
+  // );
 
-  const getPermissions = useCallback(() => client?.getPermissions(), [client]);
+  // const getStringFlag = useCallback(
+  //   (code: string, defaultValue: string) =>
+  //     client?.getStringFlag(code, defaultValue) || defaultValue,
+  //   [client]
+  // );
 
-  const getPermission = useCallback(
-    (key: string) => client?.getPermission(key),
-    [client]
-  );
+  // const getPermissions = useCallback(() => client?.getPermissions(), [client]);
 
-  const getOrganization = useCallback(
-    () => client?.getOrganization(),
-    [client]
-  );
+  // const getPermission = useCallback(
+  //   (key: string) => client?.getPermission(key),
+  //   [client]
+  // );
 
-  const getUserOrganizations = useCallback(
-    () => client?.getUserOrganizations(),
-    [client]
-  );
+  // const getOrganization = useCallback(
+  //   () => client?.getOrganization(),
+  //   [client]
+  // );
 
-  const createOrg = useCallback(
-    (options?: OrgOptions) => client?.createOrg(options) || Promise.resolve(),
-    [client]
-  );
+  // const getUserOrganizations = useCallback(
+  //   () => client?.getUserOrganizations(),
+  //   [client]
+  // );
 
-  const getToken = useCallback(
-    async (options: GetTokenOptions) => {
-      let token;
-      try {
-        token = await client?.getToken(options);
-      } catch (error) {
-        throw console.error(error);
-      }
-      return token;
-    },
-    [client]
-  );
+  // const createOrg = useCallback(
+  //   (options?: OrgOptions) => client?.createOrg(options) || Promise.resolve(),
+  //   [client]
+  // );
 
-  const getIdToken = useCallback(
-    async (options: GetTokenOptions) => {
-      let idToken;
-      try {
-        idToken = await client?.getIdToken(options);
-      } catch (error) {
-        throw console.error(error);
-      }
-      return idToken;
-    },
-    [client]
-  );
+  // const getToken = useCallback(
+  //   async (options: GetTokenOptions) => {
+  //     let token;
+  //     try {
+  //       token = await client?.getToken(options);
+  //     } catch (error) {
+  //       throw console.error(error);
+  //     }
+  //     return token;
+  //   },
+  //   [client]
+  // );
 
-  const getUser = useCallback(() => {
-    return client?.getUser() || undefined;
-  }, [client]);
+  // const getIdToken = useCallback(
+  //   async (options: GetTokenOptions) => {
+  //     let idToken;
+  //     try {
+  //       idToken = await client?.getIdToken(options);
+  //     } catch (error) {
+  //       throw console.error(error);
+  //     }
+  //     return idToken;
+  //   },
+  //   [client]
+  // );
 
   const contextValue = useMemo(() => {
     return {
       ...state,
-      getToken,
-      getIdToken,
+      // getToken,
+      // getIdToken,
       login,
       register,
       logout,
-      createOrg,
-      getBooleanFlag,
-      getFlag,
-      getIntegerFlag,
-      getPermissions,
-      getPermission,
-      getOrganization,
-      getStringFlag,
-      getUserOrganizations,
-      getUser,
+      // createOrg,
+      // getBooleanFlag,
+      // getFlag,
+      // getIntegerFlag,
+      // getPermissions,
+      // getPermission,
+      // getOrganization,
+      // getStringFlag,
+      // getUserOrganizations,
+      getUser: getUserProfile,
       store,
     };
   }, [
     state,
-    getToken,
-    getIdToken,
+    // getToken,
+    // getIdToken,
     login,
     register,
     logout,
-    createOrg,
-    getPermissions,
-    getPermission,
-    getOrganization,
-    getUserOrganizations,
-    getUser,
+    // createOrg,
+    // getPermissions,
+    // getPermission,
+    // getOrganization,
+    // getUserOrganizations,
+    getUserProfile,
     store,
   ]);
 
