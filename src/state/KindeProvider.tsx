@@ -1,9 +1,11 @@
-import createKindeClient, {
-  ErrorProps,
-  GetTokenOptions,
-  KindeFlagValueType,
-  OrgOptions,
-} from "@kinde-oss/kinde-auth-pkce-js";
+import { ErrorProps } from "@kinde-oss/kinde-auth-pkce-js";
+import {
+  IssuerRouteTypes,
+  LoginOptions,
+  MemoryStorage,
+  Scopes,
+  generateAuthUrl,
+} from "@kinde/js-utils";
 import React, {
   useCallback,
   useEffect,
@@ -11,23 +13,12 @@ import React, {
   useReducer,
   useState,
 } from "react";
-import { version } from "../utils/version";
+import { handleRedirectToApp } from "../utils/handleRedirectToApp";
+import { setupChallenge } from "../utils/setupChallenge";
 import { initialState } from "./initialState";
 import { KindeContext } from "./KindeContext";
 import { reducer } from "./reducer";
 import { KindeUser } from "./types";
-import {
-  IssuerRouteTypes,
-  LoginOptions,
-  MemoryStorage,
-  Scopes,
-  generateAuthUrl,
-  generateRandomString,
-  getUserProfile,
-} from "@kinde/js-utils";
-import { handleRedirectToApp } from "../utils/handleRedirectToApp";
-import { createHmac } from "crypto";
-import { setupChallenge } from "../utils/setupChallenge";
 
 const defaultOnRedirectCallback = () => {
   window.history.replaceState({}, document.title, window.location.pathname);
@@ -355,7 +346,7 @@ export const KindeProvider = ({
       // getOrganization,
       // getStringFlag,
       // getUserOrganizations,
-      getUser: getUserProfile,
+      // getUser: getUserProfile,
       store,
     };
   }, [
@@ -370,7 +361,7 @@ export const KindeProvider = ({
     // getPermission,
     // getOrganization,
     // getUserOrganizations,
-    getUserProfile,
+    // getUserProfile,
     store,
   ]);
 
