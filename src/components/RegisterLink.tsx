@@ -7,6 +7,7 @@ import {
 } from "@kinde/js-utils";
 import { useKindeAuth } from "../hooks/useKindeAuth";
 import { LocalKeys } from "../state/KindeProvider";
+import { url } from "inspector";
 
 interface Props extends Partial<LoginMethodParams>, React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
@@ -16,6 +17,7 @@ export function RegisterLink({ children, ...props }: Props) {
   const auth = useKindeAuth();
 
   const [authUrl, setAuthUrl] = useState<string | null>(null);
+    
 
   const authUrlPromise = useMemo(() => {
     const getAuthUrl = async () => {
