@@ -15,12 +15,12 @@ export function LogoutLink({ children, ...props }: Props) {
   const authUrlPromise = useMemo(() => {
     const getAuthUrl = async () => {
       const domain = (await auth.store.getSessionItem(
-        LocalKeys.domain
+        LocalKeys.domain,
       )) as string;
 
-      const params = new URLSearchParams()
+      const params = new URLSearchParams();
       if (props.redirectUrl) {
-        params.append("redirect", props.redirectUrl)
+        params.append("redirect", props.redirectUrl);
       }
 
       return new URL(`${domain}/logout?${params.toString()}`);
@@ -42,5 +42,16 @@ export function LogoutLink({ children, ...props }: Props) {
     };
   }, [authUrlPromise]);
 
-  return authUrl ? <button  {...props} onClick={() => { document.location = authUrl}}>{children}</button> : <></>;
+  return authUrl ? (
+    <button
+      {...props}
+      onClick={() => {
+        document.location = authUrl;
+      }}
+    >
+      {children}
+    </button>
+  ) : (
+    <></>
+  );
 }

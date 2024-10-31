@@ -3,13 +3,17 @@ import {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   exchangeAuthCode,
+  isAuthenticated,
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   LocalStorage,
+  LoginMethodParams,
   LoginOptions,
   // MemoryStorage,
   Scopes,
   SessionManager,
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   setActiveStorage,
 } from "@kinde/js-utils";
 import React, { useEffect, useMemo, useReducer, useState } from "react";
@@ -48,7 +52,7 @@ export type AuthOptions = {
 };
 
 const isAuthOptions = (
-  options: AuthOptions | LoginOptions | undefined
+  options: AuthOptions | LoginOptions | undefined,
 ): options is AuthOptions => {
   return (
     (options as AuthOptions).org_code !== undefined ||
@@ -67,7 +71,7 @@ type KindeProviderProps = {
   redirectUri: string;
   onRedirectCallback?: (
     user: KindeUser,
-    state?: Record<string, unknown>
+    state?: Record<string, unknown>,
   ) => void;
   onErrorCallback?: (props: ErrorProps) => void;
   scope?: string;
@@ -97,24 +101,29 @@ export const KindeProvider = ({
   const localStore = new LocalStorage<LocalKeys>();
 
   const [store] = useState<LocalStorage<LocalKeys>>(
-    localStore
+    localStore,
     // !process.env.NODE_ENV || process.env.NODE_ENV === "development"
     //   ? new LocalStorage<LocalKeys>()
     //   : new MemoryStorage<LocalKeys>()
   );
   setActiveStorage(localStore as unknown as SessionManager);
 
+  
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const init = async () => {
     const params = new URLSearchParams(window.location.search);
+
+    const redirectURL = await store.getSessionItem(LocalKeys.redirectUri) as string;
 
     if (params.has("code")) {
       const code = await exchangeAuthCode({
         urlParams: new URLSearchParams(window.location.search),
         domain,
         clientId,
-        redirectURL: redirectUri,
+        redirectURL: redirectURL ||
+          import.meta.env.VITE_KINDE_REDIRECT_URL ||
+          window.location.origin,
       });
       console.log(code);
     }
@@ -188,7 +197,7 @@ export const KindeProvider = ({
   //   };
   // }, [client]);
 
-  // const login = useCallback(async (options?: AuthOptions | LoginOptions) => {
+  // const login = useCallback(async (options?: AuthOptions | LoginMethodParams) => {
   //   let authProps: LoginOptions = {
   //     clientId: clientId,
   //     audience,

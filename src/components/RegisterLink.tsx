@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useCallback } from "react";
 import {
   LoginOptions,
   IssuerRouteTypes,
@@ -7,53 +7,42 @@ import {
 } from "@kinde/js-utils";
 import { useKindeAuth } from "../hooks/useKindeAuth";
 import { LocalKeys } from "../state/KindeProvider";
-import { url } from "inspector";
 
-interface Props extends Partial<LoginMethodParams>, React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface Props
+  extends Partial<LoginMethodParams>,
+    React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
 }
 
 export function RegisterLink({ children, ...props }: Props) {
   const auth = useKindeAuth();
 
-  const [authUrl, setAuthUrl] = useState<string | null>(null);
-    
-
-  const authUrlPromise = useMemo(() => {
-    const getAuthUrl = async () => {
-      const authProps: LoginOptions = {
-        audience: (await auth.store.getSessionItem(
-          LocalKeys.audience
-        )) as string,
-        clientId: (await auth.store.getSessionItem(
-          LocalKeys.clientId
-        )) as string,
-        redirectURL: "",
-        prompt: "register",
-        ...props,
-      };
-      const domain = (await auth.store.getSessionItem(
-        LocalKeys.domain
-      )) as string;
-
-      return generateAuthUrl(domain, IssuerRouteTypes.register, authProps);
+  const register = useCallback(async () => {
+    const authProps: LoginOptions = {
+      audience: (await auth.store.getSessionItem(LocalKeys.audience)) as string,
+      clientId: (await auth.store.getSessionItem(LocalKeys.clientId)) as string,
+      redirectURL:
+        props.redirectURL ||
+        import.meta.env.VITE_KINDE_REDIRECT_URL ||
+        window.location.origin,
+      prompt: "register",
+      ...props,
     };
-    return getAuthUrl();
-  }, [auth, props]);
+    const domain = (await auth.store.getSessionItem(
+      LocalKeys.domain,
+    )) as string;
 
-  useEffect(() => {
-    let isMounted = true;
+    const authUrl = await generateAuthUrl(
+      domain,
+      IssuerRouteTypes.register,
+      authProps,
+    );
+    document.location = authUrl.url.toString();
+  }, []);
 
-    authUrlPromise.then((url) => {
-      if (isMounted) {
-        setAuthUrl(url?.url.toString());
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [authUrlPromise]);
-
-  return authUrl ? <button  {...props} onClick={() => { document.location = authUrl}}>{children}</button> : <></>;
+  return (
+    <button {...props} onClick={() => register()}>
+      {children}
+    </button>
+  );
 }

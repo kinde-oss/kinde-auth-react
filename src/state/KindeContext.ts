@@ -31,5 +31,5 @@ const initialContext = {
 };
 
 export const KindeContext = createContext<KindeContextProps>(
-  initialContext as KindeContextProps
+  initialContext as KindeContextProps,
 );

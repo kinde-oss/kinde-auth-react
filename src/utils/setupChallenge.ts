@@ -33,7 +33,9 @@ async function challengeFromVerifier(v: string): Promise<string> {
 }
 
 const setupChallenge = async (
-  store: LocalStorage<LocalKeys | StartsWithSessionPrefix> | MemoryStorage<LocalKeys | StartsWithSessionPrefix>
+  store:
+    | LocalStorage<LocalKeys | StartsWithSessionPrefix>
+    | MemoryStorage<LocalKeys | StartsWithSessionPrefix>,
 ): Promise<PKCEChallengeState> => {
   console.log("setup challenge");
   const state = generateRandomString();
@@ -50,7 +52,7 @@ const setupChallenge = async (
     JSON.stringify({
       codeVerifier,
       // appState,
-    })
+    }),
   );
 
   // Build and encode the authorisation request url

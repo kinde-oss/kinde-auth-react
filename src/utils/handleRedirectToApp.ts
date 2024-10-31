@@ -12,7 +12,7 @@ const clearUrlParams = () => {
 
 export const handleRedirectToApp = async (
   q: URLSearchParams,
-  store: MemoryStorage<LocalKeys | StartsWithSessionPrefix>
+  store: MemoryStorage<LocalKeys | StartsWithSessionPrefix>,
 ) => {
   const code = q.get("code");
   const state = q.get("state");

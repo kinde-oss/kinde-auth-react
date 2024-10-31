@@ -1,10 +1,9 @@
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useCallback } from "react";
 import {
   LoginOptions,
   IssuerRouteTypes,
   generateAuthUrl,
   LoginMethodParams,
-  generateRandomString,
 } from "@kinde/js-utils";
 import { useKindeAuth } from "../hooks/useKindeAuth";
 import { LocalKeys } from "../state/KindeProvider";
@@ -17,90 +16,47 @@ interface Props
 
 export function LoginLink({ children, ...props }: Props) {
   const auth = useKindeAuth();
-  const [authUrl, setAuthUrl] = useState<string | null>(null);
-  const [audience, setAudience] = useState<string | null>(null);
-  const [clientId, setClientId] = useState<string | null>(null);
-  const [domain, setDomain] = useState<string | null>(null);
 
-  useEffect(() => {
-    const getAudience = async () => {
-      await auth.store.getSessionItem(LocalKeys.audience);
-      const audFromStore = (await auth.store.getSessionItem(
-        LocalKeys.audience
-      )) as string;
-      if (audFromStore !== audience) {
-        setAudience(audFromStore);
-      }
+  const login = useCallback(async () => {
+    const authProps: LoginOptions = {
+      audience: (await auth.store.getSessionItem(LocalKeys.audience)) as string,
+      clientId: (await auth.store.getSessionItem(LocalKeys.clientId)) as string,
+      redirectURL:
+        props.redirectURL ||
+        import.meta.env.VITE_KINDE_REDIRECT_URL ||
+        window.location.origin,
+      prompt: "login",
+      ...props,
     };
-    const getDomain = async () => {
-      await auth.store.getSessionItem(LocalKeys.domain);
-      const domainFromStore = (await auth.store.getSessionItem(
-        LocalKeys.domain
-      )) as string;
-      if (domainFromStore !== domain) {
-        setDomain(domainFromStore as string);
-      }
-    };
-    const getClientId = async () => {
-      await auth.store.getSessionItem(LocalKeys.clientId);
-      const clientIdFromStore = (await auth.store.getSessionItem(
-        LocalKeys.clientId
-      )) as string;
+    const domain = (await auth.store.getSessionItem(
+      LocalKeys.domain,
+    )) as string;
 
-      if (clientIdFromStore !== clientId) {
-        setClientId(clientIdFromStore);
-      }
-    };
-    getDomain();
-    getAudience();
-    getClientId();
-  }, [auth.store, audience, clientId]);
+    authProps.audience = "";
+    const authUrl = await generateAuthUrl(
+      domain,
+      IssuerRouteTypes.login,
+      authProps,
+    );
+    console.log(authUrl);
+    console.log(authUrl.url.toString());
+    document.location = authUrl.url.toString();
+  }, []);
 
-  const authUrlPromise = useMemo(() => {
-    const getAuthUrl = async () => {
-      const authProps: LoginOptions = {
-        audience: audience || "",
-        clientId: clientId || "",
-        redirectURL:
-          props.redirectURL ||
-          import.meta.env.VITE_KINDE_REDIRECT_URL ||
-          window.location.origin,
-        prompt: "login",
-        ...props,
-      };
-
-      authProps.audience = "";
-      authProps.codeChallenge = generateRandomString();
-      authProps.codeChallengeMethod = "S256";
-      return generateAuthUrl(domain!, IssuerRouteTypes.login, authProps);
-    };
-    return getAuthUrl();
-  }, [audience, clientId, domain]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    authUrlPromise.then((url) => {
-      if (isMounted) {
-        setAuthUrl(url?.url.toString());
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [authUrlPromise]);
-
-  return authUrl ? (
+  return (
     <button
       {...props}
       onClick={() => {
-        document.location = authUrl;
+        login();
       }}
     >
       {children}
     </button>
-  ) : (
-    <></>
   );
 }
+
+
+
+// challenge code: FgjLyi9lj5cap3px6C2RLCmoMz0W43fiYbwzO3YN9Lk
+// code: c9V8GJ2RZz3V9LVMgQwN8GJwzrTsddn_6cSVmmwLEmQ.UWHcgtVV-ZpfosVLEQgbBYStK845byEBXsRn1Mvfl9M
+// verifier: 4f70f3f63292ede91234ffdc332b305ad262eb3b65caa648872d7c1c
