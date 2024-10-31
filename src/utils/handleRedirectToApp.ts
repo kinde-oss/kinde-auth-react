@@ -20,8 +20,6 @@ export const handleRedirectToApp = async (
 
   const stringState = await store.getSessionItem(`${SESSION_PREFIX}-${state}`);
 
-  console.log("stringState", stringState);
-
   // Verify state
   if (!stringState) {
     console.error("Invalid state");

@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RegisterLink } from ".";
+import { LogoutLink, RegisterLink } from ".";
 
 afterEach(() => {
   cleanup();
@@ -34,7 +34,7 @@ vi.mock("@kinde/js-utils", async () => {
 describe("RegisterLink Component", () => {
   it("should render correctly when authed", async () => {
     await act(async () => {
-      render(<RegisterLink>Login</RegisterLink>);
+      render(<LogoutLink>Login</LogoutLink>);
     });
     const linkElement = screen.getByText("Login");
     expect(linkElement).toBeInTheDocument();

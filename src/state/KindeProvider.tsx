@@ -1,8 +1,5 @@
-import createKindeClient, {
+import {
   ErrorProps,
-  GetTokenOptions,
-  KindeFlagValueType,
-  OrgOptions,
 } from "@kinde-oss/kinde-auth-pkce-js";
 import React, {
   useCallback,
@@ -11,7 +8,6 @@ import React, {
   useReducer,
   useState,
 } from "react";
-import { version } from "../utils/version";
 import { initialState } from "./initialState";
 import { KindeContext } from "./KindeContext";
 import { reducer } from "./reducer";
@@ -19,14 +15,16 @@ import { KindeUser } from "./types";
 import {
   IssuerRouteTypes,
   LoginOptions,
-  MemoryStorage,
+  // MemoryStorage,
   Scopes,
   generateAuthUrl,
-  generateRandomString,
-  getUserProfile,
+  exchangeAuthCode,
+  LocalStorage,
+  // @ts-ignore
+  setActiveStorage,
+  SessionManager
 } from "@kinde/js-utils";
-import { handleRedirectToApp } from "../utils/handleRedirectToApp";
-import { createHmac } from "crypto";
+// import { handleRedirectToApp } from "../utils/handleRedirectToApp";
 import { setupChallenge } from "../utils/setupChallenge";
 
 const defaultOnRedirectCallback = () => {
@@ -104,55 +102,76 @@ export const KindeProvider = ({
   logoutUri,
 }: KindeProviderProps) => {
   /// TODO: Switch out dev mode for local storage
-  const [store] = useState(
-    !process.env.NODE_ENV || process.env.NODE_ENV === "development"
-      ? new MemoryStorage<LocalKeys>()
-      : new MemoryStorage<LocalKeys>()
+  const localStore = new LocalStorage<LocalKeys>();
+
+  const [store] = useState<LocalStorage<LocalKeys>>(
+    localStore
+    // !process.env.NODE_ENV || process.env.NODE_ENV === "development"
+    //   ? new LocalStorage<LocalKeys>()
+    //   : new MemoryStorage<LocalKeys>()
   );
+  setActiveStorage(localStore as unknown as SessionManager);
 
-  console.log("store", store);
 
-  // const [client, setClient] =
-  //   useState<Awaited<ReturnType<typeof createKindeClient>>>();
   const [state, dispatch] = useReducer(reducer, initialState);
 
+  
+
   const init = async () => {
-    const q = new URLSearchParams(window.location.search);
-    // Is a redirect from Kinde Auth server
-    if (isKindeRedirect(q)) {
-      await handleRedirectToApp(q, store);
-    } else {
-      // For onload / new tab / page refresh
-      // if (isUseCookie || isUseLocalStorage) {
-      //   await useRefreshToken();
-      // }
+    const params = new URLSearchParams(window.location.search);
+    
+    if (params.has("code")) {
+      const code = await exchangeAuthCode({
+        urlParams: new URLSearchParams(window.location.search),
+        domain,
+        clientId,
+        redirectURL: redirectUri,
+      })
+      console.log(code);
     }
+
+
+    // const q = new URLSearchParams(window.location.search);
+    // // Is a redirect from Kinde Auth server
+    // if (isKindeRedirect(q)) {
+    //   await handleRedirectToApp(q, store);
+    // } else {
+    //   // For onload / new tab / page refresh
+    //   // if (isUseCookie || isUseLocalStorage) {
+    //   //   await useRefreshToken();
+    //   // }
+    // }
   };
 
-  const isKindeRedirect = (searchParams: URLSearchParams) => {
-    // Check if the search params hve the code parameter
-    const hasOauthCode = searchParams.has("code");
-    const hasError = searchParams.has("error");
-    if (!hasOauthCode && !hasError) return false;
-    // Also check if redirect_uri matches current url
-    const { protocol, host, pathname } = window.location;
 
-    const currentRedirectUri = redirectUri || `${protocol}//${host}${pathname}`;
 
-    return (
-      currentRedirectUri === redirectUri ||
-      currentRedirectUri === `${redirectUri}/`
-    );
-  };
+  // const isKindeRedirect = (searchParams: URLSearchParams) => {
+  //   // Check if the search params hve the code parameter
+  //   const hasOauthCode = searchParams.has("code");
+  //   const hasError = searchParams.has("error");
+  //   if (!hasOauthCode && !hasError) return false;
+  //   // Also check if redirect_uri matches current url
+  //   const { protocol, host, pathname } = window.location;
+
+  //   console.log("protocol", protocol);
+
+  //   const currentRedirectUri = redirectUri || `${protocol}//${host}${pathname}`;
+
+  //   return (
+  //     currentRedirectUri === redirectUri ||
+  //     currentRedirectUri === `${redirectUri}/`
+  //   );
+  // };
 
   useEffect(() => {
-    Promise.all([
-      store.setSessionItem(LocalKeys.domain, domain),
-      store.setSessionItem(LocalKeys.clientId, clientId),
-      store.setSessionItem(LocalKeys.audience, audience),
-      store.setSessionItem(LocalKeys.redirectUri, redirectUri),
-      store.setSessionItem(LocalKeys.logoutUri, logoutUri),
-    ]);
+    store.setItems({
+      [LocalKeys.domain]: domain,
+      [LocalKeys.clientId]: clientId,
+      [LocalKeys.audience]: audience,
+      [LocalKeys.redirectUri]: redirectUri,
+      [LocalKeys.logoutUri]: logoutUri,
+    });
+
     init();
     return;
   }, [
@@ -164,6 +183,8 @@ export const KindeProvider = ({
     redirectUri,
     logoutUri,
   ]);
+
+  
 
   // useEffect(() => {
   //   let isSubscribed = true;
@@ -183,85 +204,85 @@ export const KindeProvider = ({
   //   };
   // }, [client]);
 
-  const login = useCallback(async (options?: AuthOptions | LoginOptions) => {
-    let authProps: LoginOptions = {
-      clientId: clientId,
-      audience,
-      prompt: "login",
-      redirectURL: redirectUri,
-    };
+  // const login = useCallback(async (options?: AuthOptions | LoginOptions) => {
+  //   let authProps: LoginOptions = {
+  //     clientId: clientId,
+  //     audience,
+  //     prompt: "login",
+  //     redirectURL: redirectUri,
+  //   };
 
-    if (isAuthOptions(options)) {
-      const { org_code, authUrlParams, app_state, ...rest } = options;
-      if (org_code) authProps.orgCode = options.org_code;
-      if (authUrlParams) {
-        authProps = {
-          ...authProps,
-          ...authUrlParams,
-        };
-      }
-      if (app_state) {
-        // TODO: Implement app_state
-      }
-      authProps = {
-        ...authProps,
-        ...rest,
-      };
-    } else {
-      authProps = {
-        ...authProps,
-        ...options,
-      };
-    }
+  //   if (isAuthOptions(options)) {
+  //     const { org_code, authUrlParams, app_state, ...rest } = options;
+  //     if (org_code) authProps.orgCode = options.org_code;
+  //     if (authUrlParams) {
+  //       authProps = {
+  //         ...authProps,
+  //         ...authUrlParams,
+  //       };
+  //     }
+  //     if (app_state) {
+  //       // TODO: Implement app_state
+  //     }
+  //     authProps = {
+  //       ...authProps,
+  //       ...rest,
+  //     };
+  //   } else {
+  //     authProps = {
+  //       ...authProps,
+  //       ...options,
+  //     };
+  //   }
 
-    const { codeChallenge, state } = await setupChallenge(store);
-    console.log("codeChallenge", codeChallenge);
+  //   const { codeChallenge, state } = await setupChallenge(store);
+  //   console.log("codeChallenge", codeChallenge);
 
-    authProps.audience = "";
-    authProps.codeChallenge = codeChallenge;
-    authProps.codeChallengeMethod = "S256";
-    authProps.state = state;
+  //   authProps.audience = "";
+  //   authProps.codeChallenge = codeChallenge;
+  //   authProps.codeChallengeMethod = "S256";
+  //   authProps.state = state;
 
-    console.log("store", store);
+  //   console.log("store", store);
 
-    // window.location.href = generateAuthUrl(
-    //   domain,
-    //   IssuerRouteTypes.login,
-    //   authProps
-    // ).url.toString();
-  }, []);
+  //   // window.location.href = generateAuthUrl(
+  //   //   domain,
+  //   //   IssuerRouteTypes.login,
+  //   //   authProps
+  //   // ).url.toString();
+  // }, []);
 
-  const register = useCallback((options?: AuthOptions | LoginOptions) => {
-    let cleanedOptions: LoginOptions = {
-      clientId: clientId,
-      audience,
-      prompt: "register",
-      redirectURL: redirectUri,
-    };
-    if (isAuthOptions(options)) {
-      if ("org_code" in options) cleanedOptions.orgCode = options.org_code;
-      if ("authUrlParams" in options && options.authUrlParams) {
-        cleanedOptions = {
-          ...cleanedOptions,
-          ...options,
-        };
-      }
-    }
-    window.location.href = generateAuthUrl(
-      domain,
-      IssuerRouteTypes.register,
-      cleanedOptions
-    ).url.toString();
-  }, []);
+  // const register = useCallback(async (options?: AuthOptions | LoginOptions) => {
+  //   let cleanedOptions: LoginOptions = {
+  //     clientId: clientId,
+  //     audience,
+  //     prompt: "register",
+  //     redirectURL: redirectUri,
+  //   };
+  //   if (isAuthOptions(options)) {
+  //     if ("org_code" in options) cleanedOptions.orgCode = options.org_code;
+  //     if ("authUrlParams" in options && options.authUrlParams) {
+  //       cleanedOptions = {
+  //         ...cleanedOptions,
+  //         ...options,
+  //       };
+  //     }
+  //   }
+  //   // window.location.href = (await generateAuthUrl(
+  //   //   domain,
+  //   //   IssuerRouteTypes.register,
+  //   //   cleanedOptions
+  //   // )).url.toString();
+  // }, []);
 
-  const logout = useCallback((redirectUrl?: string) => {
-    const params = new URLSearchParams();
-    if (redirectUrl) {
-      params.append("redirect", redirectUrl);
-    }
+  // const logout = useCallback((redirectUrl?: string) => {
+  //   const params = new URLSearchParams();
+  //   if (redirectUrl) {
+  //     params.append("redirect", redirectUrl);
+  //   }
 
-    return new URL(`${domain}/logout?${params.toString()}`);
-  }, []);
+  //   return new URL(`${domain}/logout?${params.toString()}`);
+  // }, []);
 
   // const getFlag = useCallback(
   //   (
@@ -343,9 +364,9 @@ export const KindeProvider = ({
       ...state,
       // getToken,
       // getIdToken,
-      login,
-      register,
-      logout,
+      // login,
+      // register,
+      // logout,
       // createOrg,
       // getBooleanFlag,
       // getFlag,
@@ -355,27 +376,27 @@ export const KindeProvider = ({
       // getOrganization,
       // getStringFlag,
       // getUserOrganizations,
-      getUser: getUserProfile,
+      // getUser: getUserProfile,
       store,
     };
   }, [
     state,
     // getToken,
     // getIdToken,
-    login,
-    register,
-    logout,
+    // login,
+    // register,
+    // logout,
     // createOrg,
     // getPermissions,
     // getPermission,
     // getOrganization,
     // getUserOrganizations,
-    getUserProfile,
+    // getUserProfile,
     store,
   ]);
 
   return (
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // eslint-disable-next-line @typescript-esli nt/ban-ts-comment
     // @ts-ignore
     <KindeContext.Provider value={contextValue}>
       {children}

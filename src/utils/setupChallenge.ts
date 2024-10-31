@@ -1,8 +1,10 @@
 import {
   generateRandomString,
+  LocalStorage,
   MemoryStorage,
   PKCEChallenge,
   PKCEChallengeState,
+  SessionManager,
 } from "@kinde/js-utils";
 import { SESSION_PREFIX, StartsWithSessionPrefix } from "./handleRedirectToApp";
 import { LocalKeys } from "../state/KindeProvider";
@@ -31,7 +33,7 @@ async function challengeFromVerifier(v: string): Promise<string> {
 }
 
 const setupChallenge = async (
-  store: MemoryStorage<LocalKeys | StartsWithSessionPrefix>
+  store: LocalStorage<LocalKeys | StartsWithSessionPrefix> | MemoryStorage<LocalKeys | StartsWithSessionPrefix>
 ): Promise<PKCEChallengeState> => {
   console.log("setup challenge");
   const state = generateRandomString();

@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   LoginOptions,
   IssuerRouteTypes,
@@ -15,10 +15,17 @@ interface Props extends Partial<LoginMethodParams>, React.ButtonHTMLAttributes<H
 
 export function LoginLink({ children, ...props }: Props) {
   const auth = useKindeAuth();
-
   const [authUrl, setAuthUrl] = useState<string | null>(null);
-  const authUrlPromise = useMemo(() => {
-    const getAuthUrl = async () => {
+  console.log('render loginlink', props);
+  
+
+  useEffect(() => {
+    let isMounted = true;
+    const getAuthUrl = async (): Promise<{
+      url: URL;
+      state: string;
+      nonce: string;
+    }> => {
       const authProps: LoginOptions = {
         audience: (await auth.store.getSessionItem(
           LocalKeys.audience
@@ -34,18 +41,11 @@ export function LoginLink({ children, ...props }: Props) {
         LocalKeys.domain
       )) as string;
 
-      authProps.audience = "";
-      authProps.codeChallenge = generateRandomString();
-      authProps.codeChallengeMethod = "S256";
+      authProps.audience = '';
       return generateAuthUrl(domain, IssuerRouteTypes.login, authProps);
     };
-    return getAuthUrl();
-  }, [auth, props]);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    authUrlPromise.then((url) => {
+    getAuthUrl().then((url) => {
       if (isMounted) {
         setAuthUrl(url?.url.toString());
       }
@@ -54,7 +54,7 @@ export function LoginLink({ children, ...props }: Props) {
     return () => {
       isMounted = false;
     };
-  }, [authUrlPromise]);
+  }, [props]); // Only re-run when auth or props change
 
-  return authUrl ? <button {...props} onClick={() => { document.location = authUrl}}>{children}</button> : <></>;
+  return authUrl ? <button {...props} onClick={() => { document.location = authUrl; }}>{children}</button> : <></>;
 }
