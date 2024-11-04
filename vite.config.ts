@@ -22,10 +22,12 @@ export default defineConfig({
     target: "esnext",
     outDir: "dist",
     emptyOutDir: true,
+    
     rollupOptions: {
       external: ["react", "react-native"],
     },
   },
+  
   base: "src",
   resolve: { alias: { src: resolve(__dirname, "/") } },
   plugins: [dts({ insertTypesEntry: true, outDir: "../dist" }), react()],

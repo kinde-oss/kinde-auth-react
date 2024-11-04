@@ -1,22 +1,29 @@
 import { ErrorProps } from "@kinde-oss/kinde-auth-pkce-js";
 import {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
   exchangeAuthCode,
-  isAuthenticated,
+  generateAuthUrl,
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
+  isAuthenticated as utilIsAuthenticated,
+  IssuerRouteTypes,
   LocalStorage,
   LoginMethodParams,
   LoginOptions,
-  // MemoryStorage,
+  MemoryStorage,
   Scopes,
   SessionManager,
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   setActiveStorage,
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  setInsecureStorage,
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  getDecodedToken,
+  StorageKeys,
 } from "@kinde/js-utils";
-import React, { useEffect, useMemo, useReducer, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { initialState } from "./initialState";
 import { KindeContext } from "./KindeContext";
 import { reducer } from "./reducer";
@@ -52,7 +59,7 @@ export type AuthOptions = {
 };
 
 const isAuthOptions = (
-  options: AuthOptions | LoginOptions | undefined,
+  options: AuthOptions | LoginMethodParams | undefined,
 ): options is AuthOptions => {
   return (
     (options as AuthOptions).org_code !== undefined ||
@@ -85,6 +92,10 @@ export enum LocalKeys {
   logoutUri = "logout_uri",
 }
 
+import * as storeState from './store';
+
+// const memoryStore = new MemoryStorage<LocalKeys>();
+
 export const KindeProvider = ({
   audience,
   scope,
@@ -98,18 +109,38 @@ export const KindeProvider = ({
   logoutUri,
 }: KindeProviderProps) => {
   /// TODO: Switch out dev mode for local storage
-  const localStore = new LocalStorage<LocalKeys>();
+  console.log('creating new storage');
 
-  const [store] = useState<LocalStorage<LocalKeys>>(
-    localStore,
+
+  const localStorage = new LocalStorage<LocalKeys>();
+  useEffect(() => {
+    // setActiveStorage(storeState.default.memoryStorage as unknown as SessionManager);
+    setInsecureStorage(localStorage as unknown as SessionManager);
+  }, []);
+
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // const value = {
+  //   get isAuthenticated() { 
+  //     return true
+  //   },
+  // };
+
+  const [store] = useState<MemoryStorage<LocalKeys>>(
+    storeState.default.memoryStorage as unknown as MemoryStorage<LocalKeys>,
     // !process.env.NODE_ENV || process.env.NODE_ENV === "development"
     //   ? new LocalStorage<LocalKeys>()
     //   : new MemoryStorage<LocalKeys>()
   );
-  setActiveStorage(localStore as unknown as SessionManager);
+  // const [insecureStore] = useState<LocalStorage<LocalKeys>>(
+  //   localStorage,
+  //   // !process.env.NODE_ENV || process.env.NODE_ENV === "development"
+  //   //   ? new LocalStorage<LocalKeys>()
+  //   //   : new MemoryStorage<LocalKeys>()
+  // );
 
   
-  const [state, dispatch] = useReducer(reducer, initialState);
+  // const [state, dispatch] = useReducer(reducer, initialState);
 
   const init = async () => {
     const params = new URLSearchParams(window.location.search);
@@ -125,6 +156,9 @@ export const KindeProvider = ({
           import.meta.env.VITE_KINDE_REDIRECT_URL ||
           window.location.origin,
       });
+      if (code.success) {
+        setIsAuthenticated(true);
+      }
       console.log(code);
     }
 
@@ -196,6 +230,41 @@ export const KindeProvider = ({
   //     isSubscribed = false;
   //   };
   // }, [client]);
+
+  const login = useCallback(async (options?: AuthOptions | LoginMethodParams) => {
+
+    if (isAuthOptions(options)) {
+      console.log("isAuthOptions", options);
+    } else {
+      if (!options) {
+        return
+      }
+
+      const authProps: LoginOptions = {
+        audience: (await store.getSessionItem(LocalKeys.audience)) as string,
+        clientId: (await store.getSessionItem(LocalKeys.clientId)) as string,
+        ...options,
+        redirectURL:
+          options.redirectURL ||
+          import.meta.env.VITE_KINDE_REDIRECT_URL ||
+          window.location.origin,
+        prompt: "login",
+      };
+      const domain = (await store.getSessionItem(
+        LocalKeys.domain,
+      )) as string;
+
+      authProps.audience = "";
+      const authUrl = await generateAuthUrl(
+        domain,
+        IssuerRouteTypes.login,
+        authProps,
+      );
+      console.log(authUrl);
+      console.log(authUrl.url.toString());
+      document.location = authUrl.url.toString();
+    }
+  }, [])
 
   // const login = useCallback(async (options?: AuthOptions | LoginMethodParams) => {
   //   let authProps: LoginOptions = {
@@ -352,12 +421,16 @@ export const KindeProvider = ({
   //   [client]
   // );
 
+
+  
   const contextValue = useMemo(() => {
     return {
-      ...state,
-      // getToken,
+      // ...state,
+      getToken: async () => {
+        return getDecodedToken();
+      },
       // getIdToken,
-      // login,
+      login,
       // register,
       // logout,
       // createOrg,
@@ -371,9 +444,33 @@ export const KindeProvider = ({
       // getUserOrganizations,
       // getUser: getUserProfile,
       store,
+      // get isAuthenticated() {
+      //   const check = async () => {
+      //     const result = await utilIsAuthenticated({
+      //       clientId,
+      //       domain,
+      //       useRefreshToken: true,
+      //     });
+      //     console.log(result, !!result);
+      //     setIsAuthenticated(!!result);
+          
+      //     return result;
+      //   }
+      //   check();
+      //   return isAuthenticated
+      // }
+      isAuthenticated,
+      // isAuthenticated: async () => {
+      //   const result = await isAuthenticated({
+      //     clientId,
+      //     domain,
+      //     useRefreshToken: true,
+      //   });
+      //   return result;
+      // },
     };
   }, [
-    state,
+    // state,
     // getToken,
     // getIdToken,
     // login,

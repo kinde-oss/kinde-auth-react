@@ -18,29 +18,7 @@ export function LoginLink({ children, ...props }: Props) {
   const auth = useKindeAuth();
 
   const login = useCallback(async () => {
-    const authProps: LoginOptions = {
-      audience: (await auth.store.getSessionItem(LocalKeys.audience)) as string,
-      clientId: (await auth.store.getSessionItem(LocalKeys.clientId)) as string,
-      redirectURL:
-        props.redirectURL ||
-        import.meta.env.VITE_KINDE_REDIRECT_URL ||
-        window.location.origin,
-      prompt: "login",
-      ...props,
-    };
-    const domain = (await auth.store.getSessionItem(
-      LocalKeys.domain,
-    )) as string;
-
-    authProps.audience = "";
-    const authUrl = await generateAuthUrl(
-      domain,
-      IssuerRouteTypes.login,
-      authProps,
-    );
-    console.log(authUrl);
-    console.log(authUrl.url.toString());
-    document.location = authUrl.url.toString();
+   auth.login(props as LoginMethodParams);
   }, []);
 
   return (

@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useMemo, useEffect, useState, useCallback } from "react";
 import { useKindeAuth } from "../hooks/useKindeAuth";
 import { LocalKeys } from "../state/KindeProvider";
 
@@ -10,48 +10,25 @@ interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 export function LogoutLink({ children, ...props }: Props) {
   const auth = useKindeAuth();
 
-  const [authUrl, setAuthUrl] = useState<string | null>(null);
+  const logout = useCallback(async () => {
+    const domain = (await auth.store.getSessionItem(
+      LocalKeys.domain,
+    )) as string;
 
-  const authUrlPromise = useMemo(() => {
-    const getAuthUrl = async () => {
-      const domain = (await auth.store.getSessionItem(
-        LocalKeys.domain,
-      )) as string;
-
-      const params = new URLSearchParams();
-      if (props.redirectUrl) {
-        params.append("redirect", props.redirectUrl);
-      }
-
-      return new URL(`${domain}/logout?${params.toString()}`);
-    };
-    return getAuthUrl();
-  }, [auth, props]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    authUrlPromise.then((url) => {
-      if (isMounted) {
-        setAuthUrl(url.toString());
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [authUrlPromise]);
-
-  return authUrl ? (
-    <button
-      {...props}
+    const params = new URLSearchParams();
+    if (props.redirectUrl) {
+      params.append("redirect", props.redirectUrl);
+    }
+    document.location = `${domain}/logout?${params.toString()}`;
+  },[])
+  
+  return (
+    <button {...props}
       onClick={() => {
-        document.location = authUrl;
+       logout();
       }}
     >
       {children}
     </button>
-  ) : (
-    <></>
-  );
+  )
 }

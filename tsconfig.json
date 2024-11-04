@@ -13,7 +13,7 @@
     "strict": true,
     "skipLibCheck": true,
     "jsx": "react",
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client", "@kinde/js-utils"]
   },
   "include": ["src/**/*"],
   "exclude": ["src/**/*.test.tsx"]
