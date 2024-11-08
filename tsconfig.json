@@ -13,7 +13,9 @@
     "strict": true,
     "skipLibCheck": true,
     "jsx": "react",
-    "types": ["node", "vite/client", "@kinde/js-utils"]
+    "types": ["node", "vite/client", "@kinde/js-utils"],
+    "allowSyntheticDefaultImports": true
+    
   },
   "include": ["src/**/*"],
   "exclude": ["src/**/*.test.tsx"]

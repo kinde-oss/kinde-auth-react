@@ -1,10 +1,17 @@
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-import { MemoryStorage, setActiveStorage } from "@kinde/js-utils";
+import { MemoryStorage, setActiveStorage, setInsecureStorage, LocalStorage } from "@kinde/js-utils";
 
-const memoryStorage = new MemoryStorage();
-setActiveStorage(memoryStorage);
-
-export default {
-    memoryStorage: memoryStorage
+enum LocalKeys {
+  domain = "domain",
+  clientId = "client_id",
+  audience = "audience",
+  redirectUri = "redirect_uri",
+  logoutUri = "logout_uri",
 }
+
+const memoryStorage = new MemoryStorage<LocalKeys>();
+const localStorage = new LocalStorage<LocalKeys>();
+
+setActiveStorage(memoryStorage);
+setInsecureStorage(localStorage);
+
+export { memoryStorage, localStorage, LocalKeys };

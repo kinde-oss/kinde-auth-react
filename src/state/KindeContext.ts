@@ -2,14 +2,15 @@ import { createContext } from "react";
 import { initialState } from "./initialState";
 import { State } from "./types";
 import { LoginMethodParams, MemoryStorage } from "@kinde/js-utils";
-import { AuthOptions, LocalKeys } from "./KindeProvider";
+import { AuthOptions } from "./KindeProvider";
+import { LocalKeys } from "./store";
 
 export interface KindeContextProps extends State {
   login: (options?: AuthOptions | LoginMethodParams) => Promise<void>;
   register: (options?: AuthOptions | LoginMethodParams) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: (redirectUri: string) => Promise<void>;
   // createOrg: KindeClient["createOrg"];
-  // getClaim: KindeClient["getClaim"];
+  getClaims: () => Promise<unknown | null>;
   // getFlag: KindeClient["getFlag"] | undefined;
   // getBooleanFlag: KindeClient["getBooleanFlag"];
   // getIntegerFlag: KindeClient["getIntegerFlag"];

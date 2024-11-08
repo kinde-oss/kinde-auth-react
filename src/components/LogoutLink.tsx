@@ -1,6 +1,6 @@
-import React, { useMemo, useEffect, useState, useCallback } from "react";
+import React, { useCallback } from "react";
 import { useKindeAuth } from "../hooks/useKindeAuth";
-import { LocalKeys } from "../state/KindeProvider";
+import { LoginMethodParams } from "@kinde/js-utils";
 
 interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
@@ -11,16 +11,8 @@ export function LogoutLink({ children, ...props }: Props) {
   const auth = useKindeAuth();
 
   const logout = useCallback(async () => {
-    const domain = (await auth.store.getSessionItem(
-      LocalKeys.domain,
-    )) as string;
-
-    const params = new URLSearchParams();
-    if (props.redirectUrl) {
-      params.append("redirect", props.redirectUrl);
-    }
-    document.location = `${domain}/logout?${params.toString()}`;
-  },[])
+    auth.logout(props.redirectUrl || window.location.origin);
+   }, []);
   
   return (
     <button {...props}

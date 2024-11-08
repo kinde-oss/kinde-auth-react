@@ -2,33 +2,27 @@ import { ErrorProps } from "@kinde-oss/kinde-auth-pkce-js";
 import {
   exchangeAuthCode,
   generateAuthUrl,
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  isAuthenticated as utilIsAuthenticated,
   IssuerRouteTypes,
-  LocalStorage,
   LoginMethodParams,
   LoginOptions,
-  MemoryStorage,
   Scopes,
-  SessionManager,
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  setActiveStorage,
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  setInsecureStorage,
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
+  frameworkSettings,
   getDecodedToken,
-  StorageKeys,
+  getClaim,
+  getClaims,
+  getCurrentOrganization,
+  getFlag,
+  getUserProfile,
+  getPermission,
+  getPermissions,
+  getUserOrganizations,
+  getRoles,
+  refreshToken,
 } from "@kinde/js-utils";
-import React, { useCallback, useEffect, useMemo, useReducer, useState } from "react";
-import { initialState } from "./initialState";
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { KindeContext } from "./KindeContext";
-import { reducer } from "./reducer";
 import { KindeUser } from "./types";
-// import { handleRedirectToApp } from "../utils/handleRedirectToApp";
 
 const defaultOnRedirectCallback = () => {
   window.history.replaceState({}, document.title, window.location.pathname);
@@ -84,13 +78,7 @@ type KindeProviderProps = {
   scope?: string;
 };
 
-export enum LocalKeys {
-  domain = "domain",
-  clientId = "client_id",
-  audience = "audience",
-  redirectUri = "redirect_uri",
-  logoutUri = "logout_uri",
-}
+
 
 import * as storeState from './store';
 
@@ -109,35 +97,25 @@ export const KindeProvider = ({
   logoutUri,
 }: KindeProviderProps) => {
   /// TODO: Switch out dev mode for local storage
-  console.log('creating new storage');
 
+  frameworkSettings.framework = "react";
+  frameworkSettings.frameworkVersion = "1.0.0";
+  // frameworkSettings.frameworkVersion = "1.0.0";
 
-  const localStorage = new LocalStorage<LocalKeys>();
-  useEffect(() => {
-    // setActiveStorage(storeState.default.memoryStorage as unknown as SessionManager);
-    setInsecureStorage(localStorage as unknown as SessionManager);
-  }, []);
+  const [state, setState] = useState({ isAuthenticated: false});
 
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  // const value = {
-  //   get isAuthenticated() { 
-  //     return true
-  //   },
-  // };
-
-  const [store] = useState<MemoryStorage<LocalKeys>>(
-    storeState.default.memoryStorage as unknown as MemoryStorage<LocalKeys>,
-    // !process.env.NODE_ENV || process.env.NODE_ENV === "development"
-    //   ? new LocalStorage<LocalKeys>()
-    //   : new MemoryStorage<LocalKeys>()
-  );
-  // const [insecureStore] = useState<LocalStorage<LocalKeys>>(
-  //   localStorage,
+  // const [store] = useState<MemoryStorage<LocalKeys>>(
+  //   storeState.default.memoryStorage as unknown as MemoryStorage<LocalKeys>,
   //   // !process.env.NODE_ENV || process.env.NODE_ENV === "development"
   //   //   ? new LocalStorage<LocalKeys>()
   //   //   : new MemoryStorage<LocalKeys>()
   // );
+  // // const [insecureStore] = useState<LocalStorage<LocalKeys>>(
+  // //   localStorage,
+  // //   // !process.env.NODE_ENV || process.env.NODE_ENV === "development"
+  // //   //   ? new LocalStorage<LocalKeys>()
+  // //   //   : new MemoryStorage<LocalKeys>()
+  // // );
 
   
   // const [state, dispatch] = useReducer(reducer, initialState);
@@ -145,7 +123,7 @@ export const KindeProvider = ({
   const init = async () => {
     const params = new URLSearchParams(window.location.search);
 
-    const redirectURL = await store.getSessionItem(LocalKeys.redirectUri) as string;
+    const redirectURL = await storeState.memoryStorage.getSessionItem(storeState.LocalKeys.redirectUri) as string;
 
     if (params.has("code")) {
       const code = await exchangeAuthCode({
@@ -157,48 +135,21 @@ export const KindeProvider = ({
           window.location.origin,
       });
       if (code.success) {
-        setIsAuthenticated(true);
+        console.log("code - setting is authenticated", code);
+        const user = await getUserProfile()
+        console.log('this is the user', user);
+        setState((val) => { return {...val, user: user,  isAuthenticated: true}});
       }
-      console.log(code);
     }
-
-    // const q = new URLSearchParams(window.location.search);
-    // // Is a redirect from Kinde Auth server
-    // if (isKindeRedirect(q)) {
-    //   await handleRedirectToApp(q, store);
-    // } else {
-    //   // For onload / new tab / page refresh
-    //   // if (isUseCookie || isUseLocalStorage) {
-    //   //   await useRefreshToken();
-    //   // }
-    // }
   };
 
-  // const isKindeRedirect = (searchParams: URLSearchParams) => {
-  //   // Check if the search params hve the code parameter
-  //   const hasOauthCode = searchParams.has("code");
-  //   const hasError = searchParams.has("error");
-  //   if (!hasOauthCode && !hasError) return false;
-  //   // Also check if redirect_uri matches current url
-  //   const { protocol, host, pathname } = window.location;
-
-  //   console.log("protocol", protocol);
-
-  //   const currentRedirectUri = redirectUri || `${protocol}//${host}${pathname}`;
-
-  //   return (
-  //     currentRedirectUri === redirectUri ||
-  //     currentRedirectUri === `${redirectUri}/`
-  //   );
-  // };
-
   useEffect(() => {
-    store.setItems({
-      [LocalKeys.domain]: domain,
-      [LocalKeys.clientId]: clientId,
-      [LocalKeys.audience]: audience,
-      [LocalKeys.redirectUri]: redirectUri,
-      [LocalKeys.logoutUri]: logoutUri,
+    storeState.memoryStorage.setItems({
+      [storeState.LocalKeys.domain]: domain,
+      [storeState.LocalKeys.clientId]: clientId,
+      [storeState.LocalKeys.audience]: audience,
+      [storeState.LocalKeys.redirectUri]: redirectUri,
+      [storeState.LocalKeys.logoutUri]: logoutUri,
     });
 
     init();
@@ -213,24 +164,6 @@ export const KindeProvider = ({
     logoutUri,
   ]);
 
-  // useEffect(() => {
-  //   let isSubscribed = true;
-  //   (() => {
-  //     if (client && isSubscribed) {
-  //       try {
-  //         const user = client?.getUser();
-  //         dispatch({ type: "INITIALISED", user });
-  //       } catch (error) {
-  //         console.log(error);
-  //         dispatch({ type: "ERROR", error: "login error" });
-  //       }
-  //     }
-  //   })();
-  //   return () => {
-  //     isSubscribed = false;
-  //   };
-  // }, [client]);
-
   const login = useCallback(async (options?: AuthOptions | LoginMethodParams) => {
 
     if (isAuthOptions(options)) {
@@ -241,8 +174,8 @@ export const KindeProvider = ({
       }
 
       const authProps: LoginOptions = {
-        audience: (await store.getSessionItem(LocalKeys.audience)) as string,
-        clientId: (await store.getSessionItem(LocalKeys.clientId)) as string,
+        audience: (await storeState.memoryStorage.getSessionItem(storeState.LocalKeys.audience)) as string,
+        clientId: (await storeState.memoryStorage.getSessionItem(storeState.LocalKeys.clientId)) as string,
         ...options,
         redirectURL:
           options.redirectURL ||
@@ -250,8 +183,8 @@ export const KindeProvider = ({
           window.location.origin,
         prompt: "login",
       };
-      const domain = (await store.getSessionItem(
-        LocalKeys.domain,
+      const domain = (await storeState.memoryStorage.getSessionItem(
+        storeState.LocalKeys.domain,
       )) as string;
 
       authProps.audience = "";
@@ -265,6 +198,49 @@ export const KindeProvider = ({
       document.location = authUrl.url.toString();
     }
   }, [])
+  
+  const register = useCallback(async (options?: AuthOptions | LoginMethodParams)  => {
+    if (isAuthOptions(options)) {
+      console.log("isAuthOptions", options);
+    } else {
+      const authProps: LoginOptions = {
+        audience: (await storeState.memoryStorage.getSessionItem(storeState.LocalKeys.audience)) as string,
+        clientId: (await storeState.memoryStorage.getSessionItem(storeState.LocalKeys.clientId)) as string,
+        redirectURL:
+          options?.redirectURL ||
+          import.meta.env.VITE_KINDE_REDIRECT_URL ||
+          window.location.origin,
+        prompt: "register",
+        ...options,
+      };
+      const domain = (await storeState.memoryStorage.getSessionItem(
+        storeState.LocalKeys.domain,
+      )) as string;
+
+      const authUrl = await generateAuthUrl(
+        domain,
+        IssuerRouteTypes.register,
+        authProps,
+      );
+      document.location = authUrl.url.toString();
+    }
+  }, []);
+
+  const logout = useCallback(async (redirectUrl: string) => {
+    const domain = (await storeState.memoryStorage.getSessionItem(
+      storeState.LocalKeys.domain,
+    )) as string;
+
+    const params = new URLSearchParams();
+    if (redirectUrl) {
+      params.append("redirect", redirectUrl);
+    }
+    document.location = `${domain}/logout?${params.toString()}`;
+    const user = await getUserProfile()
+    console.log('this is the user', user);
+    setState((val) => { return {...val, user: user, isAuthenticated: false}});
+
+  },[])
 
   // const login = useCallback(async (options?: AuthOptions | LoginMethodParams) => {
   //   let authProps: LoginOptions = {
@@ -274,28 +250,28 @@ export const KindeProvider = ({
   //     redirectURL: redirectUri,
   //   };
 
-  //   if (isAuthOptions(options)) {
-  //     const { org_code, authUrlParams, app_state, ...rest } = options;
-  //     if (org_code) authProps.orgCode = options.org_code;
-  //     if (authUrlParams) {
-  //       authProps = {
-  //         ...authProps,
-  //         ...authUrlParams,
-  //       };
-  //     }
-  //     if (app_state) {
-  //       // TODO: Implement app_state
-  //     }
-  //     authProps = {
-  //       ...authProps,
-  //       ...rest,
-  //     };
-  //   } else {
-  //     authProps = {
-  //       ...authProps,
-  //       ...options,
-  //     };
-  //   }
+    // if (isAuthOptions(options)) {
+    //   const { org_code, authUrlParams, app_state, ...rest } = options;
+    //   if (org_code) authProps.orgCode = options.org_code;
+    //   if (authUrlParams) {
+    //     authProps = {
+    //       ...authProps,
+    //       ...authUrlParams,
+    //     };
+    //   }
+    //   if (app_state) {
+    //     // TODO: Implement app_state
+    //   }
+    //   authProps = {
+    //     ...authProps,
+    //     ...rest,
+    //   };
+    // } else {
+    //   authProps = {
+    //     ...authProps,
+    //     ...options,
+    //   };
+    // }
 
   //   const { codeChallenge, state } = await setupChallenge(store);
   //   console.log("codeChallenge", codeChallenge);
@@ -346,14 +322,6 @@ export const KindeProvider = ({
   //   return new URL(`${domain}/logout?${params.toString()}`);
   // }, []);
 
-  // const getFlag = useCallback(
-  //   (
-  //     code: string,
-  //     defaultValue?: KindeFlagValueType["s" | "b" | "i"],
-  //     flagType?: "s" | "b" | "i"
-  //   ) => client?.getFlag(code, defaultValue, flagType) || defaultValue,
-  //   [client]
-  // );
 
   // const getBooleanFlag = useCallback(
   //   (code: string, defaultValue?: boolean) =>
@@ -373,116 +341,81 @@ export const KindeProvider = ({
   //   [client]
   // );
 
-  // const getPermissions = useCallback(() => client?.getPermissions(), [client]);
-
-  // const getPermission = useCallback(
-  //   (key: string) => client?.getPermission(key),
-  //   [client]
-  // );
-
-  // const getOrganization = useCallback(
-  //   () => client?.getOrganization(),
-  //   [client]
-  // );
-
-  // const getUserOrganizations = useCallback(
-  //   () => client?.getUserOrganizations(),
-  //   [client]
-  // );
-
   // const createOrg = useCallback(
   //   (options?: OrgOptions) => client?.createOrg(options) || Promise.resolve(),
   //   [client]
   // );
-
-  // const getToken = useCallback(
-  //   async (options: GetTokenOptions) => {
-  //     let token;
-  //     try {
-  //       token = await client?.getToken(options);
-  //     } catch (error) {
-  //       throw console.error(error);
-  //     }
-  //     return token;
-  //   },
-  //   [client]
-  // );
-
-  // const getIdToken = useCallback(
-  //   async (options: GetTokenOptions) => {
-  //     let idToken;
-  //     try {
-  //       idToken = await client?.getIdToken(options);
-  //     } catch (error) {
-  //       throw console.error(error);
-  //     }
-  //     return idToken;
-  //   },
-  //   [client]
-  // );
-
-
   
   const contextValue = useMemo(() => {
     return {
-      // ...state,
+      // Internal Methods
+      login,
+      logout,
+      register,
+
+      getIdToken: async () => {
+        return getDecodedToken("idToken");
+      },
+      getAccessToken: async () => {
+        return getDecodedToken();
+      },      
+      /** @deprecated use `getAccessToken` instead */
       getToken: async () => {
         return getDecodedToken();
+      },      
+
+
+      getClaim: async (...args: Parameters<typeof getClaim>) => {
+        const { getClaim } = await import('@kinde/js-utils');
+        return getClaim(...args);
       },
-      // getIdToken,
-      login,
-      // register,
-      // logout,
-      // createOrg,
-      // getBooleanFlag,
-      // getFlag,
-      // getIntegerFlag,
-      // getPermissions,
-      // getPermission,
-      // getOrganization,
-      // getStringFlag,
-      // getUserOrganizations,
-      // getUser: getUserProfile,
-      store,
-      // get isAuthenticated() {
-      //   const check = async () => {
-      //     const result = await utilIsAuthenticated({
-      //       clientId,
-      //       domain,
-      //       useRefreshToken: true,
-      //     });
-      //     console.log(result, !!result);
-      //     setIsAuthenticated(!!result);
-          
-      //     return result;
-      //   }
-      //   check();
-      //   return isAuthenticated
-      // }
-      isAuthenticated,
-      // isAuthenticated: async () => {
-      //   const result = await isAuthenticated({
-      //     clientId,
-      //     domain,
-      //     useRefreshToken: true,
-      //   });
-      //   return result;
-      // },
+      getClaims: async (...args: Parameters<typeof getClaims>) => {
+        const { getClaims } = await import('@kinde/js-utils');
+        return getClaims(...args);
+      },
+      /** @deprecated use `getCurrentOrganization` instead */
+      getOrganization: async (...args: Parameters<typeof getCurrentOrganization>) => {
+        const { getCurrentOrganization } = await import('@kinde/js-utils');
+        return getCurrentOrganization(...args);
+      },
+      getCurrentOrganization: async (...args: Parameters<typeof getCurrentOrganization>) => {
+        const { getCurrentOrganization } = await import('@kinde/js-utils');
+        return getCurrentOrganization(...args);
+      },
+
+      getFlag: async (...args: Parameters<typeof getFlag>) => {
+        const { getFlag } = await import('@kinde/js-utils');
+        return getFlag(...args);
+      },
+      getUserProfile: async (...args: Parameters<typeof getUserProfile>) => {
+        const { getUserProfile } = await import('@kinde/js-utils');
+        return getUserProfile(...args);
+      },
+      getPermission: async (...args: Parameters<typeof getPermission>) => {
+        const { getPermission } = await import('@kinde/js-utils');
+        return getPermission(...args);
+      },      
+      getPermissions: async (...args: Parameters<typeof getPermissions>) => {
+        const { getPermissions } = await import('@kinde/js-utils');
+        return getPermissions(...args);
+      },
+      getUserOrganizations: async (...args: Parameters<typeof getUserOrganizations>) => {
+        const { getUserOrganizations } = await import('@kinde/js-utils');
+        return getUserOrganizations(...args);
+      },
+      getRoles: async (...args: Parameters<typeof getRoles>) => {
+        const { getRoles } = await import('@kinde/js-utils');
+        return getRoles(...args);
+      },
+      refreshToken: async (...args: Parameters<typeof refreshToken>) => {
+        const { refreshToken } = await import('@kinde/js-utils');
+        return refreshToken(...args);
+      },
+      ...state,
+
     };
   }, [
-    // state,
-    // getToken,
-    // getIdToken,
-    // login,
-    // register,
-    // logout,
-    // createOrg,
-    // getPermissions,
-    // getPermission,
-    // getOrganization,
-    // getUserOrganizations,
-    // getUserProfile,
-    store,
+    state,
   ]);
 
   return (
