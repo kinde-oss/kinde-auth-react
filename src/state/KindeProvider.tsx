@@ -20,7 +20,7 @@ import {
   refreshToken,
 } from "@kinde/js-utils";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { KindeContext } from "./KindeContext";
 import { KindeUser } from "./types";
 
@@ -103,45 +103,40 @@ export const KindeProvider = ({
   // frameworkSettings.frameworkVersion = "1.0.0";
 
   const [state, setState] = useState({ isAuthenticated: false});
+  const initRef = useRef(false);
 
-  // const [store] = useState<MemoryStorage<LocalKeys>>(
-  //   storeState.default.memoryStorage as unknown as MemoryStorage<LocalKeys>,
-  //   // !process.env.NODE_ENV || process.env.NODE_ENV === "development"
-  //   //   ? new LocalStorage<LocalKeys>()
-  //   //   : new MemoryStorage<LocalKeys>()
-  // );
-  // // const [insecureStore] = useState<LocalStorage<LocalKeys>>(
-  // //   localStorage,
-  // //   // !process.env.NODE_ENV || process.env.NODE_ENV === "development"
-  // //   //   ? new LocalStorage<LocalKeys>()
-  // //   //   : new MemoryStorage<LocalKeys>()
-  // // );
-
-  
-  // const [state, dispatch] = useReducer(reducer, initialState);
-
-  const init = async () => {
+  const init = useCallback(async () => {
+    if (initRef.current) return;
+    initRef.current = true;
     const params = new URLSearchParams(window.location.search);
-
-    const redirectURL = await storeState.memoryStorage.getSessionItem(storeState.LocalKeys.redirectUri) as string;
-
-    if (params.has("code")) {
-      const code = await exchangeAuthCode({
-        urlParams: new URLSearchParams(window.location.search),
-        domain,
-        clientId,
-        redirectURL: redirectURL ||
-          import.meta.env.VITE_KINDE_REDIRECT_URL ||
-          window.location.origin,
-      });
-      if (code.success) {
-        console.log("code - setting is authenticated", code);
-        const user = await getUserProfile()
-        console.log('this is the user', user);
-        setState((val) => { return {...val, user: user,  isAuthenticated: true}});
-      }
+   
+    if (!params.has("code")) {
+      return;
     }
-  };
+   
+    const redirectURL = await storeState.memoryStorage.getSessionItem(
+      storeState.LocalKeys.redirectUri
+    ) as string;
+
+    const codeResponse = await exchangeAuthCode({
+      urlParams: new URLSearchParams(window.location.search),
+      domain,
+      clientId,
+      redirectURL: redirectURL ||
+        import.meta.env.VITE_KINDE_REDIRECT_URL ||
+        window.location.origin,
+      autoReferesh: true,
+    });
+
+    if (codeResponse.success) {
+      const user = await getUserProfile();
+      setState(val => ({ ...val, user, isAuthenticated: true }));
+    }
+  }, [clientId, domain]);
+
+  useEffect(() => {
+    init();
+  }, [init, domain, clientId]);
 
   useEffect(() => {
     storeState.memoryStorage.setItems({
@@ -151,8 +146,6 @@ export const KindeProvider = ({
       [storeState.LocalKeys.redirectUri]: redirectUri,
       [storeState.LocalKeys.logoutUri]: logoutUri,
     });
-
-    init();
     return;
   }, [
     audience,
@@ -193,8 +186,6 @@ export const KindeProvider = ({
         IssuerRouteTypes.login,
         authProps,
       );
-      console.log(authUrl);
-      console.log(authUrl.url.toString());
       document.location = authUrl.url.toString();
     }
   }, [])
@@ -237,114 +228,8 @@ export const KindeProvider = ({
     }
     document.location = `${domain}/logout?${params.toString()}`;
     const user = await getUserProfile()
-    console.log('this is the user', user);
     setState((val) => { return {...val, user: user, isAuthenticated: false}});
-
   },[])
-
-  // const login = useCallback(async (options?: AuthOptions | LoginMethodParams) => {
-  //   let authProps: LoginOptions = {
-  //     clientId: clientId,
-  //     audience,
-  //     prompt: "login",
-  //     redirectURL: redirectUri,
-  //   };
-
-    // if (isAuthOptions(options)) {
-    //   const { org_code, authUrlParams, app_state, ...rest } = options;
-    //   if (org_code) authProps.orgCode = options.org_code;
-    //   if (authUrlParams) {
-    //     authProps = {
-    //       ...authProps,
-    //       ...authUrlParams,
-    //     };
-    //   }
-    //   if (app_state) {
-    //     // TODO: Implement app_state
-    //   }
-    //   authProps = {
-    //     ...authProps,
-    //     ...rest,
-    //   };
-    // } else {
-    //   authProps = {
-    //     ...authProps,
-    //     ...options,
-    //   };
-    // }
-
-  //   const { codeChallenge, state } = await setupChallenge(store);
-  //   console.log("codeChallenge", codeChallenge);
-
-  //   authProps.audience = "";
-  //   authProps.codeChallenge = codeChallenge;
-  //   authProps.codeChallengeMethod = "S256";
-  //   authProps.state = state;
-
-  //   console.log("store", store);
-
-  //   // window.location.href = generateAuthUrl(
-  //   //   domain,
-  //   //   IssuerRouteTypes.login,
-  //   //   authProps
-  //   // ).url.toString();
-  // }, []);
-
-  // const register = useCallback(async (options?: AuthOptions | LoginOptions) => {
-  //   let cleanedOptions: LoginOptions = {
-  //     clientId: clientId,
-  //     audience,
-  //     prompt: "register",
-  //     redirectURL: redirectUri,
-  //   };
-  //   if (isAuthOptions(options)) {
-  //     if ("org_code" in options) cleanedOptions.orgCode = options.org_code;
-  //     if ("authUrlParams" in options && options.authUrlParams) {
-  //       cleanedOptions = {
-  //         ...cleanedOptions,
-  //         ...options,
-  //       };
-  //     }
-  //   }
-  //   // window.location.href = (await generateAuthUrl(
-  //   //   domain,
-  //   //   IssuerRouteTypes.register,
-  //   //   cleanedOptions
-  //   // )).url.toString();
-  // }, []);
-
-  // const logout = useCallback((redirectUrl?: string) => {
-  //   const params = new URLSearchParams();
-  //   if (redirectUrl) {
-  //     params.append("redirect", redirectUrl);
-  //   }
-
-  //   return new URL(`${domain}/logout?${params.toString()}`);
-  // }, []);
-
-
-  // const getBooleanFlag = useCallback(
-  //   (code: string, defaultValue?: boolean) =>
-  //     client?.getBooleanFlag(code, defaultValue) || defaultValue || false,
-  //   [client]
-  // );
-
-  // const getIntegerFlag = useCallback(
-  //   (code: string, defaultValue: number) =>
-  //     client?.getIntegerFlag(code, defaultValue) || defaultValue,
-  //   [client]
-  // );
-
-  // const getStringFlag = useCallback(
-  //   (code: string, defaultValue: string) =>
-  //     client?.getStringFlag(code, defaultValue) || defaultValue,
-  //   [client]
-  // );
-
-  // const createOrg = useCallback(
-  //   (options?: OrgOptions) => client?.createOrg(options) || Promise.resolve(),
-  //   [client]
-  // );
   
   const contextValue = useMemo(() => {
     return {
