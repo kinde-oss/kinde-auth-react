@@ -19,6 +19,7 @@ export function LoginLink({ children, ...props }: Props) {
     <button
       {...props}
       onClick={() => {
+        props.onClick && props.onClick();
         login();
       }}
     >

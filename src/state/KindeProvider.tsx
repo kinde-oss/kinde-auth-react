@@ -125,7 +125,7 @@ export const KindeProvider = ({
       redirectURL: redirectURL ||
         import.meta.env.VITE_KINDE_REDIRECT_URL ||
         window.location.origin,
-      autoReferesh: true,
+      autoRefresh: true,
     });
 
     if (codeResponse.success) {
