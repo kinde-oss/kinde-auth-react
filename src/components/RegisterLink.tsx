@@ -1,7 +1,5 @@
 import React, { useCallback } from "react";
-import {
-  LoginMethodParams,
-} from "@kinde/js-utils";
+import { LoginMethodParams } from "@kinde/js-utils";
 import { useKindeAuth } from "../hooks/useKindeAuth";
 
 interface Props
@@ -15,10 +13,16 @@ export function RegisterLink({ children, ...props }: Props) {
 
   const register = useCallback(async () => {
     auth.register(props as LoginMethodParams);
-   }, []);
+  }, []);
 
   return (
-    <button {...props} onClick={() => register()}>
+    <button
+      {...props}
+      onClick={(event) => {
+        props.onClick && props.onClick(event);
+        register();
+      }}
+    >
       {children}
     </button>
   );

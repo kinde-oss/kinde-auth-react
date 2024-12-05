@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import { LoginMethodParams} from "@kinde/js-utils";
+import { LoginMethodParams } from "@kinde/js-utils";
 import { useKindeAuth } from "../hooks/useKindeAuth";
 
 interface Props
@@ -12,14 +12,14 @@ export function LoginLink({ children, ...props }: Props) {
   const auth = useKindeAuth();
 
   const login = useCallback(async () => {
-   auth.login(props as LoginMethodParams);
+    auth.login(props as LoginMethodParams);
   }, []);
 
   return (
     <button
       {...props}
-      onClick={() => {
-        props.onClick && props.onClick();
+      onClick={(event) => {
+        props.onClick && props.onClick(event);
         login();
       }}
     >

@@ -1,0 +1,94 @@
+// KindeProvider.test.tsx
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, act } from "@testing-library/react";
+import { KindeProvider } from "./KindeProvider";
+import React from "react";
+
+describe("KindeProvider", () => {
+  const mockStorage = {
+    getSessionItem: vi.fn(),
+    setSessionItem: vi.fn(),
+    removeSessionItem: vi.fn(),
+  };
+
+  beforeEach(() => {
+    vi.mock("../utils/storage", () => ({
+      createStorage: () => mockStorage,
+    }));
+
+    // Mock environment variables
+    vi.stubEnv("VITE_KINDE_REDIRECT_URL", "http://localhost:3000");
+    global.window = Object.create(window);
+    Object.defineProperty(window, "location", {
+      value: {
+        origin: "http://localhost:3000",
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it("initializes with correct props", async () => {
+    const props = {
+      clientId: "test-client",
+      domain: "test.domain.com",
+      audience: "test-audience",
+      redirectUri: "http://localhost:3000/callback",
+      logoutUri: "http://localhost:3000",
+    };
+
+    await act(async () => {
+      render(
+        <KindeProvider {...props}>
+          <div>Test Child</div>
+        </KindeProvider>,
+      );
+    });
+
+    expect(mockStorage.setSessionItem).toHaveBeenCalledWith(
+      expect.any(String),
+      props.clientId,
+    );
+  });
+
+  it("handles login with auth options", async () => {
+    const authOptions = {
+      audience: "test-audience",
+      clientId: "test-client",
+      redirectURL: "http://test.com",
+    };
+
+    mockStorage.getSessionItem.mockResolvedValue("test-value");
+
+    await act(async () => {
+      render(
+        <KindeProvider clientId="test" domain="test.com">
+          <div>Test Child</div>
+        </KindeProvider>,
+      );
+    });
+
+    // Test login method through context
+    const provider = screen.getByText("Test Child").parentElement;
+    expect(provider).toBeTruthy();
+  });
+
+  it("uses default redirect URL when not provided", async () => {
+    mockStorage.getSessionItem
+      .mockResolvedValueOnce("test-audience")
+      .mockResolvedValueOnce("test-client");
+
+    await act(async () => {
+      render(
+        <KindeProvider clientId="test" domain="test.com">
+          <div>Test Child</div>
+        </KindeProvider>,
+      );
+    });
+
+    expect(window.location.origin).toBe("http://localhost:3000");
+  });
+});

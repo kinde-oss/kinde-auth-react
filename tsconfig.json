@@ -15,7 +15,6 @@
     "jsx": "react",
     "types": ["node", "vite/client", "@kinde/js-utils"],
     "allowSyntheticDefaultImports": true
-    
   },
   "include": ["src/**/*"],
   "exclude": ["src/**/*.test.tsx"]

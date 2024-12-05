@@ -12,15 +12,16 @@ export function LogoutLink({ children, ...props }: Props) {
 
   const logout = useCallback(async () => {
     auth.logout(props.redirectUrl || window.location.origin);
-   }, []);
-  
+  }, []);
+
   return (
-    <button {...props}
+    <button
+      {...props}
       onClick={() => {
-       logout();
+        logout();
       }}
     >
       {children}
     </button>
-  )
+  );
 }

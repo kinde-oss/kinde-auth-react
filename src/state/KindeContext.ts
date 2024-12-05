@@ -1,9 +1,8 @@
 import { createContext } from "react";
 import { initialState } from "./initialState";
 import { State } from "./types";
-import { LoginMethodParams, MemoryStorage } from "@kinde/js-utils";
+import { LoginMethodParams } from "@kinde/js-utils";
 import { AuthOptions } from "./KindeProvider";
-import { LocalKeys } from "./store";
 
 export interface KindeContextProps extends State {
   login: (options?: AuthOptions | LoginMethodParams) => Promise<void>;
@@ -22,7 +21,7 @@ export interface KindeContextProps extends State {
   // getIdToken: KindeClient["getIdToken"];
   // getUser: KindeClient["getUser"];
   // getUserOrganizations: KindeClient["getUserOrganizations"];
-  store: MemoryStorage<LocalKeys>;
+  // store: MemoryStorage<LocalKeys>;
 }
 
 const initialContext = {
