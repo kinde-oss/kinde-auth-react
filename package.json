@@ -1,6 +1,6 @@
 {
   "name": "@kinde-oss/kinde-auth-react",
-  "version": "5.0.0-5",
+  "version": "5.0.0-7",
   "description": "Kinde React SDK for authentication",
   "module": "./dist/kinde-auth-react.mjs",
   "main": "./dist/kinde-auth-react.js",
@@ -44,7 +44,7 @@
     "@babel/plugin-transform-runtime": "^7.17.0",
     "@babel/preset-react": "^7.16.7",
     "@testing-library/jest-dom": "^6.6.2",
-    "@testing-library/react": "^16.0.1",
+    "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
     "@types/node": "^22.7.5",
     "@types/react": "18.0.26",
@@ -90,8 +90,7 @@
   "private": false,
   "dependencies": {
     "@kinde-oss/kinde-auth-pkce-js": "^4.2.2",
-    "@kinde/js-utils": "0.6.0-2",
-    "@testing-library/react-hooks": "^8.0.1"
+    "@kinde/js-utils": "^0.6.0-2"
   },
   "packageManager": "pnpm@8.14.1+sha256.2df78e65d433d7693b9d3fbdaf431b2d96bb4f96a2ffecd51a50efe16e50a6a8"
 }
