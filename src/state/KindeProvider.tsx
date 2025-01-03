@@ -6,6 +6,7 @@ import createKindeClient, {
   KindeFlagValueType,
   OrgOptions
 } from '@kinde-oss/kinde-auth-pkce-js';
+import { createKindeStore, getKindeStore, subscribe } from './store';
 import React, {
   useCallback,
   useEffect,
@@ -57,9 +58,17 @@ export const KindeProvider = ({
 
   useEffect(() => {
     let isSubscribed = true;
+    const unsubscribe = subscribe(() => {
+      const kindeClient = getKindeStore();
+      setClient(kindeClient || undefined);
+    });
     try {
       const getClient = async () => {
-        const kindeClient = await createKindeClient({
+        if (client) {
+          return;
+        }
+
+        await createKindeStore({
           audience,
           scope,
           client_id: clientId,
@@ -72,7 +81,6 @@ export const KindeProvider = ({
           _framework: 'React',
           _frameworkVersion: version
         });
-        setClient(kindeClient);
       };
 
       void getClient();
@@ -81,6 +89,7 @@ export const KindeProvider = ({
     }
     return () => {
       isSubscribed = false;
+      unsubscribe();
     };
   }, [
     audience,
