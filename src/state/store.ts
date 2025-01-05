@@ -15,10 +15,10 @@ export const createKindeStore = async (options: KindeClientOptions) => {
   updatePromise = (async () => {
     try {
       authState = await createKindeClient(options);
+      listeners.forEach((listener) => listener());
     } finally {
       updatePromise = null;
     }
-    listeners.forEach((listener) => listener());
   })();
   return updatePromise;
 };
