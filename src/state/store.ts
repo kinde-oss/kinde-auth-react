@@ -4,14 +4,23 @@ import createKindeClient, {
 } from '@kinde-oss/kinde-auth-pkce-js';
 
 let authState: KindeClient | null = null;
+let updatePromise: Promise<void> | null = null;
 
 const listeners = Array<() => void>();
 
 export const getKindeStore = () => authState;
 
 export const createKindeStore = async (options: KindeClientOptions) => {
-  authState = await createKindeClient(options);
-  listeners.forEach((listener) => listener());
+  if (updatePromise) return updatePromise;
+  updatePromise = (async () => {
+    try {
+      authState = await createKindeClient(options);
+    } finally {
+      updatePromise = null;
+    }
+    listeners.forEach((listener) => listener());
+  })();
+  return updatePromise;
 };
 
 export const subscribe = (listener: () => void) => {
