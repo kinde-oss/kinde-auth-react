@@ -1,13 +1,8 @@
 import React, { useCallback } from "react";
 import { useKindeAuth } from "../hooks/useKindeAuth";
-import { LoginMethodParams } from "@kinde/js-utils";
+import { LogoutLinkProps } from "../state/types";
 
-interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  children: React.ReactNode;
-  redirectUrl?: string;
-}
-
-export function LogoutLink({ children, ...props }: Props) {
+export function LogoutLink({ children, ...props }: LogoutLinkProps) {
   const auth = useKindeAuth();
 
   const logout = useCallback(async () => {

@@ -1,3 +1,5 @@
+import { LoginMethodParams } from "@kinde/js-utils";
+
 export type KindeUser = {
   given_name: string | null;
   id: string | null;
@@ -12,3 +14,21 @@ export type State = {
   isAuthenticated: boolean;
   error?: string | undefined;
 };
+
+export interface LoginLinkProps
+  extends Partial<LoginMethodParams>,
+    React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+}
+
+export interface RegisterLinkProps
+  extends Partial<LoginMethodParams>,
+    React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+}
+
+export interface LogoutLinkProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+  redirectUrl?: string;
+}

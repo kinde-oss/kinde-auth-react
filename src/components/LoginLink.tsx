@@ -1,14 +1,9 @@
 import React, { useCallback } from "react";
 import { LoginMethodParams } from "@kinde/js-utils";
 import { useKindeAuth } from "../hooks/useKindeAuth";
+import { LoginLinkProps } from "../state/types";
 
-interface Props
-  extends Partial<LoginMethodParams>,
-    React.ButtonHTMLAttributes<HTMLButtonElement> {
-  children: React.ReactNode;
-}
-
-export function LoginLink({ children, ...props }: Props) {
+export function LoginLink({ children, ...props }: LoginLinkProps) {
   const auth = useKindeAuth();
 
   const login = useCallback(async () => {
