@@ -1,9 +1,4 @@
-import {
-  MemoryStorage,
-  setActiveStorage,
-  setInsecureStorage,
-  LocalStorage,
-} from "@kinde/js-utils";
+import { SessionManager } from "@kinde/js-utils";
 
 enum LocalKeys {
   domain = "domain",
@@ -13,10 +8,18 @@ enum LocalKeys {
   logoutUri = "logout_uri",
 }
 
-const memoryStorage = new MemoryStorage<LocalKeys>();
-const localStorage = new LocalStorage<LocalKeys>();
+let memoryStorage: SessionManager<LocalKeys>;
+let localStorage: SessionManager<LocalKeys>;
 
-setActiveStorage(memoryStorage);
-setInsecureStorage(localStorage);
+(async () => {
+  const { MemoryStorage, LocalStorage, setActiveStorage, setInsecureStorage } =
+    await import("@kinde/js-utils");
+
+  memoryStorage = new MemoryStorage<LocalKeys>();
+  localStorage = new LocalStorage<LocalKeys>();
+
+  setActiveStorage(memoryStorage);
+  setInsecureStorage(localStorage);
+})();
 
 export { memoryStorage, localStorage, LocalKeys };

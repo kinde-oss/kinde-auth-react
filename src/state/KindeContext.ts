@@ -1,27 +1,50 @@
 import { createContext } from "react";
 import { initialState } from "./initialState";
 import { State } from "./types";
-import { LoginMethodParams } from "@kinde/js-utils";
+import {
+  getClaim,
+  getClaims,
+  getCurrentOrganization,
+  getFlag,
+  getPermission,
+  getPermissions,
+  getRoles,
+  getUserOrganizations,
+  getUserProfile,
+  LoginMethodParams,
+  refreshToken,
+} from "@kinde/js-utils";
 import { AuthOptions } from "./KindeProvider";
 
 export interface KindeContextProps extends State {
   login: (options?: AuthOptions | LoginMethodParams) => Promise<void>;
   register: (options?: AuthOptions | LoginMethodParams) => Promise<void>;
   logout: (redirectUri: string) => Promise<void>;
-  // createOrg: KindeClient["createOrg"];
-  getClaims: () => Promise<unknown | null>;
-  // getFlag: KindeClient["getFlag"] | undefined;
-  // getBooleanFlag: KindeClient["getBooleanFlag"];
-  // getIntegerFlag: KindeClient["getIntegerFlag"];
-  // getStringFlag: KindeClient["getStringFlag"];
-  // getPermissions: KindeClient["getPermissions"] | undefined;
-  // getPermission: KindeClient["getPermission"] | undefined;
-  // getOrganization: KindeClient["getOrganization"] | undefined;
-  // getToken: KindeClient["getToken"] | undefined;
-  // getIdToken: KindeClient["getIdToken"];
-  // getUser: KindeClient["getUser"];
-  // getUserOrganizations: KindeClient["getUserOrganizations"];
-  // store: MemoryStorage<LocalKeys>;
+  getClaims: () => Promise<ReturnType<typeof getClaims>>;
+  getIdToken: () => Promise<string | undefined>;
+  getToken: () => Promise<string | undefined>;
+  getAccessToken: () => Promise<string | undefined>;
+  getClaim: (
+    ...args: Parameters<typeof getClaim>
+  ) => Promise<ReturnType<typeof getClaim>>;
+  getOrganization: () => Promise<ReturnType<typeof getCurrentOrganization>>;
+  getCurrentOrganization: () => Promise<
+    ReturnType<typeof getCurrentOrganization>
+  >;
+  getFlag: (
+    ...args: Parameters<typeof getFlag>
+  ) => Promise<ReturnType<typeof getFlag>>;
+
+  getUserProfile: () => Promise<ReturnType<typeof getUserProfile>>;
+  getPermission: (
+    ...args: Parameters<typeof getPermission>
+  ) => Promise<ReturnType<typeof getPermission>>;
+  getPermissions: () => Promise<ReturnType<typeof getPermissions>>;
+  getUserOrganizations: () => Promise<ReturnType<typeof getUserOrganizations>>;
+  getRoles: () => Promise<ReturnType<typeof getRoles>>;
+  refreshToken: (
+    ...args: Parameters<typeof refreshToken>
+  ) => Promise<ReturnType<typeof refreshToken>>;
 }
 
 const initialContext = {

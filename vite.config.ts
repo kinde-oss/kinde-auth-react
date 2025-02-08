@@ -35,7 +35,6 @@ export default defineConfig({
     },
   },
 
-  base: "src",
-  resolve: { alias: { src: resolve(__dirname, "/") } },
-  plugins: [dts({ insertTypesEntry: true, outDir: "../dist" }), react()],
+  base: "",
+  plugins: [dts({ insertTypesEntry: true, outDir: "./dist" }), react()],
 });

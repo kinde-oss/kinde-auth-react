@@ -10,16 +10,16 @@
     ".": {
       "import": "./dist/index.cjs",
       "require": "./dist/main.js",
-      "types": "./dist/types/index.d.ts"
+      "types": "./dist/src/index.d.ts"
     },
     "./components": {
       "import": "./dist/components.cjs",
       "require": "./dist/components.js",
-      "types": "./dist/types/components/index.d.ts"
+      "types": "./dist/src/components/index.d.ts"
     }
   },
   "scripts": {
-    "build": "tsc && vite build && mv types dist",
+    "build": "tsc && vite build",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
     "release": "release-it",
