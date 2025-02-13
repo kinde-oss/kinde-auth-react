@@ -292,6 +292,8 @@ export const KindeProvider = ({
       return { ...val, user: null, isAuthenticated: false };
     });
 
+    await Promise.all([storeState.memoryStorage.clear(), storeState.localStorage.clear()]);
+
     document.location = `${domain}/logout?${params.toString()}`;
   }, []);
 
