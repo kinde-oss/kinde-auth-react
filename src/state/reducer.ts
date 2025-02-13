@@ -1,7 +1,8 @@
-import { KindeUser, State } from "./types";
+import { State } from "./types";
+import { UserProfile } from "@kinde/js-utils";
 
 type Action =
-  | { type: "INITIALISED"; user: KindeUser }
+  | { type: "INITIALISED"; user: UserProfile }
   | { type: "ERROR"; error: string };
 const onInitialise = (state: State, action: Pick<State, "user">): State => ({
   ...state,

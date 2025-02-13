@@ -1,25 +1,23 @@
-import { ErrorProps } from "@kinde-oss/kinde-auth-pkce-js";
 import {
   exchangeAuthCode,
   generateAuthUrl,
-  IssuerRouteTypes,
-  LoginMethodParams,
-  LoginOptions,
-  Scopes,
   frameworkSettings,
-  getClaim,
-  getClaims,
-  getFlag,
   getUserProfile,
-  getPermission,
-  refreshToken,
   storageSettings,
   checkAuth,
-  PromptTypes,
   base64UrlEncode,
+  PromptTypes,
   StorageKeys,
-  UserProfile,
+  IssuerRouteTypes,
   getActiveStorage,
+} from "@kinde/js-utils";
+import type {
+  Permissions,
+  refreshToken,
+  PermissionAccess,
+  UserProfile,
+  LoginMethodParams,
+  LoginOptions,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -32,45 +30,12 @@ import React, {
 import { KindeContext, KindeContextProps } from "./KindeContext";
 import { getRedirectUrl } from "../utils/getRedirectUrl";
 import packageJson from "../../package.json";
+import { ErrorProps } from "./types";
 // TODO: need to look for old token store and convert.
 storageSettings.keyPrefix = "";
 
 const defaultOnRedirectCallback = () => {
   window.history.replaceState({}, document.title, window.location.pathname);
-};
-
-export type AuthOptions = {
-  /** @deprecated use `orgCode` field instead */
-  org_code?: string;
-  /** @deprecated TODO: deprecated message */
-  app_state?: Record<string, unknown>;
-  /** @deprecated TODO: deprecated message */
-  authUrlParams?: {
-    audience?: string;
-    codeChallenge?: string;
-    codeChallengeMethod?: string;
-    connectionId?: string;
-    hasSuccessPage?: boolean;
-    isCreateOrg?: boolean;
-    lang?: string;
-    loginHint?: string;
-    nonce?: string;
-    orgCode?: string;
-    orgName?: string;
-    responseType?: string;
-    scope?: Scopes[];
-    state?: string;
-  };
-};
-
-const isAuthOptions = (
-  options: AuthOptions | LoginMethodParams | undefined,
-): options is AuthOptions => {
-  return (
-    (options as AuthOptions).org_code !== undefined ||
-    (options as AuthOptions).app_state !== undefined ||
-    (options as AuthOptions).authUrlParams !== undefined
-  );
 };
 
 enum AuthEvent {
@@ -91,8 +56,6 @@ type KindeProviderProps = {
   children: React.ReactNode;
   clientId: string;
   domain: string;
-  /** @deprecated use `useInsecureForRefreshToken` field instead */
-  isDangerouslyUseLocalStorage?: boolean;
   /**
    * Use localstorage for refresh token.
    *
@@ -101,7 +64,7 @@ type KindeProviderProps = {
   useInsecureForRefreshToken?: boolean;
   logoutUri?: string;
   redirectUri: string;
-  callbacks: KindeCallbacks;
+  callbacks?: KindeCallbacks;
   scope?: string;
 };
 
@@ -125,7 +88,6 @@ export const KindeProvider = ({
   clientId,
   children,
   domain,
-  isDangerouslyUseLocalStorage = false,
   useInsecureForRefreshToken = false,
   redirectUri,
   callbacks = {},
@@ -196,7 +158,8 @@ export const KindeProvider = ({
     } else {
       mergedCallbacks.onError?.(
         {
-          error: codeResponse.error,
+          error: "ERR_CODE_EXCHANGE",
+          errorDescription: codeResponse.error,
         },
         returnedState,
       );
@@ -229,101 +192,88 @@ export const KindeProvider = ({
     scope,
     clientId,
     domain,
-    isDangerouslyUseLocalStorage,
     redirectUri,
     logoutUri,
   ]);
 
   const login = useCallback(
     async (
-      options?:
-        | AuthOptions
-        | (LoginMethodParams & { state?: Record<string, string> }),
+      options?: LoginMethodParams & { state?: Record<string, string> },
     ) => {
-      if (isAuthOptions(options)) {
-        console.log("isAuthOptions", options);
-      } else {
-        if (!options) {
-          return;
-        }
-
-        const optionsState: Record<string, string> = options.state || {};
-
-        delete options.state;
-
-        const authProps: LoginOptions = {
-          audience,
-          clientId,
-          ...options,
-          state: base64UrlEncode(
-            JSON.stringify({
-              kinde: { event: AuthEvent.login },
-              ...optionsState,
-            }),
-          ),
-          redirectURL: getRedirectUrl(options.redirectURL || redirectUri),
-        };
-
-        const domain = (await storeState.memoryStorage.getSessionItem(
-          storeState.LocalKeys.domain,
-        )) as string;
-
-        const authUrl = await generateAuthUrl(
-          domain,
-          IssuerRouteTypes.login,
-          authProps,
-        );
-        document.location = authUrl.url.toString();
+      if (!options) {
+        return;
       }
+
+      const optionsState: Record<string, string> = options.state || {};
+
+      delete options.state;
+
+      const authProps: LoginOptions = {
+        audience,
+        clientId,
+        ...options,
+        state: base64UrlEncode(
+          JSON.stringify({
+            kinde: { event: AuthEvent.login },
+            ...optionsState,
+          }),
+        ),
+        redirectURL: getRedirectUrl(options.redirectURL || redirectUri),
+      };
+
+      const domain = (await storeState.memoryStorage.getSessionItem(
+        storeState.LocalKeys.domain,
+      )) as string;
+
+      const authUrl = await generateAuthUrl(
+        domain,
+        IssuerRouteTypes.login,
+        authProps,
+      );
+      document.location = authUrl.url.toString();
     },
     [],
   );
 
   const register = useCallback(
     async (
-      options?:
-        | AuthOptions
-        | (LoginMethodParams & { state?: Record<string, string> }),
+      options?: LoginMethodParams & { state?: Record<string, string> },
     ) => {
-      if (isAuthOptions(options)) {
-        console.log("isAuthOptions", options);
-      } else {
-        if (!options) {
-          return;
-        }
-
-        const optionsState: Record<string, string> = options.state || {};
-
-        delete options.state;
-
-        const authProps: LoginOptions = {
-          ...options,
-          state: base64UrlEncode(
-            JSON.stringify({
-              kinde: { event: AuthEvent.register },
-              ...optionsState,
-            }),
-          ),
-          audience: (await storeState.memoryStorage.getSessionItem(
-            storeState.LocalKeys.audience,
-          )) as string,
-          clientId: (await storeState.memoryStorage.getSessionItem(
-            storeState.LocalKeys.clientId,
-          )) as string,
-          redirectURL: getRedirectUrl(options?.redirectURL || redirectUri),
-          prompt: PromptTypes.create,
-        };
-        const domain = (await storeState.memoryStorage.getSessionItem(
-          storeState.LocalKeys.domain,
-        )) as string;
-
-        const authUrl = await generateAuthUrl(
-          domain,
-          IssuerRouteTypes.register,
-          authProps,
-        );
-        document.location = authUrl.url.toString();
+      if (!options) {
+        return;
       }
+
+      const optionsState: Record<string, string> = options.state || {};
+
+      delete options.state;
+
+      const authProps: LoginOptions = {
+        ...options,
+        state: base64UrlEncode(
+          JSON.stringify({
+            kinde: { event: AuthEvent.register },
+            ...optionsState,
+          }),
+        ),
+        audience: (await storeState.memoryStorage.getSessionItem(
+          storeState.LocalKeys.audience,
+        )) as string,
+        clientId: (await storeState.memoryStorage.getSessionItem(
+          storeState.LocalKeys.clientId,
+        )) as string,
+        redirectURL: getRedirectUrl(options?.redirectURL || redirectUri),
+        prompt: PromptTypes.create,
+      };
+      const domain = (await storeState.memoryStorage.getSessionItem(
+        storeState.LocalKeys.domain,
+      )) as string;
+
+      const authUrl = await generateAuthUrl(
+        domain,
+        IssuerRouteTypes.register,
+        authProps,
+      );
+      document.location = authUrl.url.toString();
     },
     [],
   );
@@ -372,71 +322,65 @@ export const KindeProvider = ({
         )) as string;
       },
 
-      getClaim: async (
-        ...args: Parameters<typeof getClaim>
-      ): Promise<ReturnType<typeof getClaim>> => {
+      getClaim: async <T, V = string | number | string[]>(
+        keyName: keyof T,
+      ): Promise<{ name: keyof T; value: V } | null> => {
         const { getClaim } = await import("@kinde/js-utils");
-        return getClaim(...args);
+        return getClaim<T, V>(keyName);
       },
-      getClaims: async (
-        ...args: Parameters<typeof getClaims>
-      ): Promise<ReturnType<typeof getClaims>> => {
+      getClaims: async <T = undefined,>(): Promise<T | null> => {
         const { getClaims } = await import("@kinde/js-utils");
-        return getClaims(...args);
+        return getClaims<T>();
       },
       /** @deprecated use `getCurrentOrganization` instead */
-      getOrganization: async (): Promise<
-        ReturnType<typeof getCurrentOrganization>
-      > => {
+      getOrganization: async (): Promise<string | null> => {
         const { getCurrentOrganization } = await import("@kinde/js-utils");
-        return getCurrentOrganization();
+        return await getCurrentOrganization();
       },
-      getCurrentOrganization: async (): Promise<
-        ReturnType<typeof getCurrentOrganization>
-      > => {
+      getCurrentOrganization: async (): Promise<string | null> => {
         const { getCurrentOrganization } = await import("@kinde/js-utils");
-        return getCurrentOrganization();
+        return await getCurrentOrganization();
       },
-      
-      getFlag: async <T extends boolean | string | number>(
-        ...args: Parameters<typeof getFlag<T>>
-      ): Promise<ReturnType<typeof getFlag<T>>> => {
+      getFlag: async <T = string | number | boolean,>(
+        name: string,
+      ): Promise<T | null> => {
         const { getFlag } = await import("@kinde/js-utils");
-        return getFlag<T>(...args);
+        return await getFlag<T>(name);
       },
 
-      getUserProfile: async (): Promise<ReturnType<typeof getUserProfile>> => {
-        const { getUserProfile } = await import("@kinde/js-utils");
-        return getUserProfile();
-      },
-
-      getPermission: async (
-        ...args: Parameters<typeof getPermission>
-      ): Promise<ReturnType<typeof getPermission>> => {
-        const { getPermission } = await import("@kinde/js-utils");
-        return getPermission(...args);
-      },
-
-      getPermissions: async (): Promise<ReturnType<typeof getPermissions>> => {
-        const { getPermissions } = await import("@kinde/js-utils");
-        return getPermissions();
-      },
-      getUserOrganizations: async (): Promise<
-        ReturnType<typeof getUserOrganizations>
+      getUserProfile: async <T = undefined,>(): Promise<
+        (UserProfile & T) | null
       > => {
-        const { getUserOrganizations } = await import("@kinde/js-utils");
-        return getUserOrganizations();
+        const { getUserProfile } = await import("@kinde/js-utils");
+        return getUserProfile<T>();
       },
-      getRoles: async (): Promise<ReturnType<typeof getRoles>> => {
+
+      getPermission: async <T = string,>(
+        permissionKey: T,
+      ): Promise<PermissionAccess> => {
+        const { getPermission } = await import("@kinde/js-utils");
+        return await getPermission(permissionKey);
+      },
+
+      getPermissions: async <T = string,>(): Promise<Permissions<T>> => {
+        const { getPermissions } = await import("@kinde/js-utils");
+        return getPermissions<T>();
+      },
+      getUserOrganizations: async (): Promise<string[] | null> => {
+        const { getUserOrganizations } = await import("@kinde/js-utils");
+        return await getUserOrganizations();
+      },
+      getRoles: async (): Promise<string[]> => {
         const { getRoles } = await import("@kinde/js-utils");
-        return getRoles();
+        return await getRoles();
       },
 
       refreshToken: async (
         ...args: Parameters<typeof refreshToken>
-      ): Promise<ReturnType<typeof refreshToken>> => {
+      ): ReturnType<typeof refreshToken> => {
         const { refreshToken } = await import("@kinde/js-utils");
-        return refreshToken(...args);
+        const result = await refreshToken(...args);
+        return result;
       },
       ...state,
     };

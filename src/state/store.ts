@@ -1,4 +1,4 @@
-import { SessionManager } from "@kinde/js-utils";
+import type { SessionManager } from "@kinde/js-utils";
 
 enum LocalKeys {
   domain = "domain",
