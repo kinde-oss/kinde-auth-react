@@ -89,8 +89,7 @@
   ],
   "private": false,
   "dependencies": {
-    "@kinde-oss/kinde-auth-pkce-js": "^4.2.2",
-    "@kinde/js-utils": "^0.6.0-6"
+    "@kinde/js-utils": "0.7.3"
   },
   "packageManager": "pnpm@8.14.1+sha256.2df78e65d433d7693b9d3fbdaf431b2d96bb4f96a2ffecd51a50efe16e50a6a8"
 }
