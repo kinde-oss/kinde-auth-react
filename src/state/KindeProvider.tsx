@@ -18,6 +18,7 @@ import type {
   UserProfile,
   LoginMethodParams,
   LoginOptions,
+  getClaims
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -338,9 +339,11 @@ export const KindeProvider = ({
         const { getClaim } = await import("@kinde/js-utils");
         return getClaim<T, V>(keyName);
       },
-      getClaims: async <T = undefined,>(): Promise<T | null> => {
+      getClaims: async <T = undefined,>(
+        ...args: Parameters<typeof getClaims>
+      ): Promise<T | null> => {
         const { getClaims } = await import("@kinde/js-utils");
-        return getClaims<T>();
+        return getClaims<T>(...args);
       },
       /** @deprecated use `getCurrentOrganization` instead */
       getOrganization: async (): Promise<string | null> => {
