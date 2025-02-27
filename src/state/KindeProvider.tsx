@@ -104,7 +104,7 @@ export const KindeProvider = ({
 
   storageSettings.useInsecureForRefreshToken = useInsecureForRefreshToken;
 
-  const [state, setState] = useState<ProviderState>({ user: undefined, isAuthenticated: false, isLoading: false });
+  const [state, setState] = useState<ProviderState>({ user: undefined, isAuthenticated: false, isLoading: true });
   const initRef = useRef(false);
 
   const init = useCallback(async () => {
@@ -151,6 +151,7 @@ export const KindeProvider = ({
     if (codeResponse.success) {
       const user = await getUserProfile();
       if (user) {
+        setState((val) => ({ ...val, user, isAuthenticated: true }));
         mergedCallbacks.onSuccess?.(user, {
           ...returnedState,
           kinde: undefined,
@@ -161,7 +162,6 @@ export const KindeProvider = ({
           kinde: undefined
         },
         contextValue);
-        setState((val) => ({ ...val, user, isAuthenticated: true }));
       }
     } else {
       mergedCallbacks.onError?.(
