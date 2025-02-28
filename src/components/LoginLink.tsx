@@ -10,13 +10,17 @@ export function LoginLink({ children, ...props }: LoginLinkProps) {
     auth.login(props as LoginMethodParams);
   }, []);
 
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (props.onClick) {
+      props.onClick(event);
+    }
+    login();
+  };
+
   return (
     <button
       {...props}
-      onClick={(event) => {
-        props.onClick && props.onClick(event);
-        login();
-      }}
+      onClick={handleClick}
     >
       {children}
     </button>

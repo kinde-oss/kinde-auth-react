@@ -17,8 +17,10 @@ let localStorage: SessionManager<LocalKeys>;
 
   memoryStorage = new MemoryStorage<LocalKeys>();
   localStorage = new LocalStorage<LocalKeys>();
-
+  // TODO: Resolve type issue
+  //@ts-expect-error valid assignment
   setActiveStorage(memoryStorage);
+  //@ts-expect-error valid assignment
   setInsecureStorage(localStorage);
 })();
 
