@@ -1,5 +1,9 @@
-import type { SessionManager, setActiveStorage, setInsecureStorage } from "@kinde/js-utils";
-import {  MemoryStorage, LocalStorage } from "@kinde/js-utils";
+import type {
+  SessionManager,
+  setActiveStorage,
+  setInsecureStorage,
+} from "@kinde/js-utils";
+import { MemoryStorage, LocalStorage } from "@kinde/js-utils";
 
 enum LocalKeys {
   domain = "domain",
@@ -11,10 +15,10 @@ enum LocalKeys {
 
 const memoryStorage = new MemoryStorage<LocalKeys>();
 const localStorage = new LocalStorage<LocalKeys>();
-  // TODO: Resolve type issue
-  //@ts-expect-error valid assignment
-  setActiveStorage(memoryStorage);
-  //@ts-expect-error valid assignment
-  setInsecureStorage(localStorage);
+// TODO: Resolve type issue
+//@ts-expect-error valid assignment
+setActiveStorage(memoryStorage);
+//@ts-expect-error valid assignment
+setInsecureStorage(localStorage);
 
 export { memoryStorage, localStorage, LocalKeys };

@@ -10,37 +10,47 @@ import react from "eslint-plugin-react";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const compat = new FlatCompat({
-    baseDirectory: __dirname,
-    recommendedConfig: js.configs.recommended,
-    allConfig: js.configs.all
+  baseDirectory: __dirname,
+  recommendedConfig: js.configs.recommended,
+  allConfig: js.configs.all,
 });
 
-export default [{
-    ignores: ["**/node_modules", "**/dist", "**/.DS_Store", "**/coverage", "**/*.test.tsx"],
-}, ...compat.extends(
+export default [
+  {
+    ignores: [
+      "**/node_modules",
+      "**/dist",
+      "**/.DS_Store",
+      "**/coverage",
+      "**/*.test.tsx",
+    ],
+  },
+  ...compat.extends(
     "eslint:recommended",
     "prettier",
     "plugin:react/recommended",
     "plugin:@typescript-eslint/recommended",
-), {
+  ),
+  {
     plugins: {
-        "@typescript-eslint": typescriptEslint,
-        react
+      "@typescript-eslint": typescriptEslint,
+      react,
     },
 
     languageOptions: {
-        globals: {
-            ...globals.browser,
-        },
+      globals: {
+        ...globals.browser,
+      },
 
-        parser: tsParser,
+      parser: tsParser,
     },
 
     rules: {},
 
     settings: {
-        react: {
-            version: "detect",
-        },
-    }
-}];
+      react: {
+        version: "detect",
+      },
+    },
+  },
+];

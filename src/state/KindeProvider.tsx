@@ -18,7 +18,7 @@ import type {
   UserProfile,
   LoginMethodParams,
   LoginOptions,
-  getClaims
+  getClaims,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -47,9 +47,21 @@ enum AuthEvent {
 }
 
 type KindeCallbacks = {
-  onSuccess?: (user: UserProfile, state: Record<string, unknown>, context: KindeContextProps) => void;
-  onError?: (props: ErrorProps, state: Record<string, string>, context: KindeContextProps) => void;
-  onEvent?: (event: AuthEvent, state: Record<string, unknown>, context: KindeContextProps) => void;
+  onSuccess?: (
+    user: UserProfile,
+    state: Record<string, unknown>,
+    context: KindeContextProps,
+  ) => void;
+  onError?: (
+    props: ErrorProps,
+    state: Record<string, string>,
+    context: KindeContextProps,
+  ) => void;
+  onEvent?: (
+    event: AuthEvent,
+    state: Record<string, unknown>,
+    context: KindeContextProps,
+  ) => void;
 };
 
 type KindeProviderProps = {
@@ -83,7 +95,11 @@ type StateWithKinde = StringProperties & {
   kinde: KindeState;
 };
 
-type ProviderState = {user?: UserProfile, isAuthenticated: boolean, isLoading: boolean}
+type ProviderState = {
+  user?: UserProfile;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+};
 
 export const KindeProvider = ({
   audience,
@@ -104,7 +120,11 @@ export const KindeProvider = ({
 
   storageSettings.useInsecureForRefreshToken = useInsecureForRefreshToken;
 
-  const [state, setState] = useState<ProviderState>({ user: undefined, isAuthenticated: false, isLoading: true });
+  const [state, setState] = useState<ProviderState>({
+    user: undefined,
+    isAuthenticated: false,
+    isLoading: true,
+  });
   const initRef = useRef(false);
 
   const init = useCallback(async () => {
@@ -118,7 +138,11 @@ export const KindeProvider = ({
       try {
         const user = await getUserProfile();
         if (user) {
-          setState((val: ProviderState) => ({ ...val, user, isAuthenticated: true }));
+          setState((val: ProviderState) => ({
+            ...val,
+            user,
+            isAuthenticated: true,
+          }));
         }
       } catch (error) {
         console.warn("Error getting user profile", error);
@@ -152,16 +176,22 @@ export const KindeProvider = ({
       const user = await getUserProfile();
       if (user) {
         setState((val) => ({ ...val, user, isAuthenticated: true }));
-        mergedCallbacks.onSuccess?.(user, {
-          ...returnedState,
-          kinde: undefined,
-        },
-        contextValue);
-        mergedCallbacks.onEvent?.(kindeState.event, {
-          ...returnedState,
-          kinde: undefined
-        },
-        contextValue);
+        mergedCallbacks.onSuccess?.(
+          user,
+          {
+            ...returnedState,
+            kinde: undefined,
+          },
+          contextValue,
+        );
+        mergedCallbacks.onEvent?.(
+          kindeState.event,
+          {
+            ...returnedState,
+            kinde: undefined,
+          },
+          contextValue,
+        );
       }
     } else {
       mergedCallbacks.onError?.(
@@ -170,11 +200,10 @@ export const KindeProvider = ({
           errorDescription: codeResponse.error,
         },
         returnedState,
-        contextValue
+        contextValue,
       );
     }
     setState((val) => ({ ...val, isLoading: false }));
-
   }, [clientId, domain]);
 
   useEffect(() => {
@@ -198,14 +227,7 @@ export const KindeProvider = ({
       [storeState.LocalKeys.logoutUri]: logoutUri,
     });
     return;
-  }, [
-    audience,
-    scope,
-    clientId,
-    domain,
-    redirectUri,
-    logoutUri,
-  ]);
+  }, [audience, scope, clientId, domain, redirectUri, logoutUri]);
 
   const login = useCallback(
     async (
@@ -303,7 +325,10 @@ export const KindeProvider = ({
       return { ...val, user: undefined, isAuthenticated: false };
     });
 
-    await Promise.all([storeState.memoryStorage.destroySession(), storeState.localStorage.destroySession()]);
+    await Promise.all([
+      storeState.memoryStorage.destroySession(),
+      storeState.localStorage.destroySession(),
+    ]);
 
     document.location = `${domain}/logout?${params.toString()}`;
   }, []);

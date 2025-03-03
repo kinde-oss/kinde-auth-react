@@ -18,10 +18,7 @@ export function LoginLink({ children, ...props }: LoginLinkProps) {
   };
 
   return (
-    <button
-      {...props}
-      onClick={handleClick}
-    >
+    <button {...props} onClick={handleClick}>
       {children}
     </button>
   );

@@ -1,4 +1,4 @@
 export const initialState = {
   isLoading: true,
-  isAuthenticated: false
+  isAuthenticated: false,
 };
