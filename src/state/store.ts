@@ -1,9 +1,4 @@
-import type {
-  SessionManager,
-  setActiveStorage,
-  setInsecureStorage,
-} from "@kinde/js-utils";
-import { MemoryStorage, LocalStorage } from "@kinde/js-utils";
+import { MemoryStorage, LocalStorage, setActiveStorage, setInsecureStorage } from "@kinde/js-utils";
 
 enum LocalKeys {
   domain = "domain",

@@ -127,97 +127,6 @@ export const KindeProvider = ({
   });
   const initRef = useRef(false);
 
-  const init = useCallback(async () => {
-    if (initRef.current) return;
-    await checkAuth({ domain, clientId });
-    initRef.current = true;
-    const params = new URLSearchParams(window.location.search);
-    let returnedState: StateWithKinde;
-    let kindeState: KindeState;
-    if (!params.has("code")) {
-      try {
-        const user = await getUserProfile();
-        if (user) {
-          setState((val: ProviderState) => ({
-            ...val,
-            user,
-            isAuthenticated: true,
-          }));
-        }
-      } catch (error) {
-        console.warn("Error getting user profile", error);
-      } finally {
-        setState((val: ProviderState) => ({ ...val, isLoading: false }));
-      }
-      return;
-    } else {
-      const decoded = atob(params.get("state") || "");
-
-      returnedState = JSON.parse(decoded);
-      kindeState = Object.assign(
-        returnedState.kinde || { event: PromptTypes.login },
-      );
-      setState((val: ProviderState) => ({ ...val, isLoading: false }));
-    }
-
-    const redirectURL = (await storeState.memoryStorage.getSessionItem(
-      storeState.LocalKeys.redirectUri,
-    )) as string;
-
-    const codeResponse = await exchangeAuthCode({
-      urlParams: new URLSearchParams(window.location.search),
-      domain,
-      clientId,
-      redirectURL: getRedirectUrl(redirectURL || redirectUri),
-      autoRefresh: true,
-    });
-
-    if (codeResponse.success) {
-      const user = await getUserProfile();
-      if (user) {
-        setState((val) => ({ ...val, user, isAuthenticated: true }));
-        mergedCallbacks.onSuccess?.(
-          user,
-          {
-            ...returnedState,
-            kinde: undefined,
-          },
-          contextValue,
-        );
-        mergedCallbacks.onEvent?.(
-          kindeState.event,
-          {
-            ...returnedState,
-            kinde: undefined,
-          },
-          contextValue,
-        );
-      }
-    } else {
-      mergedCallbacks.onError?.(
-        {
-          error: "ERR_CODE_EXCHANGE",
-          errorDescription: codeResponse.error,
-        },
-        returnedState,
-        contextValue,
-      );
-    }
-    setState((val) => ({ ...val, isLoading: false }));
-  }, [clientId, domain]);
-
-  useEffect(() => {
-    const mounted = { current: true };
-
-    if (mounted.current) {
-      init();
-    }
-
-    return () => {
-      mounted.current = false;
-    };
-  }, [init]);
-
   useEffect(() => {
     storeState.memoryStorage.setItems({
       [storeState.LocalKeys.domain]: domain,
@@ -265,7 +174,7 @@ export const KindeProvider = ({
       );
       document.location = authUrl.url.toString();
     },
-    [],
+    [audience, clientId, redirectUri],
   );
 
   const register = useCallback(
@@ -297,18 +206,27 @@ export const KindeProvider = ({
         redirectURL: getRedirectUrl(options?.redirectURL || redirectUri),
         prompt: PromptTypes.create,
       };
-      const domain = (await storeState.memoryStorage.getSessionItem(
-        storeState.LocalKeys.domain,
-      )) as string;
 
-      const authUrl = await generateAuthUrl(
-        domain,
-        IssuerRouteTypes.register,
-        authProps,
-      );
-      document.location = authUrl.url.toString();
+      try {
+        const domain = (await storeState.memoryStorage.getSessionItem(
+          storeState.LocalKeys.domain,
+        )) as string;
+
+        const authUrl = await generateAuthUrl(
+          domain,
+          IssuerRouteTypes.register,
+          authProps,
+        );
+        document.location = authUrl.url.toString();
+      } catch (error) {  
+        console.error("Logout error:", error);  
+        mergedCallbacks.onError?.({ 
+          error: "ERR_LOGOUT", 
+          errorDescription: String(error) 
+        }, {}, contextValue);  
+      } 
     },
-    [],
+    [redirectUri],
   );
 
   const logout = useCallback(async (redirectUrl: string) => {
@@ -422,7 +340,113 @@ export const KindeProvider = ({
       },
       ...state,
     };
-  }, [state]);
+  }, [state, login, logout, register]);
+
+  const init = useCallback(async () => {
+    if (initRef.current) return;
+    await checkAuth({ domain, clientId });
+    initRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    let returnedState: StateWithKinde;
+    let kindeState: KindeState;
+    if (!params.has("code")) {
+      try {
+        const user = await getUserProfile();
+        if (user) {
+          setState((val: ProviderState) => ({
+            ...val,
+            user,
+            isAuthenticated: true,
+          }));
+        }
+      } catch (error) {
+        console.warn("Error getting user profile", error);
+      } finally {
+        setState((val: ProviderState) => ({ ...val, isLoading: false }));
+      }
+      return;
+    } else {
+      const decoded = atob(params.get("state") || "");  
+      
+      try {  
+        returnedState = JSON.parse(decoded);  
+        kindeState = Object.assign(  
+          returnedState.kinde || { event: PromptTypes.login },  
+        );  
+      } catch (error) {  
+        console.error("Error parsing state:", error);  
+        mergedCallbacks.onError?.(  
+          {  
+            error: "ERR_STATE_PARSE",  
+            errorDescription: String(error),  
+          },  
+          {},  
+          contextValue  
+        );  
+        returnedState = {} as StateWithKinde;  
+        kindeState = { event: AuthEvent.login };  
+      } finally {  
+        setState((val: ProviderState) => ({ ...val, isLoading: false }));  
+      }  
+    }
+
+    const redirectURL = (await storeState.memoryStorage.getSessionItem(
+      storeState.LocalKeys.redirectUri,
+    )) as string;
+
+    const codeResponse = await exchangeAuthCode({
+      urlParams: new URLSearchParams(window.location.search),
+      domain,
+      clientId,
+      redirectURL: getRedirectUrl(redirectURL || redirectUri),
+      autoRefresh: true,
+    });
+
+    if (codeResponse.success) {
+      const user = await getUserProfile();
+      if (user) {
+        setState((val) => ({ ...val, user, isAuthenticated: true }));
+        mergedCallbacks.onSuccess?.(
+          user,
+          {
+            ...returnedState,
+            kinde: undefined,
+          },
+          contextValue,
+        );
+        mergedCallbacks.onEvent?.(
+          kindeState.event,
+          {
+            ...returnedState,
+            kinde: undefined,
+          },
+          contextValue,
+        );
+      }
+    } else {
+      mergedCallbacks.onError?.(
+        {
+          error: "ERR_CODE_EXCHANGE",
+          errorDescription: codeResponse.error,
+        },
+        returnedState,
+        contextValue,
+      );
+    }
+    setState((val) => ({ ...val, isLoading: false }));
+  }, [clientId, domain, redirectUri, mergedCallbacks, contextValue]);
+  
+  useEffect(() => {
+    const mounted = { current: true };
+
+    if (mounted.current) {
+      init();
+    }
+
+    return () => {
+      mounted.current = false;
+    };
+  }, [init]);
 
   return (
     initRef.current && (
