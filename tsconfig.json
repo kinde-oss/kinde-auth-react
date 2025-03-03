@@ -1,19 +1,24 @@
 {
   "compilerOptions": {
-    "target": "es5",
-    "lib": ["es6", "dom"],
-    "module": "es6",
-    "moduleResolution": "node",
-    "declaration": true,
     "declarationMap": true,
-    "declarationDir": "./types",
     "sourceMap": true,
-    "outDir": "./dist",
-    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true,
+    "types": ["node", "vite/client", "@kinde/js-utils"],
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "emitDeclarationOnly": false,
+    "declaration": true,
+    "declarationDir": "./dist",
+    "outDir": "./dist",
+    "module": "ESNext",
+    "target": "ES6",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "jsx": "react",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
     "skipLibCheck": true,
-    "jsx": "react"
+    "strict": true
   },
-  "include": ["src/**/*", "types/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.tsx", "node_modules", "dist"]
 }

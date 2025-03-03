@@ -1,14 +1,31 @@
-export type KindeUser = {
-  given_name: string | null;
-  id: string | null;
-  family_name: string | null;
-  email: string | null;
-  picture: string | null;
-};
+import { LoginMethodParams, UserProfile } from "@kinde/js-utils";
 
 export type State = {
-  user?: KindeUser;
+  user?: UserProfile;
   isLoading: boolean;
   isAuthenticated: boolean;
   error?: string | undefined;
+};
+
+export interface LoginLinkProps
+  extends Partial<LoginMethodParams>,
+    React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+}
+
+export interface RegisterLinkProps
+  extends Partial<LoginMethodParams>,
+    React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+}
+
+export interface LogoutLinkProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+  redirectUrl?: string;
+}
+
+export type ErrorProps = {
+  error: string;
+  errorDescription: string;
 };

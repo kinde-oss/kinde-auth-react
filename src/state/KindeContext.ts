@@ -1,32 +1,44 @@
-import createKindeClient from '@kinde-oss/kinde-auth-pkce-js';
-import { createContext } from 'react';
-import { initialState } from './initialState';
-import { State } from './types';
+import { createContext } from "react";
+import { initialState } from "./initialState";
+import { State } from "./types";
+import type {
+  getClaim,
+  getClaims,
+  getCurrentOrganization,
+  getFlag,
+  getPermission,
+  getPermissions,
+  getRoles,
+  getUserOrganizations,
+  getUserProfile,
+  LoginMethodParams,
+  refreshToken,
+} from "@kinde/js-utils";
 
-type KindeClient = Awaited<ReturnType<typeof createKindeClient>>;
 export interface KindeContextProps extends State {
-  login: KindeClient['login'];
-  register: KindeClient['register'];
-  logout: KindeClient['logout'];
-  createOrg: KindeClient['createOrg'];
-  getClaim: KindeClient['getClaim'];
-  getFlag: KindeClient['getFlag'] | undefined;
-  getBooleanFlag: KindeClient['getBooleanFlag'];
-  getIntegerFlag: KindeClient['getIntegerFlag'];
-  getStringFlag: KindeClient['getStringFlag'];
-  getPermissions: KindeClient['getPermissions'] | undefined;
-  getPermission: KindeClient['getPermission'] | undefined;
-  getOrganization: KindeClient['getOrganization'] | undefined;
-  getToken: KindeClient['getToken'] | undefined;
-  getIdToken: KindeClient['getIdToken'];
-  getUser: KindeClient['getUser'];
-  getUserOrganizations: KindeClient['getUserOrganizations'];
+  login: (options?: LoginMethodParams) => Promise<void>;
+  register: (options?: LoginMethodParams) => Promise<void>;
+  logout: (redirectUri: string) => Promise<void>;
+  getClaims: typeof getClaims;
+  getIdToken: () => Promise<string | undefined>;
+  getToken: () => Promise<string | undefined>;
+  getAccessToken: () => Promise<string | undefined>;
+  getClaim: typeof getClaim;
+  getOrganization: typeof getCurrentOrganization;
+  getCurrentOrganization: typeof getCurrentOrganization;
+  getFlag: typeof getFlag;
+  getUserProfile: typeof getUserProfile;
+  getPermission: typeof getPermission;
+  getPermissions: typeof getPermissions;
+  getUserOrganizations: typeof getUserOrganizations;
+  getRoles: typeof getRoles;
+  refreshToken: typeof refreshToken;
 }
 
 const initialContext = {
-  ...initialState
+  ...initialState,
 };
 
 export const KindeContext = createContext<KindeContextProps>(
-  initialContext as KindeContextProps
+  initialContext as KindeContextProps,
 );
