@@ -219,9 +219,9 @@ export const KindeProvider = ({
         );
         document.location = authUrl.url.toString();
       } catch (error) {  
-        console.error("Logout error:", error);  
+        console.error("Register error:", error);  
         mergedCallbacks.onError?.({ 
-          error: "ERR_LOGOUT", 
+          error: "ERR_REGISTER", 
           errorDescription: String(error) 
         }, {}, contextValue);  
       } 
@@ -230,25 +230,33 @@ export const KindeProvider = ({
   );
 
   const logout = useCallback(async (redirectUrl: string) => {
-    const domain = (await storeState.memoryStorage.getSessionItem(
-      storeState.LocalKeys.domain,
-    )) as string;
+    try {
+      const domain = (await storeState.memoryStorage.getSessionItem(
+        storeState.LocalKeys.domain,
+      )) as string;
 
-    const params = new URLSearchParams();
-    if (redirectUrl) {
-      params.append("redirect", redirectUrl);
-    }
+      const params = new URLSearchParams();
+      if (redirectUrl) {
+        params.append("redirect", redirectUrl);
+      }
 
-    setState((val) => {
-      return { ...val, user: undefined, isAuthenticated: false };
-    });
+      setState((val) => {
+        return { ...val, user: undefined, isAuthenticated: false };
+      });
 
-    await Promise.all([
-      storeState.memoryStorage.destroySession(),
-      storeState.localStorage.destroySession(),
-    ]);
+      await Promise.all([
+        storeState.memoryStorage.destroySession(),
+        storeState.localStorage.destroySession(),
+      ]);
 
-    document.location = `${domain}/logout?${params.toString()}`;
+      document.location = `${domain}/logout?${params.toString()}`;
+    } catch (error) {  
+      console.error("Logout error:", error);  
+      mergedCallbacks.onError?.({ 
+        error: "ERR_LOGOUT", 
+        errorDescription: String(error) 
+      }, {}, contextValue);  
+    } 
   }, []);
 
   const contextValue = useMemo((): KindeContextProps => {
