@@ -24,7 +24,7 @@ export default defineConfig({
       formats: ["es", "cjs"],
       name: "@kinde-oss/kinde-auth-react",
       fileName: (format, entryName) =>
-        format === "es" ? `${entryName}.cjs` : `${entryName}.js`,
+        format === "es" ? `${entryName}.mjs` : `${entryName}.cjs`,
     },
     target: "esnext",
     outDir: "dist",

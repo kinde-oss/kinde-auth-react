@@ -30,7 +30,7 @@ describe("LoginLink", () => {
     cleanup(); // Clean up after each test
   });
 
-  it.only("renders with children", () => {
+  it("renders with children", () => {
     const { container } = render(<LoginLink>Login</LoginLink>);
 
     const button = screen.getByRole("button");
@@ -38,7 +38,7 @@ describe("LoginLink", () => {
     expect(container.textContent).toBe("Login");
   });
 
-  it.only("calls login when clicked", async () => {
+  it("calls login when clicked", async () => {
     render(<LoginLink audience="test-audience">Login</LoginLink>);
 
     const button = screen.getByRole("button", { name: "Login" });
@@ -48,7 +48,7 @@ describe("LoginLink", () => {
     expect(mockLogin).toHaveBeenCalledWith({ audience: "test-audience" });
   });
 
-  it.only("passes HTML button props correctly", () => {
+  it("passes HTML button props correctly", () => {
     render(
       <LoginLink className="test-class" disabled>
         Login
@@ -60,7 +60,7 @@ describe("LoginLink", () => {
     expect(button).toBeDisabled();
   });
 
-  it.only("preserves custom onClick handler while calling login", () => {
+  it("preserves custom onClick handler while calling login", () => {
     const customOnClick = vi.fn();
     render(<LoginLink onClick={customOnClick}>Login</LoginLink>);
 

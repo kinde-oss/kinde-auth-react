@@ -12,7 +12,7 @@ vi.mock("../hooks/useKindeAuth", () => ({
   useKindeAuth: vi.fn(),
 }));
 
-describe("LoginLink", () => {
+describe("RegisterLink", () => {
   const mockRegister = vi.fn();
 
   beforeEach(() => {
@@ -29,7 +29,7 @@ describe("LoginLink", () => {
     cleanup(); // Clean up after each test
   });
 
-  it.only("renders with children", () => {
+  it("renders with children", () => {
     const { container } = render(<RegisterLink>Register</RegisterLink>);
 
     const button = screen.getByRole("button");
@@ -37,7 +37,7 @@ describe("LoginLink", () => {
     expect(container.textContent).toBe("Register");
   });
 
-  it.only("calls login when clicked", async () => {
+  it("calls login when clicked", async () => {
     render(<RegisterLink audience="test-audience">Register</RegisterLink>);
 
     const button = screen.getByRole("button", { name: "Register" });
@@ -47,7 +47,7 @@ describe("LoginLink", () => {
     expect(mockRegister).toHaveBeenCalledWith({ audience: "test-audience" });
   });
 
-  it.only("passes HTML button props correctly", () => {
+  it("passes HTML button props correctly", () => {
     render(
       <RegisterLink className="test-class" disabled>
         Register
@@ -59,7 +59,7 @@ describe("LoginLink", () => {
     expect(button).toBeDisabled();
   });
 
-  it.only("preserves custom onClick handler while calling login", () => {
+  it("preserves custom onClick handler while calling login", () => {
     const customOnClick = vi.fn();
     render(<RegisterLink onClick={customOnClick}>Register</RegisterLink>);
 

@@ -217,7 +217,7 @@ export const KindeProvider = ({
 
       const optionsState: Record<string, string> = options.state || {};
 
-      delete options.state;
+      options.state = undefined;
 
       const authProps: LoginOptions = {
         audience,
@@ -256,7 +256,7 @@ export const KindeProvider = ({
 
       const optionsState: Record<string, string> = options.state || {};
 
-      delete options.state;
+      options.state = undefined;
 
       const authProps: LoginOptions = {
         ...options,
@@ -400,7 +400,7 @@ export const KindeProvider = ({
   }, [state]);
 
   return (
-    initRef && (
+    initRef.current && (
       <KindeContext.Provider value={contextValue}>
         {children}
       </KindeContext.Provider>

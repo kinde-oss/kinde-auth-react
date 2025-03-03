@@ -15,7 +15,7 @@ vi.mock("../hooks/useKindeAuth", () => ({
   useKindeAuth: vi.fn(),
 }));
 
-describe("RegisterLink Component", () => {
+describe("LogoutLink Component", () => {
   const mockLogout = vi.fn();
 
   beforeEach(() => {
@@ -34,9 +34,9 @@ describe("RegisterLink Component", () => {
 
   it("should render correctly when authed", async () => {
     await act(async () => {
-      render(<LogoutLink>Login</LogoutLink>);
+      render(<LogoutLink>Logout</LogoutLink>);
     });
-    const linkElement = screen.getByText("Login");
+    const linkElement = screen.getByText("Logout");
     expect(linkElement).toBeInTheDocument();
   });
 
@@ -51,9 +51,9 @@ describe("RegisterLink Component", () => {
 
   it("passes HTML button props correctly", () => {
     render(
-      <LoginLink className="test-class" disabled>
+      <LogoutLink className="test-class" disabled>
         Login
-      </LoginLink>,
+      </LogoutLink>,
     );
 
     const button = screen.getByRole("button", { name: "Login" });

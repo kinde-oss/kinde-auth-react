@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, act } from "@testing-library/react";
 import { KindeProvider } from "./KindeProvider";
 import React from "react";
 
@@ -28,28 +28,6 @@ describe("KindeProvider", () => {
   afterEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
-  });
-
-  it("handles login with auth options", async () => {
-    const authOptions = {
-      audience: "test-audience",
-      clientId: "test-client",
-      redirectURL: "http://test.com",
-    };
-
-    mockStorage.getSessionItem.mockResolvedValue("test-value");
-
-    await act(async () => {
-      render(
-        <KindeProvider clientId="test" domain="test.com">
-          <div>Test Child</div>
-        </KindeProvider>,
-      );
-    });
-
-    // Test login method through context
-    const provider = screen.getByText("Test Child").parentElement;
-    expect(provider).toBeTruthy();
   });
 
   it("uses default redirect URL when not provided", async () => {

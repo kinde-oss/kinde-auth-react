@@ -8,7 +8,7 @@ export function RegisterLink({ children, ...props }: RegisterLinkProps) {
 
   const register = useCallback(async () => {
     auth.register(props as LoginMethodParams);
-  }, []);
+  }, [auth, props]);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (props.onClick) {

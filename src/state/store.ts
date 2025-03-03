@@ -8,10 +8,10 @@ enum LocalKeys {
   logoutUri = "logout_uri",
 }
 
-let memoryStorage: SessionManager<LocalKeys>;
-let localStorage: SessionManager<LocalKeys>;
+let memoryStorage: SessionManager<LocalKeys> | undefined;
+let localStorage: SessionManager<LocalKeys> | undefined;
 
-(async () => {
+const storeReady = (async () => {
   const { MemoryStorage, LocalStorage, setActiveStorage, setInsecureStorage } =
     await import("@kinde/js-utils");
 
@@ -22,6 +22,7 @@ let localStorage: SessionManager<LocalKeys>;
   setActiveStorage(memoryStorage);
   //@ts-expect-error valid assignment
   setInsecureStorage(localStorage);
-})();
+  return;
+})()
 
-export { memoryStorage, localStorage, LocalKeys };
+export { memoryStorage, localStorage, LocalKeys, storeReady };

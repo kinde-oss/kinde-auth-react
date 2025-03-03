@@ -8,7 +8,7 @@ export function LoginLink({ children, ...props }: LoginLinkProps) {
 
   const login = useCallback(async () => {
     auth.login(props as LoginMethodParams);
-  }, []);
+  }, [auth, props]);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (props.onClick) {
