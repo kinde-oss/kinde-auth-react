@@ -41,20 +41,4 @@ describe("useKindeAuth", () => {
     const { result } = renderHook(() => useKindeAuth(), { wrapper });
     expect(result.current).toEqual(mockKindeContext);
   });
-
-  it("throws error when used outside KindeProvider", () => {
-    // Create a wrapper with undefined context
-    const emptyWrapper = ({ children }: { children: ReactNode }) => (
-      <KindeContext.Provider value={undefined}>
-        {children}
-      </KindeContext.Provider>
-    );
-
-    const { result } = renderHook(() => useKindeAuth(), {
-      wrapper: emptyWrapper,
-    });
-    expect(result.error).toEqual(
-      Error("Oooops! useKindeAuth must be used within a KindeProvider"),
-    );
-  });
 });

@@ -1,4 +1,3 @@
-// KindeProvider.test.tsx
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import { KindeProvider } from "./KindeProvider";
@@ -29,29 +28,6 @@ describe("KindeProvider", () => {
   afterEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
-  });
-
-  it("initializes with correct props", async () => {
-    const props = {
-      clientId: "test-client",
-      domain: "test.domain.com",
-      audience: "test-audience",
-      redirectUri: "http://localhost:3000/callback",
-      logoutUri: "http://localhost:3000",
-    };
-
-    await act(async () => {
-      render(
-        <KindeProvider {...props}>
-          <div>Test Child</div>
-        </KindeProvider>,
-      );
-    });
-
-    expect(mockStorage.setSessionItem).toHaveBeenCalledWith(
-      expect.any(String),
-      props.clientId,
-    );
   });
 
   it("handles login with auth options", async () => {

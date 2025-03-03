@@ -47,7 +47,6 @@ describe("RegisterLink Component", () => {
     fireEvent.click(button);
 
     expect(mockLogout).toHaveBeenCalledTimes(1);
-    // expect(mockLogout).toHaveBeenCalledWith({ audience: 'test-audience' });
   });
 
   it("passes HTML button props correctly", () => {
@@ -61,19 +60,4 @@ describe("RegisterLink Component", () => {
     expect(button).toHaveClass("test-class");
     expect(button).toBeDisabled();
   });
-
-  // it.only('preserves custom onClick handler while calling login', () => {
-  //   const customOnClick = vi.fn();
-  //   render(
-  //     <LoginLink onClick={customOnClick}>
-  //       Login
-  //     </LoginLink>
-  //   );
-
-  //   const button = screen.getByRole('button', { name: 'Login' });
-  //   fireEvent.click(button);
-
-  //   expect(customOnClick).toHaveBeenCalled();
-  //   expect(mockLogin).toHaveBeenCalled();
-  // });
 });

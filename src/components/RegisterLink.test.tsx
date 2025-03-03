@@ -1,10 +1,7 @@
-// setupTests.ts
 import "@testing-library/jest-dom/vitest";
 import * as matchers from "@testing-library/jest-dom/matchers";
-
 expect.extend(matchers);
 import "@testing-library/jest-dom/matchers";
-// LoginLink.test.tsx
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { useKindeAuth } from "../hooks/useKindeAuth";
