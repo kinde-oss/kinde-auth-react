@@ -18,7 +18,7 @@ import type {
 export interface KindeContextProps extends State {
   login: (options?: LoginMethodParams) => Promise<void>;
   register: (options?: LoginMethodParams) => Promise<void>;
-  logout: (redirectUri: string) => Promise<void>;
+  logout: (redirectUri?: string) => Promise<void>;
   getClaims: typeof getClaims;
   getIdToken: () => Promise<string | undefined>;
   getToken: () => Promise<string | undefined>;
