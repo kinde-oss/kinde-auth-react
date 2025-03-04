@@ -18,7 +18,7 @@ export function RegisterLink({ children, ...props }: RegisterLinkProps) {
   };
 
   return (
-    <button {...props} onClick={handleClick}>
+    <button type="button" {...props} onClick={handleClick}>
       {children}
     </button>
   );

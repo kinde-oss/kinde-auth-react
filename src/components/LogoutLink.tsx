@@ -11,6 +11,7 @@ export function LogoutLink({ children, ...props }: LogoutLinkProps) {
 
   return (
     <button
+      type="button"
       {...props}
       onClick={() => {
         logout();
