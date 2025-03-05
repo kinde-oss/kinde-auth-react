@@ -140,12 +140,8 @@ export const KindeProvider = ({
 
   const login = useCallback(
     async (
-      options?: LoginMethodParams & { state?: Record<string, string> },
+      options: LoginMethodParams & { state?: Record<string, string> } = {},
     ) => {
-      if (!options) {
-        return;
-      }
-
       const optionsState: Record<string, string> = options.state || {};
 
       options.state = undefined;
@@ -179,12 +175,8 @@ export const KindeProvider = ({
 
   const register = useCallback(
     async (
-      options?: LoginMethodParams & { state?: Record<string, string> },
+      options: LoginMethodParams & { state?: Record<string, string> } = {},
     ) => {
-      if (!options) {
-        return;
-      }
-
       const optionsState: Record<string, string> = options.state || {};
 
       options.state = undefined;
