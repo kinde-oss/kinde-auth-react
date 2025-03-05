@@ -229,7 +229,7 @@ export const KindeProvider = ({
     [redirectUri],
   );
 
-  const logout = useCallback(async (redirectUrl: string) => {
+  const logout = useCallback(async (redirectUrl?: string) => {
     try {
       const domain = (await storeState.memoryStorage.getSessionItem(
         storeState.LocalKeys.domain,
