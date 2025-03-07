@@ -449,10 +449,10 @@ export const KindeProvider = ({
   }, [init]);
 
   return (
-    initRef.current && (
+    initRef.current ? (
       <KindeContext.Provider value={contextValue}>
         {children}
       </KindeContext.Provider>
-    )
+    ) : null
   );
 };
