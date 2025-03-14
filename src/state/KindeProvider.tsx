@@ -453,6 +453,6 @@ export const KindeProvider = ({
       <KindeContext.Provider value={contextValue}>
         {children}
       </KindeContext.Provider>
-    ) : null
+    ) : <></>
   );
 };
