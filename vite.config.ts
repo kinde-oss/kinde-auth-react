@@ -31,7 +31,7 @@ export default defineConfig({
     emptyOutDir: true,
 
     rollupOptions: {
-      external: ["react", "react-native"],
+      external: ["react", "react-native", "react/jsx-runtime", "react/jsx-dev-runtime"],
     },
   },
 
