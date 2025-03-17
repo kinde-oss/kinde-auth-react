@@ -19,6 +19,7 @@ import type {
   LoginMethodParams,
   LoginOptions,
   getClaims,
+  Role,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -326,7 +327,7 @@ export const KindeProvider = ({
         const { getUserOrganizations } = await import("@kinde/js-utils");
         return await getUserOrganizations();
       },
-      getRoles: async (): Promise<string[]> => {
+      getRoles: async (): Promise<Role[]> => {
         const { getRoles } = await import("@kinde/js-utils");
         return await getRoles();
       },
