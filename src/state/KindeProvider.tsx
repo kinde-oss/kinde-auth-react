@@ -80,6 +80,7 @@ type KindeProviderProps = {
   redirectUri: string;
   callbacks?: KindeCallbacks;
   scope?: string;
+  forceChildrenRender?: boolean;
 };
 
 const defaultCallbacks: KindeCallbacks = {
@@ -112,6 +113,7 @@ export const KindeProvider = ({
   redirectUri,
   callbacks = {},
   logoutUri,
+  forceChildrenRender = false,
 }: KindeProviderProps) => {
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
 
@@ -449,11 +451,11 @@ export const KindeProvider = ({
     };
   }, [init]);
 
-  return (
-    initRef.current ? (
-      <KindeContext.Provider value={contextValue}>
-        {children}
-      </KindeContext.Provider>
-    ) : <></>
+  return forceChildrenRender || initRef.current ? (
+    <KindeContext.Provider value={contextValue}>
+      {children}
+    </KindeContext.Provider>
+  ) : (
+    <></>
   );
 };
