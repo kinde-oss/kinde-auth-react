@@ -213,13 +213,17 @@ export const KindeProvider = ({
           authProps,
         );
         document.location = authUrl.url.toString();
-      } catch (error) {  
-        console.error("Register error:", error);  
-        mergedCallbacks.onError?.({ 
-          error: "ERR_REGISTER", 
-          errorDescription: String(error) 
-        }, {}, contextValue);  
-      } 
+      } catch (error) {
+        console.error("Register error:", error);
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_REGISTER",
+            errorDescription: String(error),
+          },
+          {},
+          contextValue,
+        );
+      }
     },
     [redirectUri],
   );
@@ -245,13 +249,17 @@ export const KindeProvider = ({
       ]);
 
       document.location = `${domain}/logout?${params.toString()}`;
-    } catch (error) {  
-      console.error("Logout error:", error);  
-      mergedCallbacks.onError?.({ 
-        error: "ERR_LOGOUT", 
-        errorDescription: String(error) 
-      }, {}, contextValue);  
-    } 
+    } catch (error) {
+      console.error("Logout error:", error);
+      mergedCallbacks.onError?.(
+        {
+          error: "ERR_LOGOUT",
+          errorDescription: String(error),
+        },
+        {},
+        contextValue,
+      );
+    }
   }, []);
 
   const contextValue = useMemo((): KindeContextProps => {
@@ -368,77 +376,77 @@ export const KindeProvider = ({
         setState((val: ProviderState) => ({ ...val, isLoading: false }));
       }
       return;
-    } else {
-      const decoded = atob(params.get("state") || "");  
-      
-      try {  
-        returnedState = JSON.parse(decoded);  
-        kindeState = Object.assign(  
-          returnedState.kinde || { event: PromptTypes.login },  
-        );  
-      } catch (error) {  
-        console.error("Error parsing state:", error);  
-        mergedCallbacks.onError?.(  
-          {  
-            error: "ERR_STATE_PARSE",  
-            errorDescription: String(error),  
-          },  
-          {},  
-          contextValue  
-        );  
-        returnedState = {} as StateWithKinde;  
-        kindeState = { event: AuthEvent.login };  
-      } finally {  
-        setState((val: ProviderState) => ({ ...val, isLoading: false }));  
-      }  
     }
 
-    const redirectURL = (await storeState.memoryStorage.getSessionItem(
-      storeState.LocalKeys.redirectUri,
-    )) as string;
+    const decoded = atob(params.get("state") || "");
 
-    const codeResponse = await exchangeAuthCode({
-      urlParams: new URLSearchParams(window.location.search),
-      domain,
-      clientId,
-      redirectURL: getRedirectUrl(redirectURL || redirectUri),
-      autoRefresh: true,
-    });
+    try {
+      returnedState = JSON.parse(decoded);
+      kindeState = Object.assign(
+        returnedState.kinde || { event: PromptTypes.login },
+      );
+    } catch (error) {
+      console.error("Error parsing state:", error);
+      mergedCallbacks.onError?.(
+        {
+          error: "ERR_STATE_PARSE",
+          errorDescription: String(error),
+        },
+        {},
+        contextValue,
+      );
+      returnedState = {} as StateWithKinde;
+      kindeState = { event: AuthEvent.login };
+    }
+    try {
+      const redirectURL = (await storeState.memoryStorage.getSessionItem(
+        storeState.LocalKeys.redirectUri,
+      )) as string;
 
-    if (codeResponse.success) {
-      const user = await getUserProfile();
-      if (user) {
-        setState((val) => ({ ...val, user, isAuthenticated: true }));
-        mergedCallbacks.onSuccess?.(
-          user,
+      const codeResponse = await exchangeAuthCode({
+        urlParams: new URLSearchParams(window.location.search),
+        domain,
+        clientId,
+        redirectURL: getRedirectUrl(redirectURL || redirectUri),
+        autoRefresh: true,
+      });
+
+      if (codeResponse.success) {
+        const user = await getUserProfile();
+        if (user) {
+          setState((val) => ({ ...val, user, isAuthenticated: true }));
+          mergedCallbacks.onSuccess?.(
+            user,
+            {
+              ...returnedState,
+              kinde: undefined,
+            },
+            contextValue,
+          );
+          mergedCallbacks.onEvent?.(
+            kindeState.event,
+            {
+              ...returnedState,
+              kinde: undefined,
+            },
+            contextValue,
+          );
+        }
+      } else {
+        mergedCallbacks.onError?.(
           {
-            ...returnedState,
-            kinde: undefined,
+            error: "ERR_CODE_EXCHANGE",
+            errorDescription: codeResponse.error,
           },
-          contextValue,
-        );
-        mergedCallbacks.onEvent?.(
-          kindeState.event,
-          {
-            ...returnedState,
-            kinde: undefined,
-          },
+          returnedState,
           contextValue,
         );
       }
-    } else {
-      mergedCallbacks.onError?.(
-        {
-          error: "ERR_CODE_EXCHANGE",
-          errorDescription: codeResponse.error,
-        },
-        returnedState,
-        contextValue,
-      );
+    } finally {
+      setState((val) => ({ ...val, isLoading: false }));
     }
-    setState((val) => ({ ...val, isLoading: false }));
   }, [clientId, domain, redirectUri, mergedCallbacks, contextValue]);
-  
+
   useEffect(() => {
     const mounted = { current: true };
 
