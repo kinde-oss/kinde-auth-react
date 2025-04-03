@@ -213,13 +213,17 @@ export const KindeProvider = ({
           authProps,
         );
         document.location = authUrl.url.toString();
-      } catch (error) {  
-        console.error("Register error:", error);  
-        mergedCallbacks.onError?.({ 
-          error: "ERR_REGISTER", 
-          errorDescription: String(error) 
-        }, {}, contextValue);  
-      } 
+      } catch (error) {
+        console.error("Register error:", error);
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_REGISTER",
+            errorDescription: String(error),
+          },
+          {},
+          contextValue,
+        );
+      }
     },
     [redirectUri],
   );
@@ -245,13 +249,17 @@ export const KindeProvider = ({
       ]);
 
       document.location = `${domain}/logout?${params.toString()}`;
-    } catch (error) {  
-      console.error("Logout error:", error);  
-      mergedCallbacks.onError?.({ 
-        error: "ERR_LOGOUT", 
-        errorDescription: String(error) 
-      }, {}, contextValue);  
-    } 
+    } catch (error) {
+      console.error("Logout error:", error);
+      mergedCallbacks.onError?.(
+        {
+          error: "ERR_LOGOUT",
+          errorDescription: String(error),
+        },
+        {},
+        contextValue,
+      );
+    }
   }, []);
 
   const contextValue = useMemo((): KindeContextProps => {
@@ -438,7 +446,7 @@ export const KindeProvider = ({
     }
     setState((val) => ({ ...val, isLoading: false }));
   }, [clientId, domain, redirectUri, mergedCallbacks, contextValue]);
-  
+
   useEffect(() => {
     const mounted = { current: true };
 

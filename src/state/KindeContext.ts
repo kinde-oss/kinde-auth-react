@@ -16,8 +16,12 @@ import type {
 } from "@kinde/js-utils";
 
 export interface KindeContextProps extends State {
-  login: (options?: LoginMethodParams & { state?: Record<string, string> }) => Promise<void>;
-  register: (options?: LoginMethodParams & { state?: Record<string, string> }) => Promise<void>;
+  login: (
+    options?: LoginMethodParams & { state?: Record<string, string> },
+  ) => Promise<void>;
+  register: (
+    options?: LoginMethodParams & { state?: Record<string, string> },
+  ) => Promise<void>;
   logout: (redirectUri?: string) => Promise<void>;
   getClaims: typeof getClaims;
   getIdToken: () => Promise<string | undefined>;
