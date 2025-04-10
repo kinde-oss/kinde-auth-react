@@ -157,7 +157,7 @@ export const KindeProvider = ({
         mergedCallbacks.onEvent(AuthEvent.tokenRefreshed, data, contextValue);
       }
     },
-    [mergedCallbacks],
+    [mergedCallbacks, contextValue],
   );
 
   const handleFocus = useCallback(() => {
