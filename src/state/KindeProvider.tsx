@@ -151,30 +151,6 @@ export const KindeProvider = ({
     return;
   }, [audience, scope, clientId, domain, redirectUri, logoutUri]);
 
-  const onRefresh = useCallback(
-    (data: RefreshTokenResult): void => {
-      if (mergedCallbacks.onEvent) {
-        mergedCallbacks.onEvent(AuthEvent.tokenRefreshed, data, contextValue);
-      }
-    },
-    [mergedCallbacks, contextValue],
-  );
-
-  const handleFocus = useCallback(() => {
-    if (document.visibilityState === "visible" && state.isAuthenticated) {
-      refreshToken({ domain, clientId, onRefresh });
-    }
-  }, [state.isAuthenticated, domain, clientId, onRefresh]);
-
-  useEffect(() => {
-    // remove any existing event listener before adding a new one
-    document.removeEventListener("visibilitychange", handleFocus);
-    document.addEventListener("visibilitychange", handleFocus);
-    return () => {
-      document.removeEventListener("visibilitychange", handleFocus);
-    };
-  }, [handleFocus]);
-
   const login = useCallback(
     async (
       options: LoginMethodParams & { state?: Record<string, string> } = {},
@@ -386,6 +362,30 @@ export const KindeProvider = ({
       ...state,
     };
   }, [state, login, logout, register]);
+
+  const onRefresh = useCallback(
+    (data: RefreshTokenResult): void => {
+      if (mergedCallbacks.onEvent) {
+        mergedCallbacks.onEvent(AuthEvent.tokenRefreshed, data, contextValue);
+      }
+    },
+    [mergedCallbacks, contextValue],
+  );
+
+  const handleFocus = useCallback(() => {
+    if (document.visibilityState === "visible" && state.isAuthenticated) {
+      refreshToken({ domain, clientId, onRefresh });
+    }
+  }, [state.isAuthenticated, domain, clientId, onRefresh]);
+
+  useEffect(() => {
+    // remove any existing event listener before adding a new one
+    document.removeEventListener("visibilitychange", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", handleFocus);
+    };
+  }, [handleFocus]);
 
   const init = useCallback(async () => {
     if (initRef.current) return;
