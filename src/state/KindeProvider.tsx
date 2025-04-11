@@ -11,7 +11,7 @@ import {
   IssuerRouteTypes,
   getActiveStorage,
 } from "@kinde/js-utils";
-import type {
+import {
   Permissions,
   refreshToken,
   PermissionAccess,
@@ -33,6 +33,7 @@ import { KindeContext, KindeContextProps } from "./KindeContext";
 import { getRedirectUrl } from "../utils/getRedirectUrl";
 import packageJson from "../../package.json";
 import { ErrorProps } from "./types";
+import { RefreshTokenResult } from "@kinde/js-utils/dist/utils/token/refreshToken";
 // TODO: need to look for old token store and convert.
 storageSettings.keyPrefix = "";
 
@@ -47,6 +48,19 @@ enum AuthEvent {
   tokenRefreshed = "tokenRefreshed",
 }
 
+type EventTypes = {
+  (
+    event: AuthEvent.tokenRefreshed,
+    state: RefreshTokenResult,
+    context: KindeContextProps,
+  ): void;
+  (
+    event: AuthEvent,
+    state: Record<string, unknown>,
+    context: KindeContextProps,
+  ): void;
+};
+
 type KindeCallbacks = {
   onSuccess?: (
     user: UserProfile,
@@ -58,11 +72,7 @@ type KindeCallbacks = {
     state: Record<string, string>,
     context: KindeContextProps,
   ) => void;
-  onEvent?: (
-    event: AuthEvent,
-    state: Record<string, unknown>,
-    context: KindeContextProps,
-  ) => void;
+  onEvent?: EventTypes;
 };
 
 type KindeProviderProps = {
@@ -353,6 +363,32 @@ export const KindeProvider = ({
     };
   }, [state, login, logout, register]);
 
+  const onRefresh = useCallback(
+    (data: RefreshTokenResult): void => {
+      if (mergedCallbacks.onEvent) {
+        mergedCallbacks.onEvent(AuthEvent.tokenRefreshed, data, contextValue);
+      }
+    },
+    [mergedCallbacks, contextValue],
+  );
+
+  const handleFocus = useCallback(() => {
+    if (document.visibilityState === "visible" && state.isAuthenticated) {
+      refreshToken({ domain, clientId, onRefresh }).catch((error) => {
+        console.error("Error refreshing token:", error);
+      });
+    }
+  }, [state.isAuthenticated, domain, clientId, onRefresh]);
+
+  useEffect(() => {
+    // remove any existing event listener before adding a new one
+    document.removeEventListener("visibilitychange", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", handleFocus);
+    };
+  }, [handleFocus]);
+
   const init = useCallback(async () => {
     if (initRef.current) return;
     await checkAuth({ domain, clientId });
@@ -409,6 +445,7 @@ export const KindeProvider = ({
         clientId,
         redirectURL: getRedirectUrl(redirectURL || redirectUri),
         autoRefresh: true,
+        onRefresh,
       });
 
       if (codeResponse.success) {
@@ -423,14 +460,16 @@ export const KindeProvider = ({
             },
             contextValue,
           );
-          mergedCallbacks.onEvent?.(
-            kindeState.event,
-            {
-              ...returnedState,
-              kinde: undefined,
-            },
-            contextValue,
-          );
+          if (mergedCallbacks.onEvent) {
+            mergedCallbacks.onEvent(
+              kindeState.event,
+              {
+                ...returnedState,
+                kinde: undefined,
+              },
+              contextValue,
+            );
+          }
         }
       } else {
         mergedCallbacks.onError?.(
@@ -445,7 +484,7 @@ export const KindeProvider = ({
     } finally {
       setState((val) => ({ ...val, isLoading: false }));
     }
-  }, [clientId, domain, redirectUri, mergedCallbacks, contextValue]);
+  }, [clientId, domain, redirectUri, mergedCallbacks, contextValue, onRefresh]);
 
   useEffect(() => {
     const mounted = { current: true };
