@@ -104,7 +104,7 @@ importers:
     dependencies:
       '@kinde-oss/kinde-auth-react':
         specifier: ^5.0.4
-        version: link:..
+        version: 5.0.5(expo@52.0.44)(react-dom@19.1.0)(react@19.1.0)
       react:
         specifier: ^19.0.0
         version: 19.1.0
@@ -2853,6 +2853,29 @@ packages:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
+
+  /@kinde-oss/kinde-auth-react@5.0.5(expo@52.0.44)(react-dom@19.1.0)(react@19.1.0):
+    resolution: {integrity: sha512-ECyDMPe7jztCckM80KCY4psDF/zImf5/YMGZ5zZ/fNO4kEy5YlKAyG0FRA4vpMKao3vFRYjy4uiy1mZ1H8i/Mw==}
+    peerDependencies:
+      react: ^17 || ^18 || ^19
+      react-dom: ^17 || ^18 || ^19
+    dependencies:
+      '@kinde/js-utils': 0.10.1(expo@52.0.44)
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
+    transitivePeerDependencies:
+      - expo
+    dev: false
+
+  /@kinde/js-utils@0.10.1(expo@52.0.44):
+    resolution: {integrity: sha512-hME6YKdOcAwKBa31puZUAOetUxnM8jIICpBY4vr75I6aEiukX7IWBgvtyaMyLyn5vNJ9S7Dp10m1nMNEKbLS0g==}
+    dependencies:
+      '@kinde/jwt-decoder': 0.2.0
+    optionalDependencies:
+      expo-secure-store: 14.0.1(expo@52.0.44)
+    transitivePeerDependencies:
+      - expo
+    dev: false
 
   /@kinde/js-utils@0.12.0(expo@52.0.44):
     resolution: {integrity: sha512-uqQh7efYFsQ9ooRs1nXjUt7ilMg4RvnfVZWetFJvbD803RV85B3pJgRd74r7Fx9YKUjh9S3EO6mhqgalSLWn3g==}
