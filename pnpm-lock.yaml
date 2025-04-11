@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@kinde/js-utils':
-        specifier: 0.10.1
-        version: 0.10.1(expo@52.0.44)
+        specifier: 0.12.0
+        version: 0.12.0(expo@52.0.44)
     devDependencies:
       '@babel/plugin-transform-runtime':
         specifier: 7.26.10
@@ -2854,8 +2854,8 @@ packages:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
 
-  /@kinde/js-utils@0.10.1(expo@52.0.44):
-    resolution: {integrity: sha512-hME6YKdOcAwKBa31puZUAOetUxnM8jIICpBY4vr75I6aEiukX7IWBgvtyaMyLyn5vNJ9S7Dp10m1nMNEKbLS0g==}
+  /@kinde/js-utils@0.12.0(expo@52.0.44):
+    resolution: {integrity: sha512-uqQh7efYFsQ9ooRs1nXjUt7ilMg4RvnfVZWetFJvbD803RV85B3pJgRd74r7Fx9YKUjh9S3EO6mhqgalSLWn3g==}
     dependencies:
       '@kinde/jwt-decoder': 0.2.0
     optionalDependencies:
