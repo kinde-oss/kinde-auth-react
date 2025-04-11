@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@kinde/js-utils':
-        specifier: 0.10.1
-        version: 0.10.1(expo@52.0.42(@babel/core@7.26.10)(@babel/preset-env@7.26.9(@babel/core@7.26.10))(react-native@0.78.2(@babel/core@7.26.10)(@babel/preset-env@7.26.9(@babel/core@7.26.10))(@types/react@19.0.12)(react@19.1.0))(react@19.1.0))
+        specifier: 0.12.0
+        version: 0.12.0(expo@52.0.42(@babel/core@7.26.10)(@babel/preset-env@7.26.9(@babel/core@7.26.10))(react-native@0.78.2(@babel/core@7.26.10)(@babel/preset-env@7.26.9(@babel/core@7.26.10))(@types/react@19.0.12)(react@19.1.0))(react@19.1.0))
     devDependencies:
       '@babel/plugin-transform-runtime':
         specifier: 7.26.10
@@ -1336,8 +1336,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.25':
     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
 
-  '@kinde/js-utils@0.10.1':
-    resolution: {integrity: sha512-hME6YKdOcAwKBa31puZUAOetUxnM8jIICpBY4vr75I6aEiukX7IWBgvtyaMyLyn5vNJ9S7Dp10m1nMNEKbLS0g==}
+  '@kinde/js-utils@0.12.0':
+    resolution: {integrity: sha512-uqQh7efYFsQ9ooRs1nXjUt7ilMg4RvnfVZWetFJvbD803RV85B3pJgRd74r7Fx9YKUjh9S3EO6mhqgalSLWn3g==}
 
   '@kinde/jwt-decoder@0.2.0':
     resolution: {integrity: sha512-dqtwCmAvywOVLkkUfp4UbqdvVLsK0cvHsJhU3gDY9rgjAdZhGw0vCreBW6j3MFLxbi6cZm7pMU7/O5SJgvN5Rw==}
@@ -7471,7 +7471,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
 
-  '@kinde/js-utils@0.10.1(expo@52.0.42(@babel/core@7.26.10)(@babel/preset-env@7.26.9(@babel/core@7.26.10))(react-native@0.78.2(@babel/core@7.26.10)(@babel/preset-env@7.26.9(@babel/core@7.26.10))(@types/react@19.0.12)(react@19.1.0))(react@19.1.0))':
+  '@kinde/js-utils@0.12.0(expo@52.0.42(@babel/core@7.26.10)(@babel/preset-env@7.26.9(@babel/core@7.26.10))(react-native@0.78.2(@babel/core@7.26.10)(@babel/preset-env@7.26.9(@babel/core@7.26.10))(@types/react@19.0.12)(react@19.1.0))(react@19.1.0))':
     dependencies:
       '@kinde/jwt-decoder': 0.2.0
     optionalDependencies:
