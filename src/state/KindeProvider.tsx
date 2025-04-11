@@ -374,7 +374,9 @@ export const KindeProvider = ({
 
   const handleFocus = useCallback(() => {
     if (document.visibilityState === "visible" && state.isAuthenticated) {
-      refreshToken({ domain, clientId, onRefresh });
+      refreshToken({ domain, clientId, onRefresh }).catch((error) => {
+        console.error("Error refreshing token:", error);
+      });
     }
   }, [state.isAuthenticated, domain, clientId, onRefresh]);
 
@@ -482,7 +484,7 @@ export const KindeProvider = ({
     } finally {
       setState((val) => ({ ...val, isLoading: false }));
     }
-  }, [clientId, domain, redirectUri, mergedCallbacks, contextValue]);
+  }, [clientId, domain, redirectUri, mergedCallbacks, contextValue, onRefresh]);
 
   useEffect(() => {
     const mounted = { current: true };
