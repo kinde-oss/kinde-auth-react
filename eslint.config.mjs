@@ -20,6 +20,7 @@ export default [
     ignores: [
       "**/node_modules",
       "**/dist",
+      "**/playground",
       "**/.DS_Store",
       "**/coverage",
       "**/*.test.tsx",
