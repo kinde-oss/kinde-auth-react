@@ -20,6 +20,7 @@ export default defineConfig({
       entry: {
         index: resolve(__dirname, "src/index.ts"),
         components: resolve(__dirname, "src/components/index.ts"),
+        utils: resolve(__dirname, "src/utils/index.ts"),
       },
       formats: ["es", "cjs"],
       name: "@kinde-oss/kinde-auth-react",

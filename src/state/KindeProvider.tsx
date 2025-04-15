@@ -10,8 +10,6 @@ import {
   StorageKeys,
   IssuerRouteTypes,
   getActiveStorage,
-} from "@kinde/js-utils";
-import {
   Permissions,
   refreshToken,
   PermissionAccess,
@@ -19,6 +17,13 @@ import {
   LoginMethodParams,
   LoginOptions,
   getClaims,
+  getClaim,
+  getCurrentOrganization,
+  getFlag,
+  getPermission,
+  getPermissions,
+  getUserOrganizations,
+  getRoles,
   Role,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
@@ -300,62 +305,51 @@ export const KindeProvider = ({
       getClaim: async <T, V = string | number | string[]>(
         keyName: keyof T,
       ): Promise<{ name: keyof T; value: V } | null> => {
-        const { getClaim } = await import("@kinde/js-utils");
         return getClaim<T, V>(keyName);
       },
       getClaims: async <T = undefined,>(
         ...args: Parameters<typeof getClaims>
       ): Promise<T | null> => {
-        const { getClaims } = await import("@kinde/js-utils");
         return getClaims<T>(...args);
       },
       /** @deprecated use `getCurrentOrganization` instead */
       getOrganization: async (): Promise<string | null> => {
-        const { getCurrentOrganization } = await import("@kinde/js-utils");
         return await getCurrentOrganization();
       },
       getCurrentOrganization: async (): Promise<string | null> => {
-        const { getCurrentOrganization } = await import("@kinde/js-utils");
         return await getCurrentOrganization();
       },
       getFlag: async <T = string | number | boolean,>(
         name: string,
       ): Promise<T | null> => {
-        const { getFlag } = await import("@kinde/js-utils");
         return await getFlag<T>(name);
       },
 
       getUserProfile: async <T = undefined,>(): Promise<
         (UserProfile & T) | null
       > => {
-        const { getUserProfile } = await import("@kinde/js-utils");
         return getUserProfile<T>();
       },
 
       getPermission: async <T = string,>(
         permissionKey: T,
       ): Promise<PermissionAccess> => {
-        const { getPermission } = await import("@kinde/js-utils");
         return await getPermission(permissionKey);
       },
 
       getPermissions: async <T = string,>(): Promise<Permissions<T>> => {
-        const { getPermissions } = await import("@kinde/js-utils");
         return getPermissions<T>();
       },
       getUserOrganizations: async (): Promise<string[] | null> => {
-        const { getUserOrganizations } = await import("@kinde/js-utils");
         return await getUserOrganizations();
       },
       getRoles: async (): Promise<Role[]> => {
-        const { getRoles } = await import("@kinde/js-utils");
         return await getRoles();
       },
 
       refreshToken: async (
         ...args: Parameters<typeof refreshToken>
       ): ReturnType<typeof refreshToken> => {
-        const { refreshToken } = await import("@kinde/js-utils");
         const result = await refreshToken(...args);
         return result;
       },
