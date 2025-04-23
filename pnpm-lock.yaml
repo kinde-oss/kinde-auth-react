@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@eslint/js':
+        specifier: ^9.21.0
+        version: 9.25.1
       '@kinde/js-utils':
         specifier: 0.14.0
         version: 0.14.0
@@ -18,6 +21,9 @@ importers:
       '@babel/preset-react':
         specifier: ^7.26.3
         version: 7.26.3(@babel/core@7.26.10)
+      '@eslint/eslintrc':
+        specifier: ^3.3.1
+        version: 3.3.1
       '@testing-library/jest-dom':
         specifier: ^6.6.3
         version: 6.6.3
@@ -103,8 +109,8 @@ importers:
   playground:
     dependencies:
       '@kinde-oss/kinde-auth-react':
-        specifier: ^5.0.4
-        version: 5.2.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        specifier: ../
+        version: link:..
       react:
         specifier: ^19.0.0
         version: 19.1.0
@@ -689,20 +695,6 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.25':
     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
-
-  '@kinde-oss/kinde-auth-react@5.2.0':
-    resolution: {integrity: sha512-QCHt0vXEYHIAeX5Kk70OuQUyeC+xPJDmNiMr1aw5Pw2XZbgUEn9euTdWOFEGRirhSJ8X+cH+Yj4ImlP/hoaXFg==}
-    peerDependencies:
-      react: ^17 || ^18 || ^19
-      react-dom: ^17 || ^18 || ^19
-
-  '@kinde/js-utils@0.13.0':
-    resolution: {integrity: sha512-R0elPxdQXVpdlZg+I9X5g1LlHEScn9VFEFTIUD2SwgdA+wjjik0NpP0Wip/gnz4Y3th+QZ8HxczN7xiTKQKGhw==}
-    peerDependencies:
-      expo-secure-store: '>=11.0.0'
-    peerDependenciesMeta:
-      expo-secure-store:
-        optional: true
 
   '@kinde/js-utils@0.14.0':
     resolution: {integrity: sha512-BdfjoUhlQO69xZhzDG+IPUHQBSIP3j/B9hSwgJ4jO9mXuoXz/BCZH4Ro8Q7j5mNRkrT+ysRnypxK8xHdE98luQ==}
@@ -4016,18 +4008,6 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
-
-  '@kinde-oss/kinde-auth-react@5.2.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
-    dependencies:
-      '@kinde/js-utils': 0.13.0
-      react: 19.1.0
-      react-dom: 19.1.0(react@19.1.0)
-    transitivePeerDependencies:
-      - expo-secure-store
-
-  '@kinde/js-utils@0.13.0':
-    dependencies:
-      '@kinde/jwt-decoder': 0.2.0
 
   '@kinde/js-utils@0.14.0':
     dependencies:
