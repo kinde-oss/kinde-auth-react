@@ -1,6 +1,6 @@
 import { createContext } from "react";
 import { initialState } from "./initialState";
-import { State } from "./types";
+import { LogoutOptions, State } from "./types";
 import type {
   getClaim,
   getClaims,
@@ -22,7 +22,7 @@ export interface KindeContextProps extends State {
   register: (
     options?: LoginMethodParams & { state?: Record<string, string> },
   ) => Promise<void>;
-  logout: (redirectUri?: string) => Promise<void>;
+  logout: (options?: string | LogoutOptions) => Promise<void>;
   getClaims: typeof getClaims;
   getIdToken: () => Promise<string | undefined>;
   getToken: () => Promise<string | undefined>;
