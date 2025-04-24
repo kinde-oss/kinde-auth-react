@@ -23,9 +23,15 @@ export interface LogoutLinkProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   redirectUrl?: string;
+  allSessions?: boolean;
 }
 
 export type ErrorProps = {
   error: string;
   errorDescription: string;
+};
+
+export type LogoutOptions = {
+  allSessions?: boolean;
+  redirectUrl?: string;
 };

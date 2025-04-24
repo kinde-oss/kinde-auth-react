@@ -37,7 +37,7 @@ import React, {
 import { KindeContext, KindeContextProps } from "./KindeContext";
 import { getRedirectUrl } from "../utils/getRedirectUrl";
 import packageJson from "../../package.json";
-import { ErrorProps } from "./types";
+import { ErrorProps, LogoutOptions } from "./types";
 import { RefreshTokenResult } from "@kinde/js-utils/dist/utils/token/refreshToken";
 // TODO: need to look for old token store and convert.
 storageSettings.keyPrefix = "";
@@ -243,15 +243,27 @@ export const KindeProvider = ({
     [redirectUri],
   );
 
-  const logout = useCallback(async (redirectUrl?: string) => {
+  const logout = useCallback(async (options?: string | LogoutOptions) => {
     try {
       const domain = (await storeState.memoryStorage.getSessionItem(
         storeState.LocalKeys.domain,
       )) as string;
 
       const params = new URLSearchParams();
-      if (redirectUrl) {
-        params.append("redirect", redirectUrl);
+
+      if (options) {
+        if (options && typeof options === "string") {
+          params.append("redirect", options);
+        } else if (typeof options === "object") {
+          if (options.redirectUrl || logoutUri) {
+            params.append("redirect", options.redirectUrl || logoutUri || "");
+          }
+          if (options.allSessions) {
+            params.append("all_sessions", String(options.allSessions));
+          }
+        }
+      } else {
+        params.append("redirect", logoutUri || "");
       }
 
       setState((val) => {
