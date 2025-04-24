@@ -24,7 +24,6 @@ export interface LogoutLinkProps
   children: React.ReactNode;
   redirectUrl?: string;
   allSessions?: boolean;
-  
 }
 
 export type ErrorProps = {
@@ -34,5 +33,5 @@ export type ErrorProps = {
 
 export type LogoutOptions = {
   allSessions?: boolean;
-  redirectURL?: string;
+  redirectUrl?: string;
 };

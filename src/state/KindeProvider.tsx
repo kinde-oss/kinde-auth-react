@@ -255,8 +255,8 @@ export const KindeProvider = ({
         if (options && typeof options === "string") {
           params.append("redirect", options);
         } else if (typeof options === "object") {
-          if (options.redirectURL || logoutUri) {
-            params.append("redirect", options.redirectURL || logoutUri || "");
+          if (options.redirectUrl || logoutUri) {
+            params.append("redirect", options.redirectUrl || logoutUri || "");
           }
           if (options.allSessions) {
             params.append("all_sessions", String(options.allSessions));
