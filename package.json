@@ -1,28 +1,29 @@
 {
   "name": "@kinde-oss/kinde-auth-react",
-  "version": "5.3.0",
+  "version": "5.4.20",
   "description": "Kinde React SDK for authentication",
-  "module": "./dist/kinde-auth-react.mjs",
-  "main": "./dist/kinde-auth-react.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/src/index.d.ts",
-      "import": "./dist/index.cjs",
-      "require": "./dist/main.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
     },
     "./components": {
-      "types": "./dist/src/components/index.d.ts",
-      "import": "./dist/components.cjs",
-      "require": "./dist/components.js"
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.mjs",
+      "require": "./dist/components/index.cjs"
     },
     "./utils": {
-      "types": "./dist/src/utils/index.d.ts",
-      "import": "./dist/utils.cjs",
-      "require": "./dist/utils.js"
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.mjs",
+      "require": "./dist/utils/index.cjs"
     }
   },
+  "sideEffects": false,
   "scripts": {
     "build": "tsc && vite build",
     "test": "vitest",
