@@ -19,8 +19,8 @@ export default defineConfig({
     lib: {
       entry: {
         index: resolve(__dirname, "src/index.ts"),
-        components: resolve(__dirname, "src/components/index.ts"),
-        utils: resolve(__dirname, "src/utils/index.ts"),
+        "components/index": resolve(__dirname, "src/components/index.ts"),
+        "utils/index": resolve(__dirname, "src/utils/index.ts"),
       },
       formats: ["es", "cjs"],
       name: "@kinde-oss/kinde-auth-react",
@@ -30,7 +30,6 @@ export default defineConfig({
     target: "esnext",
     outDir: "dist",
     emptyOutDir: true,
-
     rollupOptions: {
       external: [
         "react",
@@ -38,9 +37,37 @@ export default defineConfig({
         "react/jsx-runtime",
         "react/jsx-dev-runtime",
       ],
+      output: [
+        {
+          format: "es",
+          dir: "dist",
+          preserveModules: true,
+          preserveModulesRoot: "src",
+          exports: "named",
+          entryFileNames: (chunkInfo) => {
+            return chunkInfo.name === "index" ? "[name].mjs" : "[name].mjs";
+          },
+        },
+        {
+          format: "cjs",
+          dir: "dist",
+          preserveModules: true,
+          preserveModulesRoot: "src",
+          exports: "named",
+          entryFileNames: (chunkInfo) => {
+            return chunkInfo.name === "index" ? "[name].cjs" : "[name].cjs";
+          },
+        },
+      ],
     },
   },
-
   base: "",
-  plugins: [dts({ insertTypesEntry: true, outDir: "./dist" }), react()],
+  plugins: [
+    dts({ 
+      insertTypesEntry: true, 
+      outDir: "./dist",
+      rollupTypes: true
+    }), 
+    react()
+  ],
 });
