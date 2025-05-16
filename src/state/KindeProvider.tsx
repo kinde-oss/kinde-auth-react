@@ -38,7 +38,7 @@ import { KindeContext, KindeContextProps } from "./KindeContext";
 import { getRedirectUrl } from "../utils/getRedirectUrl";
 import packageJson from "../../package.json";
 import { ErrorProps, LogoutOptions } from "./types";
-import { RefreshTokenResult } from "@kinde/js-utils/dist/utils/token/refreshToken";
+import { RefreshTokenResult } from "@kinde/js-utils";
 // TODO: need to look for old token store and convert.
 storageSettings.keyPrefix = "";
 
@@ -168,6 +168,7 @@ export const KindeProvider = ({
         audience,
         clientId,
         ...options,
+        supportsReauth: true,
         state: base64UrlEncode(
           JSON.stringify({
             kinde: { event: AuthEvent.login },
@@ -207,6 +208,7 @@ export const KindeProvider = ({
             ...optionsState,
           }),
         ),
+        supportsReauth: true,
         audience: (await storeState.memoryStorage.getSessionItem(
           storeState.LocalKeys.audience,
         )) as string,
@@ -402,7 +404,22 @@ export const KindeProvider = ({
     const params = new URLSearchParams(window.location.search);
     let returnedState: StateWithKinde;
     let kindeState: KindeState;
-    if (!params.has("code")) {
+
+    if (params.has("error")) {
+      const errorCode = params.get("error");
+      if (errorCode?.toLowerCase() === "login_link_expired") {
+        const reauthState = params.get("reauth_state");
+        if (reauthState) {
+          login({ reauthState: reauthState });
+        }
+        return;
+      }
+      setState((val: ProviderState) => ({ ...val, isLoading: false }));
+      return;
+    }
+
+    const hasCode = params.has("code");
+    if (!hasCode) {
       try {
         const user = await getUserProfile();
         if (user) {
