@@ -203,7 +203,7 @@ export const KindeProvider = ({
       }
       document.location = redirectUrl;
     },
-    [audience, clientId, redirectUri]
+    [audience, clientId, redirectUri, authorizationEndpoint]
   );
 
   const register = useCallback(
