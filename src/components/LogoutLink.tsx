@@ -7,7 +7,7 @@ export function LogoutLink({ children, ...props }: LogoutLinkProps) {
 
   const logout = useCallback(async () => {
     auth.logout({
-      redirectUrl: props.redirectUrl || window.location.origin,
+      redirectUrl: props.redirectUrl,
       allSessions: props.allSessions,
     });
   }, [auth, props.redirectUrl, props.allSessions]);
