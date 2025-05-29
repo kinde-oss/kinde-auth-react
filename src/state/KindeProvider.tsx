@@ -24,7 +24,9 @@ import {
   getPermissions,
   getUserOrganizations,
   getRoles,
+  generatePortalUrl,
   Role,
+  GeneratePortalUrlParams,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -38,7 +40,7 @@ import { KindeContext, KindeContextProps } from "./KindeContext";
 import { getRedirectUrl } from "../utils/getRedirectUrl";
 import packageJson from "../../package.json";
 import { ErrorProps, LogoutOptions } from "./types";
-import { RefreshTokenResult } from "@kinde/js-utils";
+import type { RefreshTokenResult } from "@kinde/js-utils";
 // TODO: need to look for old token store and convert.
 storageSettings.keyPrefix = "";
 
@@ -360,7 +362,15 @@ export const KindeProvider = ({
       getRoles: async (): Promise<Role[]> => {
         return await getRoles();
       },
-
+      generatePortalUrl: async (
+        options: Omit<GeneratePortalUrlParams, "domain">,
+      ): Promise<{ url: URL }> => {
+        return await generatePortalUrl({
+          domain,
+          returnUrl: options.returnUrl || window.location.href,
+          subNav: options.subNav,
+        });
+      },
       refreshToken: async (
         ...args: Parameters<typeof refreshToken>
       ): ReturnType<typeof refreshToken> => {
