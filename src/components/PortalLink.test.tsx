@@ -5,6 +5,7 @@ import {
   render,
   screen,
   fireEvent,
+  waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PortalLink } from ".";
@@ -60,5 +61,23 @@ describe("ProfileLink Component", () => {
     const button = screen.getByRole("button", { name: "Profile" });
     expect(button).toHaveClass("test-class");
     expect(button).toBeDisabled();
+  });
+
+  it("handles generatePortalUrl errors gracefully", async () => {
+    const mockError = new Error("Failed to generate portal URL");
+    mockGeneratePortalUrl.mockRejectedValueOnce(mockError);
+
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<PortalLink>Profile</PortalLink>);
+    const button = screen.getByRole("button", { name: "Profile" });
+
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(mockGeneratePortalUrl).toHaveBeenCalledTimes(1);
+    });
+
+    consoleSpy.mockRestore();
   });
 });
