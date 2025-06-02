@@ -13,6 +13,7 @@ import type {
   getUserProfile,
   LoginMethodParams,
   refreshToken,
+  GeneratePortalUrlParams,
 } from "@kinde/js-utils";
 
 export interface KindeContextProps extends State {
@@ -37,6 +38,7 @@ export interface KindeContextProps extends State {
   getUserOrganizations: typeof getUserOrganizations;
   getRoles: typeof getRoles;
   refreshToken: typeof refreshToken;
+  generatePortalUrl: (options: Omit<GeneratePortalUrlParams, "domain">) => Promise<{ url: URL }>;
 }
 
 const initialContext = {

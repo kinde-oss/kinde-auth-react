@@ -1,4 +1,4 @@
-import { LoginMethodParams, UserProfile } from "@kinde/js-utils";
+import { GeneratePortalUrlParams, LoginMethodParams, UserProfile } from "@kinde/js-utils";
 
 export type State = {
   user?: UserProfile;
@@ -24,6 +24,12 @@ export interface LogoutLinkProps
   children: React.ReactNode;
   redirectUrl?: string;
   allSessions?: boolean;
+}
+
+export interface PortalLinkProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    Partial<Omit<GeneratePortalUrlParams, "domain">> {
+  children: React.ReactNode;
 }
 
 export type ErrorProps = {
