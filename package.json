@@ -2,25 +2,25 @@
   "name": "@kinde-oss/kinde-auth-react",
   "version": "5.5.0",
   "description": "Kinde React SDK for authentication",
-  "module": "./dist/kinde-auth-react.mjs",
-  "main": "./dist/kinde-auth-react.js",
+  "module": "./dist/index.mjs",
+  "main": "./dist/index.cjs",
   "types": "./dist/index.d.ts",
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",
-      "import": "./dist/index.cjs",
-      "require": "./dist/main.js"
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
     },
     "./components": {
       "types": "./dist/src/components/index.d.ts",
-      "import": "./dist/components.cjs",
-      "require": "./dist/components.js"
+      "import": "./dist/components.mjs",
+      "require": "./dist/components.cjs"
     },
     "./utils": {
       "types": "./dist/src/utils/index.d.ts",
-      "import": "./dist/utils.cjs",
-      "require": "./dist/utils.js"
+      "import": "./dist/utils.mjs",
+      "require": "./dist/utils.cjs"
     }
   },
   "scripts": {
