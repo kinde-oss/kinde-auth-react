@@ -59,12 +59,12 @@ type EventTypes = {
   (
     event: AuthEvent.tokenRefreshed,
     state: RefreshTokenResult,
-    context: KindeContextProps,
+    context: KindeContextProps
   ): void;
   (
     event: AuthEvent,
     state: Record<string, unknown>,
-    context: KindeContextProps,
+    context: KindeContextProps
   ): void;
 };
 
@@ -72,12 +72,12 @@ type KindeCallbacks = {
   onSuccess?: (
     user: UserProfile,
     state: Record<string, unknown>,
-    context: KindeContextProps,
+    context: KindeContextProps
   ) => void;
   onError?: (
     props: ErrorProps,
     state: Record<string, string>,
-    context: KindeContextProps,
+    context: KindeContextProps
   ) => void;
   onEvent?: EventTypes;
 };
@@ -87,6 +87,7 @@ type KindeProviderProps = {
   children: React.ReactNode;
   clientId: string;
   domain: string;
+  authorizationEndpoint?: string;
   /**
    * Use localstorage for refresh token.
    *
@@ -126,6 +127,7 @@ export const KindeProvider = ({
   clientId,
   children,
   domain,
+  authorizationEndpoint,
   useInsecureForRefreshToken = false,
   redirectUri,
   callbacks = {},
@@ -160,7 +162,7 @@ export const KindeProvider = ({
 
   const login = useCallback(
     async (
-      options: LoginMethodParams & { state?: Record<string, string> } = {},
+      options: LoginMethodParams & { state?: Record<string, string> } = {}
     ) => {
       const optionsState: Record<string, string> = options.state || {};
 
@@ -175,28 +177,40 @@ export const KindeProvider = ({
           JSON.stringify({
             kinde: { event: AuthEvent.login },
             ...optionsState,
-          }),
+          })
         ),
         redirectURL: getRedirectUrl(options.redirectURL || redirectUri),
       };
 
       const domain = (await storeState.memoryStorage.getSessionItem(
-        storeState.LocalKeys.domain,
+        storeState.LocalKeys.domain
       )) as string;
 
       const authUrl = await generateAuthUrl(
         domain,
         IssuerRouteTypes.login,
-        authProps,
+        authProps
       );
-      document.location = authUrl.url.toString();
+      let redirectUrl = "";
+      if (authorizationEndpoint) {
+        // override just the path, keep the query string
+        const custom = new URL(authUrl.url.toString());
+        // ensure it’s a path, not a full URL
+        custom.pathname = authorizationEndpoint.startsWith("/")
+          ? authorizationEndpoint
+          : `/${authorizationEndpoint}`;
+        redirectUrl = custom.toString();
+      } else {
+        redirectUrl = authUrl.url.toString();
+      }
+      document.location = redirectUrl;
     },
-    [audience, clientId, redirectUri],
+    [audience, clientId, redirectUri, authorizationEndpoint]
   );
 
   const register = useCallback(
     async (
-      options: LoginMethodParams & { state?: Record<string, string> } = {},
+      options: LoginMethodParams & { state?: Record<string, string> } = {}
     ) => {
       const optionsState: Record<string, string> = options.state || {};
 
@@ -208,14 +222,14 @@ export const KindeProvider = ({
           JSON.stringify({
             kinde: { event: AuthEvent.register },
             ...optionsState,
-          }),
+          })
         ),
         supportsReauth: true,
         audience: (await storeState.memoryStorage.getSessionItem(
-          storeState.LocalKeys.audience,
+          storeState.LocalKeys.audience
         )) as string,
         clientId: (await storeState.memoryStorage.getSessionItem(
-          storeState.LocalKeys.clientId,
+          storeState.LocalKeys.clientId
         )) as string,
         redirectURL: getRedirectUrl(options?.redirectURL || redirectUri),
         prompt: PromptTypes.create,
@@ -223,13 +237,13 @@ export const KindeProvider = ({
 
       try {
         const domain = (await storeState.memoryStorage.getSessionItem(
-          storeState.LocalKeys.domain,
+          storeState.LocalKeys.domain
         )) as string;
 
         const authUrl = await generateAuthUrl(
           domain,
           IssuerRouteTypes.register,
-          authProps,
+          authProps
         );
         document.location = authUrl.url.toString();
       } catch (error) {
@@ -240,17 +254,17 @@ export const KindeProvider = ({
             errorDescription: String(error),
           },
           {},
-          contextValue,
+          contextValue
         );
       }
     },
-    [redirectUri],
+    [redirectUri]
   );
 
   const logout = useCallback(async (options?: string | LogoutOptions) => {
     try {
       const domain = (await storeState.memoryStorage.getSessionItem(
-        storeState.LocalKeys.domain,
+        storeState.LocalKeys.domain
       )) as string;
 
       const params = new URLSearchParams();
@@ -288,7 +302,7 @@ export const KindeProvider = ({
           errorDescription: String(error),
         },
         {},
-        contextValue,
+        contextValue
       );
     }
   }, []);
@@ -307,19 +321,19 @@ export const KindeProvider = ({
       getAccessToken: async (): Promise<string | undefined> => {
         const storage = getActiveStorage();
         return (await storage?.getSessionItem(
-          StorageKeys.accessToken,
+          StorageKeys.accessToken
         )) as string;
       },
       /** @deprecated use `getAccessToken` instead */
       getToken: async (): Promise<string | undefined> => {
         const storage = getActiveStorage();
         return (await storage?.getSessionItem(
-          StorageKeys.accessToken,
+          StorageKeys.accessToken
         )) as string;
       },
 
       getClaim: async <T, V = string | number | string[]>(
-        keyName: keyof T,
+        keyName: keyof T
       ): Promise<{ name: keyof T; value: V } | null> => {
         return getClaim<T, V>(keyName);
       },
@@ -336,7 +350,7 @@ export const KindeProvider = ({
         return await getCurrentOrganization();
       },
       getFlag: async <T = string | number | boolean,>(
-        name: string,
+        name: string
       ): Promise<T | null> => {
         return await getFlag<T>(name);
       },
@@ -348,7 +362,7 @@ export const KindeProvider = ({
       },
 
       getPermission: async <T = string,>(
-        permissionKey: T,
+        permissionKey: T
       ): Promise<PermissionAccess> => {
         return await getPermission(permissionKey);
       },
@@ -387,7 +401,7 @@ export const KindeProvider = ({
         mergedCallbacks.onEvent(AuthEvent.tokenRefreshed, data, contextValue);
       }
     },
-    [mergedCallbacks, contextValue],
+    [mergedCallbacks, contextValue]
   );
 
   const handleFocus = useCallback(() => {
@@ -452,7 +466,7 @@ export const KindeProvider = ({
     try {
       returnedState = JSON.parse(decoded);
       kindeState = Object.assign(
-        returnedState.kinde || { event: PromptTypes.login },
+        returnedState.kinde || { event: PromptTypes.login }
       );
     } catch (error) {
       console.error("Error parsing state:", error);
@@ -462,14 +476,14 @@ export const KindeProvider = ({
           errorDescription: String(error),
         },
         {},
-        contextValue,
+        contextValue
       );
       returnedState = {} as StateWithKinde;
       kindeState = { event: AuthEvent.login };
     }
     try {
       const redirectURL = (await storeState.memoryStorage.getSessionItem(
-        storeState.LocalKeys.redirectUri,
+        storeState.LocalKeys.redirectUri
       )) as string;
 
       const codeResponse = await exchangeAuthCode({
@@ -491,7 +505,7 @@ export const KindeProvider = ({
               ...returnedState,
               kinde: undefined,
             },
-            contextValue,
+            contextValue
           );
           if (mergedCallbacks.onEvent) {
             mergedCallbacks.onEvent(
@@ -500,7 +514,7 @@ export const KindeProvider = ({
                 ...returnedState,
                 kinde: undefined,
               },
-              contextValue,
+              contextValue
             );
           }
         }
@@ -511,7 +525,7 @@ export const KindeProvider = ({
             errorDescription: codeResponse.error,
           },
           returnedState,
-          contextValue,
+          contextValue
         );
       }
     } finally {
