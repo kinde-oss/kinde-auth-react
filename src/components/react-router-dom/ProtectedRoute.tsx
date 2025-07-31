@@ -98,6 +98,11 @@ export default function ProtectedRoute({
     }
   }, [hasParams, isAuthenticated]);
 
+  // Show loading while checking router availability or auth/access
+  if (isRouterAvailable === null || isLoading || accessLoading) {
+    return <div>Loading...</div>;
+  }
+
   // Show loading while checking router availability
   if (isRouterAvailable === null) {
     return <div>Loading...</div>;
@@ -106,10 +111,6 @@ export default function ProtectedRoute({
   // If react-router-dom is not available, show fallback
   if (isRouterAvailable === false) {
     return <ProtectedRouteFallback>{children}</ProtectedRouteFallback>;
-  }
-
-  if (isLoading || accessLoading) {
-    return <div>Loading...</div>;
   }
 
   if (!isAuthenticated) {
