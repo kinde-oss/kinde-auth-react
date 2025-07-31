@@ -37,7 +37,23 @@ export default defineConfig({
         "react-native",
         "react/jsx-runtime",
         "react/jsx-dev-runtime",
+        "react-router-dom",
       ],
+      output: {
+        globals: {
+          "react-router-dom": "ReactRouterDOM",
+        },
+      },
+      onwarn(warning, warn) {
+        // Ignore warnings about react-router-dom being external
+        if (
+          warning.code === "UNRESOLVED_IMPORT" &&
+          warning.message?.includes("react-router-dom")
+        ) {
+          return;
+        }
+        warn(warning);
+      },
     },
   },
 

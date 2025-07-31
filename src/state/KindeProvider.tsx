@@ -27,6 +27,7 @@ import {
   generatePortalUrl,
   Role,
   GeneratePortalUrlParams,
+  navigateToKinde,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -39,7 +40,7 @@ import React, {
 import { KindeContext, KindeContextProps } from "./KindeContext";
 import { getRedirectUrl } from "../utils/getRedirectUrl";
 import packageJson from "../../package.json";
-import { ErrorProps, LogoutOptions } from "./types";
+import { ErrorProps, LogoutOptions, PopupOptions } from "./types";
 import type { RefreshTokenResult } from "@kinde/js-utils";
 // TODO: need to look for old token store and convert.
 storageSettings.keyPrefix = "";
@@ -98,6 +99,11 @@ type KindeProviderProps = {
   callbacks?: KindeCallbacks;
   scope?: string;
   forceChildrenRender?: boolean;
+  /**
+   * When the application is shown in an iFrame, auth will open in a popup window.
+   * This is the options for the popup window.
+   */
+  popupOptions?: PopupOptions;
 };
 
 const defaultCallbacks: KindeCallbacks = {
@@ -131,6 +137,7 @@ export const KindeProvider = ({
   callbacks = {},
   logoutUri,
   forceChildrenRender = false,
+  popupOptions = {},
 }: KindeProviderProps) => {
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
 
@@ -189,9 +196,25 @@ export const KindeProvider = ({
         IssuerRouteTypes.login,
         authProps,
       );
-      document.location = authUrl.url.toString();
+
+      try {
+        navigateToKinde({
+          url: authUrl.url.toString(),
+          popupOptions,
+          handleResult: processAuthResult,
+        });
+      } catch (error) {
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_POPUP",
+            errorDescription: (error as Error).message,
+          },
+          {},
+          {} as KindeContextProps,
+        );
+      }
     },
-    [audience, clientId, redirectUri],
+    [audience, clientId, redirectUri, popupOptions, mergedCallbacks],
   );
 
   const register = useCallback(
@@ -231,7 +254,22 @@ export const KindeProvider = ({
           IssuerRouteTypes.register,
           authProps,
         );
-        document.location = authUrl.url.toString();
+        try {
+          navigateToKinde({
+            url: authUrl.url.toString(),
+            popupOptions,
+            handleResult: processAuthResult,
+          });
+        } catch (error) {
+          mergedCallbacks.onError?.(
+            {
+              error: "ERR_POPUP",
+              errorDescription: (error as Error).message,
+            },
+            {},
+            {} as KindeContextProps,
+          );
+        }
       } catch (error) {
         console.error("Register error:", error);
         mergedCallbacks.onError?.(
@@ -244,7 +282,7 @@ export const KindeProvider = ({
         );
       }
     },
-    [redirectUri],
+    [redirectUri, popupOptions, mergedCallbacks],
   );
 
   const logout = useCallback(async (options?: string | LogoutOptions) => {
@@ -275,11 +313,32 @@ export const KindeProvider = ({
       });
 
       await Promise.all([
-        storeState.memoryStorage.destroySession(),
-        storeState.localStorage.destroySession(),
+        storeState.memoryStorage.removeSessionItem(StorageKeys.idToken),
+        storeState.memoryStorage.removeSessionItem(StorageKeys.accessToken),
+        storeState.memoryStorage.removeSessionItem(StorageKeys.refreshToken),
+        storeState.localStorage.removeSessionItem(StorageKeys.refreshToken),
       ]);
 
-      document.location = `${domain}/logout?${params.toString()}`;
+      await storeState.localStorage.setSessionItem(
+        storeState.LocalKeys.performingLogout,
+        "true",
+      );
+
+      try {
+        await navigateToKinde({
+          url: `${domain}/logout?${params.toString()}`,
+          popupOptions,
+        });
+      } catch (error) {
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_POPUP",
+            errorDescription: (error as Error).message,
+          },
+          {},
+          {} as KindeContextProps,
+        );
+      }
     } catch (error) {
       console.error("Logout error:", error);
       mergedCallbacks.onError?.(
@@ -390,6 +449,89 @@ export const KindeProvider = ({
     [mergedCallbacks, contextValue],
   );
 
+  // Function to process authentication result from popup
+  const processAuthResult = useCallback(
+    async (searchParams: URLSearchParams) => {
+      const decoded = atob(searchParams.get("state") || "");
+      let returnedState: StateWithKinde;
+      let kindeState: KindeState;
+      try {
+        returnedState = JSON.parse(decoded);
+        kindeState = Object.assign(
+          returnedState.kinde || { event: PromptTypes.login },
+        );
+      } catch (error) {
+        console.error("Error parsing state:", error);
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_STATE_PARSE",
+            errorDescription: String(error),
+          },
+          {},
+          contextValue,
+        );
+        returnedState = {} as StateWithKinde;
+        kindeState = { event: AuthEvent.login };
+      }
+      try {
+        const codeResponse = await exchangeAuthCode({
+          urlParams: searchParams,
+          domain,
+          clientId,
+          redirectURL: getRedirectUrl(redirectUri),
+          autoRefresh: true,
+          onRefresh,
+        });
+
+        if (codeResponse.success) {
+          const user = await getUserProfile();
+          if (user) {
+            setState((val) => ({ ...val, user, isAuthenticated: true }));
+            mergedCallbacks.onSuccess?.(
+              user,
+              {
+                ...returnedState,
+                kinde: undefined,
+              },
+              contextValue,
+            );
+            if (mergedCallbacks.onEvent) {
+              mergedCallbacks.onEvent(
+                kindeState.event,
+                {
+                  ...returnedState,
+                  kinde: undefined,
+                },
+                contextValue,
+              );
+            }
+          }
+        } else {
+          mergedCallbacks.onError?.(
+            {
+              error: "ERR_CODE_EXCHANGE",
+              errorDescription: codeResponse.error,
+            },
+            returnedState,
+            contextValue,
+          );
+        }
+      } catch (error) {
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_POPUP_AUTH",
+            errorDescription: String(error),
+          },
+          returnedState,
+          contextValue,
+        );
+      } finally {
+        setState((val) => ({ ...val, isLoading: false }));
+      }
+    },
+    [domain, clientId, redirectUri, onRefresh, mergedCallbacks, contextValue],
+  );
+
   const handleFocus = useCallback(() => {
     if (document.visibilityState === "visible" && state.isAuthenticated) {
       refreshToken({ domain, clientId, onRefresh }).catch((error) => {
@@ -412,8 +554,6 @@ export const KindeProvider = ({
     await checkAuth({ domain, clientId });
     initRef.current = true;
     const params = new URLSearchParams(window.location.search);
-    let returnedState: StateWithKinde;
-    let kindeState: KindeState;
 
     if (params.has("error")) {
       const errorCode = params.get("error");
@@ -426,6 +566,17 @@ export const KindeProvider = ({
       }
       setState((val: ProviderState) => ({ ...val, isLoading: false }));
       return;
+    }
+
+    if (
+      (await storeState.localStorage.getSessionItem(
+        storeState.LocalKeys.performingLogout,
+      )) === "true"
+    ) {
+      await storeState.localStorage.removeSessionItem(
+        storeState.LocalKeys.performingLogout,
+      );
+      window.close();
     }
 
     const hasCode = params.has("code");
@@ -447,77 +598,28 @@ export const KindeProvider = ({
       return;
     }
 
-    const decoded = atob(params.get("state") || "");
-
-    try {
-      returnedState = JSON.parse(decoded);
-      kindeState = Object.assign(
-        returnedState.kinde || { event: PromptTypes.login },
-      );
-    } catch (error) {
-      console.error("Error parsing state:", error);
-      mergedCallbacks.onError?.(
+    if (window.opener) {
+      const searchParams = new URLSearchParams(window.location.search);
+      window.opener.postMessage(
         {
-          error: "ERR_STATE_PARSE",
-          errorDescription: String(error),
+          type: "KINDE_AUTH_RESULT",
+          result: Object.fromEntries(searchParams.entries()),
         },
-        {},
-        contextValue,
+        window.location.origin,
       );
-      returnedState = {} as StateWithKinde;
-      kindeState = { event: AuthEvent.login };
+      window.close();
     }
-    try {
-      const redirectURL = (await storeState.memoryStorage.getSessionItem(
-        storeState.LocalKeys.redirectUri,
-      )) as string;
-
-      const codeResponse = await exchangeAuthCode({
-        urlParams: new URLSearchParams(window.location.search),
-        domain,
-        clientId,
-        redirectURL: getRedirectUrl(redirectURL || redirectUri),
-        autoRefresh: true,
-        onRefresh,
-      });
-
-      if (codeResponse.success) {
-        const user = await getUserProfile();
-        if (user) {
-          setState((val) => ({ ...val, user, isAuthenticated: true }));
-          mergedCallbacks.onSuccess?.(
-            user,
-            {
-              ...returnedState,
-              kinde: undefined,
-            },
-            contextValue,
-          );
-          if (mergedCallbacks.onEvent) {
-            mergedCallbacks.onEvent(
-              kindeState.event,
-              {
-                ...returnedState,
-                kinde: undefined,
-              },
-              contextValue,
-            );
-          }
-        }
-      } else {
-        mergedCallbacks.onError?.(
-          {
-            error: "ERR_CODE_EXCHANGE",
-            errorDescription: codeResponse.error,
-          },
-          returnedState,
-          contextValue,
-        );
-      }
-    } finally {
-      setState((val) => ({ ...val, isLoading: false }));
-    }
-  }, [clientId, domain, redirectUri, mergedCallbacks, contextValue, onRefresh]);
+    await processAuthResult(new URLSearchParams(window.location.search));
+  }, [
+    clientId,
+    domain,
+    redirectUri,
+    mergedCallbacks,
+    contextValue,
+    onRefresh,
+    login,
+    processAuthResult,
+  ]);
 
   useEffect(() => {
     const mounted = { current: true };
