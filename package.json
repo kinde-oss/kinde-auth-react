@@ -21,6 +21,11 @@
       "types": "./dist/src/utils/index.d.ts",
       "import": "./dist/utils.mjs",
       "require": "./dist/utils.cjs"
+    },
+    "./react-router": {
+      "types": "./dist/src/components/react-router-dom/index.d.ts",
+      "import": "./dist/react-router.mjs",
+      "require": "./dist/react-router.cjs"
     }
   },
   "scripts": {
