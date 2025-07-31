@@ -103,11 +103,6 @@ export default function ProtectedRoute({
     return <div>Loading...</div>;
   }
 
-  // Show loading while checking router availability
-  if (isRouterAvailable === null) {
-    return <div>Loading...</div>;
-  }
-
   // If react-router-dom is not available, show fallback
   if (isRouterAvailable === false) {
     return <ProtectedRouteFallback>{children}</ProtectedRouteFallback>;
