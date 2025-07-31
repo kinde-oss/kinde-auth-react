@@ -1,4 +1,8 @@
-import { GeneratePortalUrlParams, LoginMethodParams, UserProfile } from "@kinde/js-utils";
+import {
+  GeneratePortalUrlParams,
+  LoginMethodParams,
+  UserProfile,
+} from "@kinde/js-utils";
 
 export type State = {
   user?: UserProfile;
@@ -40,4 +44,11 @@ export type ErrorProps = {
 export type LogoutOptions = {
   allSessions?: boolean;
   redirectUrl?: string;
+};
+
+export type PopupOptions = {
+  width?: number;
+  height?: number;
+  left?: number;
+  top?: number;
 };

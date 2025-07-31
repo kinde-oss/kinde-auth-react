@@ -21,6 +21,10 @@ export default defineConfig({
         index: resolve(__dirname, "src/index.ts"),
         components: resolve(__dirname, "src/components/index.ts"),
         utils: resolve(__dirname, "src/utils/index.ts"),
+        "react-router": resolve(
+          __dirname,
+          "src/components/react-router-dom/index.ts",
+        ),
       },
       formats: ["es", "cjs"],
       name: "@kinde-oss/kinde-auth-react",
@@ -37,7 +41,23 @@ export default defineConfig({
         "react-native",
         "react/jsx-runtime",
         "react/jsx-dev-runtime",
+        "react-router-dom",
       ],
+      output: {
+        globals: {
+          "react-router-dom": "ReactRouterDOM",
+        },
+      },
+      onwarn(warning, warn) {
+        // Ignore warnings about react-router-dom being external
+        if (
+          warning.code === "UNRESOLVED_IMPORT" &&
+          warning.message?.includes("react-router-dom")
+        ) {
+          return;
+        }
+        warn(warning);
+      },
     },
   },
 
