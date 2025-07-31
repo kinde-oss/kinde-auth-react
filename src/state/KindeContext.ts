@@ -38,7 +38,9 @@ export interface KindeContextProps extends State {
   getUserOrganizations: typeof getUserOrganizations;
   getRoles: typeof getRoles;
   refreshToken: typeof refreshToken;
-  generatePortalUrl: (options: Omit<GeneratePortalUrlParams, "domain">) => Promise<{ url: URL }>;
+  generatePortalUrl: (
+    options: Omit<GeneratePortalUrlParams, "domain">,
+  ) => Promise<{ url: URL }>;
 }
 
 const initialContext = {

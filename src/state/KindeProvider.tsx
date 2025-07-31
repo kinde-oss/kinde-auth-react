@@ -379,7 +379,7 @@ export const KindeProvider = ({
 
       getClaim: async <T, V = string | number | string[]>(
         keyName: keyof T,
-        tokenType?: "accessToken" | "idToken"
+        tokenType?: "accessToken" | "idToken",
       ): Promise<{ name: keyof T; value: V } | null> => {
         return getClaim<T, V>(keyName, tokenType);
       },
