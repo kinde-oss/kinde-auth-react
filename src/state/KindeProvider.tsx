@@ -569,12 +569,12 @@ export const KindeProvider = ({
     if (initRef.current) return;
     try {
       try {
+        initRef.current = true;
         await checkAuth({ domain, clientId });
       } catch (err) {
         console.warn("checkAuth failed:", err);
         setState((v: ProviderState) => ({ ...v, isLoading: false }));
       }
-      initRef.current = true;
       const params = new URLSearchParams(window.location.search);
 
       if (params.has("error")) {
