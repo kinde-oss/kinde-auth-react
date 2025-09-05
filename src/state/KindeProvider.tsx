@@ -552,66 +552,72 @@ export const KindeProvider = ({
 
   const init = useCallback(async () => {
     if (initRef.current) return;
-    await checkAuth({ domain, clientId });
-    initRef.current = true;
-    const params = new URLSearchParams(window.location.search);
+    try {
+      await checkAuth({ domain, clientId });
+      initRef.current = true;
+      const params = new URLSearchParams(window.location.search);
 
-    if (params.has("error")) {
-      const errorCode = params.get("error");
-      if (errorCode?.toLowerCase() === "login_link_expired") {
-        const reauthState = params.get("reauth_state");
-        if (reauthState) {
-          login({ reauthState: reauthState });
+      if (params.has("error")) {
+        const errorCode = params.get("error");
+        if (errorCode?.toLowerCase() === "login_link_expired") {
+          const reauthState = params.get("reauth_state");
+          if (reauthState) {
+            login({ reauthState: reauthState });
+          }
+          return;
+        }
+        setState((val: ProviderState) => ({ ...val, isLoading: false }));
+        return;
+      }
+
+      if (
+        (await storeState.localStorage.getSessionItem(
+          storeState.LocalKeys.performingLogout,
+        )) === "true"
+      ) {
+        await storeState.localStorage.removeSessionItem(
+          storeState.LocalKeys.performingLogout,
+        );
+        window.close();
+      }
+
+      const hasCode = params.has("code");
+      const isOnRedirectUri = window.location.href.startsWith(redirectUri);
+      if (!hasCode || !isOnRedirectUri) {
+        try {
+          const user = await getUserProfile();
+          if (user) {
+            setState((val: ProviderState) => ({
+              ...val,
+              user,
+              isAuthenticated: true,
+            }));
+          }
+        } catch (error) {
+          console.warn("Error getting user profile", error);
+        } finally {
+          setState((val: ProviderState) => ({ ...val, isLoading: false }));
         }
         return;
       }
-      setState((val: ProviderState) => ({ ...val, isLoading: false }));
-      return;
-    }
 
-    if (
-      (await storeState.localStorage.getSessionItem(
-        storeState.LocalKeys.performingLogout,
-      )) === "true"
-    ) {
-      await storeState.localStorage.removeSessionItem(
-        storeState.LocalKeys.performingLogout,
-      );
-      window.close();
-    }
-
-    const hasCode = params.has("code");
-    const isOnRedirectUri = window.location.href.startsWith(redirectUri);
-    if (!hasCode || !isOnRedirectUri) {
-      try {
-        const user = await getUserProfile();
-        if (user) {
-          setState((val: ProviderState) => ({
-            ...val,
-            user,
-            isAuthenticated: true,
-          }));
-        }
-      } catch (error) {
-        console.warn("Error getting user profile", error);
-      } finally {
-        setState((val: ProviderState) => ({ ...val, isLoading: false }));
+      if (window.opener) {
+        const searchParams = new URLSearchParams(window.location.search);
+        window.opener.postMessage(
+          {
+            type: "KINDE_AUTH_RESULT",
+            result: Object.fromEntries(searchParams.entries()),
+          },
+          window.location.origin,
+        );
+        window.close();
       }
-      return;
+      await processAuthResult(new URLSearchParams(window.location.search));
+    } finally {
+      if (window.opener) {
+        window.close();
+      }
     }
-
-    if (window.opener) {
-      const searchParams = new URLSearchParams(window.location.search);
-      window.opener.postMessage(
-        {
-          type: "KINDE_AUTH_RESULT",
-          result: Object.fromEntries(searchParams.entries()),
-        },
-        window.location.origin,
-      );
-      window.close();
-    }
-    await processAuthResult(new URLSearchParams(window.location.search));
   }, [
     clientId,
     domain,
