@@ -581,7 +581,8 @@ export const KindeProvider = ({
     }
 
     const hasCode = params.has("code");
-    if (!hasCode) {
+    const isOnRedirectUri = window.location.href.startsWith(redirectUri);
+    if (!hasCode || !isOnRedirectUri) {
       try {
         const user = await getUserProfile();
         if (user) {
