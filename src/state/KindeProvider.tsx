@@ -553,8 +553,13 @@ export const KindeProvider = ({
   const init = useCallback(async () => {
     if (initRef.current) return;
     try {
-      await checkAuth({ domain, clientId });
-      initRef.current = true;
+      try {  
+        await checkAuth({ domain, clientId });  
+      } catch (err) {  
+        console.warn("checkAuth failed:", err);  
+        setState((v: ProviderState) => ({ ...v, isLoading: false }));  
+      }  
+      initRef.current = true;  
       const params = new URLSearchParams(window.location.search);
 
       if (params.has("error")) {
@@ -611,6 +616,7 @@ export const KindeProvider = ({
           window.location.origin,
         );
         window.close();
+        return;
       }
       await processAuthResult(new URLSearchParams(window.location.search));
     } finally {
