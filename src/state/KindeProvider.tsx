@@ -552,8 +552,8 @@ export const KindeProvider = ({
 
   const init = useCallback(async () => {
     if (initRef.current) return;
-    await checkAuth({ domain, clientId });
     initRef.current = true;
+    await checkAuth({ domain, clientId });
     const params = new URLSearchParams(window.location.search);
 
     if (params.has("error")) {
