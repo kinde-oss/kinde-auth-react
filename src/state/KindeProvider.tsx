@@ -583,7 +583,9 @@ export const KindeProvider = ({
         await storeState.localStorage.removeSessionItem(
           storeState.LocalKeys.performingLogout,
         );
-        window.close();
+        if (window.opener) {
+          window.close();
+        }
       }
 
       const hasCode = params.has("code");
