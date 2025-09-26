@@ -41,7 +41,11 @@ import { KindeContext, KindeContextProps } from "./KindeContext";
 import { getRedirectUrl } from "../utils/getRedirectUrl";
 import packageJson from "../../package.json";
 import { ErrorProps, LogoutOptions, PopupOptions } from "./types";
-import type { RefreshTokenResult } from "@kinde/js-utils";
+import type {
+  RefreshTokenResult,
+  Scopes,
+  SessionManager,
+} from "@kinde/js-utils";
 // TODO: need to look for old token store and convert.
 storageSettings.keyPrefix = "";
 
@@ -104,6 +108,7 @@ type KindeProviderProps = {
    * This is the options for the popup window.
    */
   popupOptions?: PopupOptions;
+  store?: SessionManager;
 };
 
 const defaultCallbacks: KindeCallbacks = {
@@ -138,6 +143,7 @@ export const KindeProvider = ({
   logoutUri,
   forceChildrenRender = false,
   popupOptions = {},
+  store = storeState.memoryStorage,
 }: KindeProviderProps) => {
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
 
@@ -154,17 +160,6 @@ export const KindeProvider = ({
   });
   const initRef = useRef(false);
 
-  useEffect(() => {
-    storeState.memoryStorage.setItems({
-      [storeState.LocalKeys.domain]: domain,
-      [storeState.LocalKeys.clientId]: clientId,
-      [storeState.LocalKeys.audience]: audience,
-      [storeState.LocalKeys.redirectUri]: redirectUri,
-      [storeState.LocalKeys.logoutUri]: logoutUri,
-    });
-    return;
-  }, [audience, scope, clientId, domain, redirectUri, logoutUri]);
-
   const login = useCallback(
     async (
       options: LoginMethodParams & { state?: Record<string, string> } = {},
@@ -178,6 +173,7 @@ export const KindeProvider = ({
         clientId,
         ...options,
         supportsReauth: true,
+        scope: scope?.split(" ") as Scopes[],
         state: base64UrlEncode(
           JSON.stringify({
             kinde: { event: AuthEvent.login },
@@ -186,10 +182,6 @@ export const KindeProvider = ({
         ),
         redirectURL: getRedirectUrl(options.redirectURL || redirectUri),
       };
-
-      const domain = (await storeState.memoryStorage.getSessionItem(
-        storeState.LocalKeys.domain,
-      )) as string;
 
       const authUrl = await generateAuthUrl(
         domain,
@@ -214,7 +206,7 @@ export const KindeProvider = ({
         );
       }
     },
-    [audience, clientId, redirectUri, popupOptions, mergedCallbacks],
+    [audience, clientId, redirectUri, popupOptions, mergedCallbacks, domain],
   );
 
   const register = useCallback(
@@ -234,21 +226,13 @@ export const KindeProvider = ({
           }),
         ),
         supportsReauth: true,
-        audience: (await storeState.memoryStorage.getSessionItem(
-          storeState.LocalKeys.audience,
-        )) as string,
-        clientId: (await storeState.memoryStorage.getSessionItem(
-          storeState.LocalKeys.clientId,
-        )) as string,
+        audience,
+        clientId,
         redirectURL: getRedirectUrl(options?.redirectURL || redirectUri),
         prompt: PromptTypes.create,
       };
 
       try {
-        const domain = (await storeState.memoryStorage.getSessionItem(
-          storeState.LocalKeys.domain,
-        )) as string;
-
         const authUrl = await generateAuthUrl(
           domain,
           IssuerRouteTypes.register,
@@ -282,75 +266,74 @@ export const KindeProvider = ({
         );
       }
     },
-    [redirectUri, popupOptions, mergedCallbacks],
+    [redirectUri, popupOptions, mergedCallbacks, audience, clientId, logoutUri],
   );
 
-  const logout = useCallback(async (options?: string | LogoutOptions) => {
-    try {
-      const domain = (await storeState.memoryStorage.getSessionItem(
-        storeState.LocalKeys.domain,
-      )) as string;
-
-      const params = new URLSearchParams();
-
-      if (options) {
-        if (options && typeof options === "string") {
-          params.append("redirect", options);
-        } else if (typeof options === "object") {
-          if (options.redirectUrl || logoutUri) {
-            params.append("redirect", options.redirectUrl || logoutUri || "");
-          }
-          if (options.allSessions) {
-            params.append("all_sessions", String(options.allSessions));
-          }
-        }
-      } else {
-        params.append("redirect", logoutUri || "");
-      }
-
-      setState((val) => {
-        return { ...val, user: undefined, isAuthenticated: false };
-      });
-
-      await Promise.all([
-        storeState.memoryStorage.removeSessionItem(StorageKeys.idToken),
-        storeState.memoryStorage.removeSessionItem(StorageKeys.accessToken),
-        storeState.memoryStorage.removeSessionItem(StorageKeys.refreshToken),
-        storeState.localStorage.removeSessionItem(StorageKeys.refreshToken),
-      ]);
-
-      await storeState.localStorage.setSessionItem(
-        storeState.LocalKeys.performingLogout,
-        "true",
-      );
-
+  const logout = useCallback(
+    async (options?: string | LogoutOptions) => {
       try {
-        await navigateToKinde({
-          url: `${domain}/logout?${params.toString()}`,
-          popupOptions,
+        const params = new URLSearchParams();
+
+        if (options) {
+          if (options && typeof options === "string") {
+            params.append("redirect", options);
+          } else if (typeof options === "object") {
+            if (options.redirectUrl || logoutUri) {
+              params.append("redirect", options.redirectUrl || logoutUri || "");
+            }
+            if (options.allSessions) {
+              params.append("all_sessions", String(options.allSessions));
+            }
+          }
+        } else {
+          params.append("redirect", logoutUri || "");
+        }
+
+        setState((val) => {
+          return { ...val, user: undefined, isAuthenticated: false };
         });
+
+        await Promise.all([
+          store.removeSessionItem(StorageKeys.idToken),
+          store.removeSessionItem(StorageKeys.accessToken),
+          store.removeSessionItem(StorageKeys.refreshToken),
+          storeState.localStorage.removeSessionItem(StorageKeys.refreshToken),
+        ]);
+
+        await storeState.localStorage.setSessionItem(
+          storeState.LocalKeys.performingLogout,
+          "true",
+        );
+
+        try {
+          await navigateToKinde({
+            url: `${domain}/logout?${params.toString()}`,
+            popupOptions,
+          });
+        } catch (error) {
+          mergedCallbacks.onError?.(
+            {
+              error: "ERR_POPUP",
+              errorDescription: (error as Error).message,
+            },
+            {},
+            {} as KindeContextProps,
+          );
+        }
       } catch (error) {
+        console.error("Logout error:", error);
         mergedCallbacks.onError?.(
           {
-            error: "ERR_POPUP",
-            errorDescription: (error as Error).message,
+            error: "ERR_LOGOUT",
+            errorDescription: String(error),
           },
           {},
-          {} as KindeContextProps,
+          contextValue,
         );
       }
-    } catch (error) {
-      console.error("Logout error:", error);
-      mergedCallbacks.onError?.(
-        {
-          error: "ERR_LOGOUT",
-          errorDescription: String(error),
-        },
-        {},
-        contextValue,
-      );
-    }
-  }, []);
+    },
+    [store, popupOptions, mergedCallbacks, logoutUri],
+  );
 
   const contextValue = useMemo((): KindeContextProps => {
     return {
@@ -553,13 +536,13 @@ export const KindeProvider = ({
   const init = useCallback(async () => {
     if (initRef.current) return;
     try {
-      try {  
-        await checkAuth({ domain, clientId });  
-      } catch (err) {  
-        console.warn("checkAuth failed:", err);  
-        setState((v: ProviderState) => ({ ...v, isLoading: false }));  
-      }  
-      initRef.current = true;  
+      try {
+        await checkAuth({ domain, clientId });
+      } catch (err) {
+        console.warn("checkAuth failed:", err);
+        setState((v: ProviderState) => ({ ...v, isLoading: false }));
+      }
+      initRef.current = true;
       const params = new URLSearchParams(window.location.search);
 
       if (params.has("error")) {
