@@ -28,6 +28,7 @@ import {
   Role,
   GeneratePortalUrlParams,
   navigateToKinde,
+  setActiveStorage,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -146,6 +147,8 @@ export const KindeProvider = ({
   store = storeState.memoryStorage,
 }: KindeProviderProps) => {
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
+
+  setActiveStorage(store);
 
   frameworkSettings.framework = "react";
   frameworkSettings.frameworkVersion = React.version;
