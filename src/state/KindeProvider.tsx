@@ -148,7 +148,9 @@ export const KindeProvider = ({
 }: KindeProviderProps) => {
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
 
-  setActiveStorage(store);
+  useEffect(() => {  
+    setActiveStorage(store);  
+  }, [store]);  
 
   frameworkSettings.framework = "react";
   frameworkSettings.frameworkVersion = React.version;
@@ -209,7 +211,7 @@ export const KindeProvider = ({
         );
       }
     },
-    [audience, clientId, redirectUri, popupOptions, mergedCallbacks, domain],
+    [audience, clientId, redirectUri, popupOptions, mergedCallbacks, domain, scope],
   );
 
   const register = useCallback(
@@ -269,7 +271,7 @@ export const KindeProvider = ({
         );
       }
     },
-    [redirectUri, popupOptions, mergedCallbacks, audience, clientId, logoutUri],
+    [redirectUri, popupOptions, mergedCallbacks, audience, clientId, domain],
   );
 
   const logout = useCallback(
@@ -292,16 +294,16 @@ export const KindeProvider = ({
           params.append("redirect", logoutUri || "");
         }
 
-        setState((val) => {
-          return { ...val, user: undefined, isAuthenticated: false };
-        });
-
         await Promise.all([
           store.removeSessionItem(StorageKeys.idToken),
           store.removeSessionItem(StorageKeys.accessToken),
           store.removeSessionItem(StorageKeys.refreshToken),
           storeState.localStorage.removeSessionItem(StorageKeys.refreshToken),
         ]);
+
+        setState((val) => {
+          return { ...val, user: undefined, isAuthenticated: false };
+        });
 
         await storeState.localStorage.setSessionItem(
           storeState.LocalKeys.performingLogout,
@@ -335,7 +337,7 @@ export const KindeProvider = ({
         );
       }
     },
-    [store, popupOptions, mergedCallbacks, logoutUri],
+    [store, popupOptions, mergedCallbacks, logoutUri, domain],
   );
 
   const contextValue = useMemo((): KindeContextProps => {
