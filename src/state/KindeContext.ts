@@ -47,6 +47,6 @@ const initialContext = {
   ...initialState,
 };
 
-export const KindeContext = createContext<KindeContextProps>(
-  initialContext as KindeContextProps,
+export const KindeContext = createContext<KindeContextProps | null>(
+  null
 );
