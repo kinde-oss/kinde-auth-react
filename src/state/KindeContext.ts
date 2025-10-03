@@ -1,5 +1,4 @@
 import { createContext } from "react";
-import { initialState } from "./initialState";
 import { LogoutOptions, State } from "./types";
 import type {
   getClaim,
@@ -42,10 +41,6 @@ export interface KindeContextProps extends State {
     options: Omit<GeneratePortalUrlParams, "domain">,
   ) => Promise<{ url: URL }>;
 }
-
-const initialContext = {
-  ...initialState,
-};
 
 export const KindeContext = createContext<KindeContextProps | null>(
   null
