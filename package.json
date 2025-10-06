@@ -1,6 +1,6 @@
 {
   "name": "@kinde-oss/kinde-auth-react",
-  "version": "5.7.1",
+  "version": "5.7.2",
   "description": "Kinde React SDK for authentication",
   "module": "./dist/index.mjs",
   "main": "./dist/index.cjs",
