@@ -29,6 +29,7 @@ import {
   GeneratePortalUrlParams,
   navigateToKinde,
   setActiveStorage,
+  isAuthenticated,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -148,9 +149,35 @@ export const KindeProvider = ({
 }: KindeProviderProps) => {
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
 
-  useEffect(() => {  
-    setActiveStorage(store);  
-  }, [store]);  
+  useEffect(() => {
+    setActiveStorage(store);
+    const unsubscribe = store.subscribe(async () => {
+      try {
+        const [authenticated, user] = await Promise.all([
+          isAuthenticated(),
+          getUserProfile(),
+        ]);
+
+        if (authenticated && user) {
+          setState((val) => ({ ...val, user, isAuthenticated: true }));
+        } else {
+          setState((val) => ({
+            ...val,
+            user: undefined,
+            isAuthenticated: false,
+          }));
+        }
+      } catch (error) {
+        console.error("Store subscription update failed:", error);
+        setState((val) => ({
+          ...val,
+          user: undefined,
+          isAuthenticated: false,
+        }));
+      }
+    });
+    return unsubscribe;
+  }, [store]);
 
   frameworkSettings.framework = "react";
   frameworkSettings.frameworkVersion = React.version;
