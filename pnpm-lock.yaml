@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@kinde/js-utils':
-        specifier: 0.25.1
-        version: 0.25.1
+        specifier: 0.27.0
+        version: 0.27.0
     devDependencies:
       '@babel/plugin-transform-runtime':
         specifier: 7.27.1
@@ -768,8 +768,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.29':
     resolution: {integrity: sha512-uw6guiW/gcAGPDhLmd77/6lW8QLeiV5RUTsAX46Db6oLhGaVj4lhnPwb184s1bkc8kdVg/+h988dro8GRDpmYQ==}
 
-  '@kinde/js-utils@0.25.1':
-    resolution: {integrity: sha512-7SoA684zLqQhjR6YfaTlnVN2hGs7JSDMWH+z3fY/kxVY4AK3D3MuUrKdnbemeF1kjFsMQrafdi+Vl/Ggpg4Cew==}
+  '@kinde/js-utils@0.27.0':
+    resolution: {integrity: sha512-4ireFvGhzVbR7V0nacJd/K7fqJOwYeUEKXYgHPODaNzANCTlCYb64+6KfPx/qUw4pu02/xyuqhcbaDVhP1xByA==}
     peerDependencies:
       expo-secure-store: '>=11.0.0'
     peerDependenciesMeta:
@@ -4013,7 +4013,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.4
 
-  '@kinde/js-utils@0.25.1':
+  '@kinde/js-utils@0.27.0':
     dependencies:
       '@kinde/jwt-decoder': 0.2.0
 
