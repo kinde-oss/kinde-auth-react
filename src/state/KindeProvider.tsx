@@ -111,6 +111,7 @@ type KindeProviderProps = {
    */
   popupOptions?: PopupOptions;
   store?: SessionManager;
+  refreshOnFocus?: boolean
 };
 
 const defaultCallbacks: KindeCallbacks = {
@@ -146,6 +147,7 @@ export const KindeProvider = ({
   forceChildrenRender = false,
   popupOptions = {},
   store = storeState.memoryStorage,
+  refreshOnFocus = false,
 }: KindeProviderProps) => {
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
 
@@ -549,21 +551,24 @@ export const KindeProvider = ({
   );
 
   const handleFocus = useCallback(() => {
-    if (document.visibilityState === "visible" && state.isAuthenticated) {
+    if (document.visibilityState === "visible" && state.isAuthenticated && refreshOnFocus) {
       refreshToken({ domain, clientId, onRefresh }).catch((error) => {
         console.error("Error refreshing token:", error);
       });
     }
-  }, [state.isAuthenticated, domain, clientId, onRefresh]);
+  }, [state.isAuthenticated, domain, clientId, onRefresh, refreshOnFocus]);
 
   useEffect(() => {
     // remove any existing event listener before adding a new one
+
     document.removeEventListener("visibilitychange", handleFocus);
+    if (refreshOnFocus) {
     document.addEventListener("visibilitychange", handleFocus);
-    return () => {
-      document.removeEventListener("visibilitychange", handleFocus);
-    };
-  }, [handleFocus]);
+      return () => {
+        document.removeEventListener("visibilitychange", handleFocus);
+      };
+    }
+  }, [handleFocus, refreshOnFocus]);
 
   const init = useCallback(async () => {
     if (initRef.current) return;
