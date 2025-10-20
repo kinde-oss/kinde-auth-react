@@ -43,7 +43,12 @@ import React, {
 import { KindeContext, KindeContextProps } from "./KindeContext";
 import { getRedirectUrl } from "../utils/getRedirectUrl";
 import packageJson from "../../package.json";
-import { ErrorProps, LogoutOptions, PopupOptions, ActivityTimeoutConfig } from "./types";
+import {
+  ErrorProps,
+  LogoutOptions,
+  PopupOptions,
+  ActivityTimeoutConfig,
+} from "./types";
 import type {
   RefreshTokenResult,
   Scopes,
@@ -154,15 +159,16 @@ export const KindeProvider = ({
 
   useEffect(() => {
     setActiveStorage(store);
-    
+
     // Track if activity tracking is currently enabled
     let isTrackingEnabled = false;
 
     const enableActivityTracking = () => {
       if (!activityTimeout || isTrackingEnabled) return;
-      
+
       storageSettings.activityTimeoutMinutes = activityTimeout.timeoutMinutes;
-      storageSettings.activityTimeoutPreWarningMinutes = activityTimeout.preWarningMinutes;
+      storageSettings.activityTimeoutPreWarningMinutes =
+        activityTimeout.preWarningMinutes;
       storageSettings.onActivityTimeout = activityTimeout.onTimeout;
       setActiveStorage(store);
       updateActivityTimestamp();
@@ -171,7 +177,7 @@ export const KindeProvider = ({
 
     const disableActivityTracking = () => {
       if (!isTrackingEnabled) return;
-      
+
       storageSettings.activityTimeoutMinutes = undefined;
       storageSettings.activityTimeoutPreWarningMinutes = undefined;
       storageSettings.onActivityTimeout = undefined;
@@ -207,7 +213,10 @@ export const KindeProvider = ({
         }));
       }
     });
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      disableActivityTracking();
+    };
   }, [store, activityTimeout]);
 
   frameworkSettings.framework = "react";
@@ -269,7 +278,15 @@ export const KindeProvider = ({
         );
       }
     },
-    [audience, clientId, redirectUri, popupOptions, mergedCallbacks, domain, scope],
+    [
+      audience,
+      clientId,
+      redirectUri,
+      popupOptions,
+      mergedCallbacks,
+      domain,
+      scope,
+    ],
   );
 
   const register = useCallback(
