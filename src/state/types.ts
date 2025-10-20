@@ -58,6 +58,13 @@ export type PopupOptions = {
   top?: number;
 };
 
+/**
+ * Activity timeout configuration.
+ * ⚠️ Must be memoized or defined outside component to prevent effect re-runs.
+ * @example
+ * const config = useMemo(() => ({ timeoutMinutes: 30 }), []);
+ * <KindeProvider activityTimeout={config} ... />
+ */
 export type ActivityTimeoutConfig = {
   timeoutMinutes: number;
   preWarningMinutes?: number;

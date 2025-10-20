@@ -117,6 +117,10 @@ type KindeProviderProps = {
    */
   popupOptions?: PopupOptions;
   store?: SessionManager;
+  /**
+   * Configuration for activity timeout tracking.
+   * ⚠️ Must be memoized or defined outside component to prevent effect re-runs.
+   */
   activityTimeout?: ActivityTimeoutConfig;
 };
 
@@ -165,13 +169,17 @@ export const KindeProvider = ({
 
     const enableActivityTracking = () => {
       if (!activityTimeout || isTrackingEnabled) return;
-
       storageSettings.activityTimeoutMinutes = activityTimeout.timeoutMinutes;
       storageSettings.activityTimeoutPreWarningMinutes =
         activityTimeout.preWarningMinutes;
       storageSettings.onActivityTimeout = activityTimeout.onTimeout;
       setActiveStorage(store);
-      updateActivityTimestamp();
+      try {
+        updateActivityTimestamp();
+      } catch (error) {
+        console.error("Failed to update activity timestamp:", error);
+        return;
+      }
       isTrackingEnabled = true;
     };
 
