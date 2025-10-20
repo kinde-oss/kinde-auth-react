@@ -30,6 +30,7 @@ import {
   navigateToKinde,
   setActiveStorage,
   isAuthenticated,
+  updateActivityTimestamp,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -42,7 +43,7 @@ import React, {
 import { KindeContext, KindeContextProps } from "./KindeContext";
 import { getRedirectUrl } from "../utils/getRedirectUrl";
 import packageJson from "../../package.json";
-import { ErrorProps, LogoutOptions, PopupOptions } from "./types";
+import { ErrorProps, LogoutOptions, PopupOptions, ActivityTimeoutConfig } from "./types";
 import type {
   RefreshTokenResult,
   Scopes,
@@ -111,6 +112,7 @@ type KindeProviderProps = {
    */
   popupOptions?: PopupOptions;
   store?: SessionManager;
+  activityTimeout?: ActivityTimeoutConfig;
 };
 
 const defaultCallbacks: KindeCallbacks = {
@@ -146,11 +148,37 @@ export const KindeProvider = ({
   forceChildrenRender = false,
   popupOptions = {},
   store = storeState.memoryStorage,
+  activityTimeout,
 }: KindeProviderProps) => {
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
 
   useEffect(() => {
     setActiveStorage(store);
+    
+    // Track if activity tracking is currently enabled
+    let isTrackingEnabled = false;
+
+    const enableActivityTracking = () => {
+      if (!activityTimeout || isTrackingEnabled) return;
+      
+      storageSettings.activityTimeoutMinutes = activityTimeout.timeoutMinutes;
+      storageSettings.activityTimeoutPreWarningMinutes = activityTimeout.preWarningMinutes;
+      storageSettings.onActivityTimeout = activityTimeout.onTimeout;
+      setActiveStorage(store);
+      updateActivityTimestamp();
+      isTrackingEnabled = true;
+    };
+
+    const disableActivityTracking = () => {
+      if (!isTrackingEnabled) return;
+      
+      storageSettings.activityTimeoutMinutes = undefined;
+      storageSettings.activityTimeoutPreWarningMinutes = undefined;
+      storageSettings.onActivityTimeout = undefined;
+      setActiveStorage(store);
+      isTrackingEnabled = false;
+    };
+
     const unsubscribe = store.subscribe(async () => {
       try {
         const [authenticated, user] = await Promise.all([
@@ -159,8 +187,10 @@ export const KindeProvider = ({
         ]);
 
         if (authenticated && user) {
+          enableActivityTracking();
           setState((val) => ({ ...val, user, isAuthenticated: true }));
         } else {
+          disableActivityTracking();
           setState((val) => ({
             ...val,
             user: undefined,
@@ -169,6 +199,7 @@ export const KindeProvider = ({
         }
       } catch (error) {
         console.error("Store subscription update failed:", error);
+        disableActivityTracking();
         setState((val) => ({
           ...val,
           user: undefined,
@@ -177,7 +208,7 @@ export const KindeProvider = ({
       }
     });
     return unsubscribe;
-  }, [store]);
+  }, [store, activityTimeout]);
 
   frameworkSettings.framework = "react";
   frameworkSettings.frameworkVersion = React.version;

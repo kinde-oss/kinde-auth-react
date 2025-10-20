@@ -4,6 +4,11 @@ import {
   UserProfile,
 } from "@kinde/js-utils";
 
+export enum TimeoutActivityType {
+  preWarning = "preWarning",
+  timeout = "timeout",
+}
+
 export type State = {
   user?: UserProfile;
   isLoading: boolean;
@@ -51,4 +56,10 @@ export type PopupOptions = {
   height?: number;
   left?: number;
   top?: number;
+};
+
+export type ActivityTimeoutConfig = {
+  timeoutMinutes: number;
+  preWarningMinutes?: number;
+  onTimeout?: (type: TimeoutActivityType) => void | Promise<void>;
 };
