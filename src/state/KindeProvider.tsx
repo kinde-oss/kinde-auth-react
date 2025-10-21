@@ -122,6 +122,7 @@ type KindeProviderProps = {
    * ⚠️ Must be memoized or defined outside component to prevent effect re-runs.
    */
   activityTimeout?: ActivityTimeoutConfig;
+  refreshOnFocus?: boolean
 };
 
 const defaultCallbacks: KindeCallbacks = {
@@ -158,6 +159,7 @@ export const KindeProvider = ({
   popupOptions = {},
   store = storeState.memoryStorage,
   activityTimeout,
+  refreshOnFocus = false,
 }: KindeProviderProps) => {
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
 
@@ -605,32 +607,35 @@ export const KindeProvider = ({
   );
 
   const handleFocus = useCallback(() => {
-    if (document.visibilityState === "visible" && state.isAuthenticated) {
+    if (document.visibilityState === "visible" && state.isAuthenticated && refreshOnFocus) {
       refreshToken({ domain, clientId, onRefresh }).catch((error) => {
         console.error("Error refreshing token:", error);
       });
     }
-  }, [state.isAuthenticated, domain, clientId, onRefresh]);
+  }, [state.isAuthenticated, domain, clientId, onRefresh, refreshOnFocus]);
 
   useEffect(() => {
     // remove any existing event listener before adding a new one
+
     document.removeEventListener("visibilitychange", handleFocus);
+    if (refreshOnFocus) {
     document.addEventListener("visibilitychange", handleFocus);
-    return () => {
-      document.removeEventListener("visibilitychange", handleFocus);
-    };
-  }, [handleFocus]);
+      return () => {
+        document.removeEventListener("visibilitychange", handleFocus);
+      };
+    }
+  }, [handleFocus, refreshOnFocus]);
 
   const init = useCallback(async () => {
     if (initRef.current) return;
     try {
       try {
+        initRef.current = true;
         await checkAuth({ domain, clientId });
       } catch (err) {
         console.warn("checkAuth failed:", err);
         setState((v: ProviderState) => ({ ...v, isLoading: false }));
       }
-      initRef.current = true;
       const params = new URLSearchParams(window.location.search);
 
       if (params.has("error")) {
