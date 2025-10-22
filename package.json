@@ -69,7 +69,7 @@
     "eslint-plugin-react": "^7.37.4",
     "genversion": "^3.2.0",
     "globals": "^16.0.0",
-    "jsdom": "^26.0.0",
+    "jsdom": "^27.0.0",
     "prettier": "^3.5.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
