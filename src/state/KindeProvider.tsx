@@ -94,6 +94,7 @@ type KindeProviderProps = {
   children: React.ReactNode;
   clientId: string;
   domain: string;
+  authorizationEndpoint?: string;
   /**
    * Use localstorage for refresh token.
    *
@@ -140,6 +141,7 @@ export const KindeProvider = ({
   clientId,
   children,
   domain,
+  authorizationEndpoint,
   useInsecureForRefreshToken = false,
   redirectUri,
   callbacks = {},
@@ -194,6 +196,23 @@ export const KindeProvider = ({
   });
   const initRef = useRef(false);
 
+  /**
+   * Helper function to construct the final auth URL with optional custom authorization endpoint
+   */
+  const buildAuthUrl = useCallback((authUrl: { url: URL }): string => {
+    if (!authorizationEndpoint) {
+      return authUrl.url.toString();
+    }
+
+    const customUrl = new URL(authUrl.url.toString());
+    // Ensure it's a path, not a full URL
+    customUrl.pathname = authorizationEndpoint.startsWith("/")
+      ? authorizationEndpoint
+      : `/${authorizationEndpoint}`;
+    
+    return customUrl.toString();
+  }, [authorizationEndpoint]);
+
   const login = useCallback(
     async (
       options: LoginMethodParams & { state?: Record<string, string> } = {},
@@ -223,9 +242,11 @@ export const KindeProvider = ({
         authProps,
       );
 
+      const finalAuthUrl = buildAuthUrl(authUrl);
+
       try {
         navigateToKinde({
-          url: authUrl.url.toString(),
+          url: finalAuthUrl,
           popupOptions,
           handleResult: processAuthResult,
         });
@@ -240,7 +261,7 @@ export const KindeProvider = ({
         );
       }
     },
-    [audience, clientId, redirectUri, popupOptions, mergedCallbacks, domain, scope],
+    [audience, clientId, redirectUri, popupOptions, mergedCallbacks, domain, scope, buildAuthUrl],
   );
 
   const register = useCallback(
@@ -272,9 +293,12 @@ export const KindeProvider = ({
           IssuerRouteTypes.register,
           authProps,
         );
+        
+        const finalAuthUrl = buildAuthUrl(authUrl);
+        
         try {
           navigateToKinde({
-            url: authUrl.url.toString(),
+            url: finalAuthUrl,
             popupOptions,
             handleResult: processAuthResult,
           });
@@ -300,7 +324,7 @@ export const KindeProvider = ({
         );
       }
     },
-    [redirectUri, popupOptions, mergedCallbacks, audience, clientId, domain],
+    [redirectUri, popupOptions, mergedCallbacks, audience, clientId, domain, buildAuthUrl],
   );
 
   const logout = useCallback(
@@ -609,7 +633,7 @@ export const KindeProvider = ({
       }
 
       const hasCode = params.has("code");
-      const isOnRedirectUri = window.location.href.startsWith(redirectUri);
+      const isOnRedirectUri = window.location.href?.startsWith(redirectUri) ?? false;
       if (!hasCode || !isOnRedirectUri) {
         try {
           const user = await getUserProfile();
