@@ -31,6 +31,7 @@ import {
   setActiveStorage,
   isAuthenticated,
   updateActivityTimestamp,
+  getInsecureStorage,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -48,6 +49,7 @@ import {
   LogoutOptions,
   PopupOptions,
   ActivityTimeoutConfig,
+  TimeoutActivityType,
 } from "./types";
 import type {
   RefreshTokenResult,
@@ -122,7 +124,7 @@ type KindeProviderProps = {
    * ⚠️ Must be memoized or defined outside component to prevent effect re-runs.
    */
   activityTimeout?: ActivityTimeoutConfig;
-  refreshOnFocus?: boolean
+  refreshOnFocus?: boolean;
 };
 
 const defaultCallbacks: KindeCallbacks = {
@@ -145,6 +147,55 @@ type ProviderState = {
   isLoading: boolean;
 };
 
+type Options = { skipInitial?: boolean };
+
+const useOnLocationChange = (
+  run: (loc: Location) => void,
+  { skipInitial = false }: Options = {},
+) => {
+  const initial = useRef(true);
+
+  useEffect(() => {
+    const notify = () => {
+      if (skipInitial && initial.current) {
+        initial.current = false;
+        return;
+      }
+      run(window.location);
+    };
+
+    // back/forward
+    const onPop = () => notify();
+    window.addEventListener("popstate", onPop);
+    window.addEventListener("hashchange", onPop);
+
+    // pushState/replaceState don't emit events: patch them
+    const origPush = history.pushState;
+    const origReplace = history.replaceState;
+
+    history.pushState = function (...args) {
+      origPush.apply(this, args);
+      notify();
+    };
+    history.replaceState = function (...args) {
+      origReplace.apply(this, args);
+      notify();
+    };
+
+    // Optional: Navigation API (Chromium, evolving support)
+    // const nav: any = (window as any).navigation;
+    // if (nav?.addEventListener) nav.addEventListener('navigate', notify);
+
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("hashchange", onPop);
+      history.pushState = origPush;
+      history.replaceState = origReplace;
+      // if (nav?.removeEventListener) nav.removeEventListener('navigate', notify);
+    };
+  }, [run, skipInitial]);
+};
+
 export const KindeProvider = ({
   audience,
   scope,
@@ -163,6 +214,10 @@ export const KindeProvider = ({
 }: KindeProviderProps) => {
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
 
+  useOnLocationChange(() => {
+    updateActivityTimestamp();
+  });
+
   useEffect(() => {
     setActiveStorage(store);
 
@@ -174,8 +229,49 @@ export const KindeProvider = ({
       storageSettings.activityTimeoutMinutes = activityTimeout.timeoutMinutes;
       storageSettings.activityTimeoutPreWarningMinutes =
         activityTimeout.preWarningMinutes;
-      storageSettings.onActivityTimeout = activityTimeout.onTimeout;
-      setActiveStorage(store);
+      storageSettings.onActivityTimeout = async (type: TimeoutActivityType) => {
+        try {
+          if (type === TimeoutActivityType.timeout) {
+            const insecureStorage = getInsecureStorage();
+            const accessToken = await store.getSessionItem(
+              StorageKeys.accessToken,
+            );
+            const refreshToken = await insecureStorage?.getSessionItem(
+              StorageKeys.refreshToken,
+            );
+            await Promise.all([
+              await fetch(`${domain}/logout`),
+              refreshToken &&
+                (await fetch(`${domain}/oauth2/revoke`, {
+                  method: "POST",
+                  body: JSON.stringify({
+                    token: await store.getSessionItem(StorageKeys.accessToken),
+                  }),
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${await store.getSessionItem(StorageKeys.accessToken)}`,
+                  },
+                })),
+            ]);
+            if (accessToken) {
+              await fetch(`${domain}/oauth2/revoke`, {
+                method: "POST",
+                body: JSON.stringify({
+                  token: await store.getSessionItem(StorageKeys.accessToken),
+                }),
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${await store.getSessionItem(StorageKeys.accessToken)}`,
+                },
+              });
+            }
+          }
+        } catch (error) {
+          console.error("Failed to logout:", error);
+        } finally {
+          activityTimeout.onTimeout?.(type);
+        }
+      };
       try {
         updateActivityTimestamp();
       } catch (error) {
@@ -191,7 +287,6 @@ export const KindeProvider = ({
       storageSettings.activityTimeoutMinutes = undefined;
       storageSettings.activityTimeoutPreWarningMinutes = undefined;
       storageSettings.onActivityTimeout = undefined;
-      setActiveStorage(store);
       isTrackingEnabled = false;
     };
 
@@ -607,7 +702,11 @@ export const KindeProvider = ({
   );
 
   const handleFocus = useCallback(() => {
-    if (document.visibilityState === "visible" && state.isAuthenticated && refreshOnFocus) {
+    if (
+      document.visibilityState === "visible" &&
+      state.isAuthenticated &&
+      refreshOnFocus
+    ) {
       refreshToken({ domain, clientId, onRefresh }).catch((error) => {
         console.error("Error refreshing token:", error);
       });
@@ -619,7 +718,7 @@ export const KindeProvider = ({
 
     document.removeEventListener("visibilitychange", handleFocus);
     if (refreshOnFocus) {
-    document.addEventListener("visibilitychange", handleFocus);
+      document.addEventListener("visibilitychange", handleFocus);
       return () => {
         document.removeEventListener("visibilitychange", handleFocus);
       };
