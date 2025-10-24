@@ -30,6 +30,7 @@ import {
   navigateToKinde,
   setActiveStorage,
   isAuthenticated,
+  updateActivityTimestamp,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -42,7 +43,12 @@ import React, {
 import { KindeContext, KindeContextProps } from "./KindeContext";
 import { getRedirectUrl } from "../utils/getRedirectUrl";
 import packageJson from "../../package.json";
-import { ErrorProps, LogoutOptions, PopupOptions } from "./types";
+import {
+  ErrorProps,
+  LogoutOptions,
+  PopupOptions,
+  ActivityTimeoutConfig,
+} from "./types";
 import type {
   RefreshTokenResult,
   Scopes,
@@ -111,6 +117,11 @@ type KindeProviderProps = {
    */
   popupOptions?: PopupOptions;
   store?: SessionManager;
+  /**
+   * Configuration for activity timeout tracking.
+   * ⚠️ Must be memoized or defined outside component to prevent effect re-runs.
+   */
+  activityTimeout?: ActivityTimeoutConfig;
   refreshOnFocus?: boolean
 };
 
@@ -147,12 +158,43 @@ export const KindeProvider = ({
   forceChildrenRender = false,
   popupOptions = {},
   store = storeState.memoryStorage,
+  activityTimeout,
   refreshOnFocus = false,
 }: KindeProviderProps) => {
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
 
   useEffect(() => {
     setActiveStorage(store);
+
+    // Track if activity tracking is currently enabled
+    let isTrackingEnabled = false;
+
+    const enableActivityTracking = () => {
+      if (!activityTimeout || isTrackingEnabled) return;
+      storageSettings.activityTimeoutMinutes = activityTimeout.timeoutMinutes;
+      storageSettings.activityTimeoutPreWarningMinutes =
+        activityTimeout.preWarningMinutes;
+      storageSettings.onActivityTimeout = activityTimeout.onTimeout;
+      setActiveStorage(store);
+      try {
+        updateActivityTimestamp();
+      } catch (error) {
+        console.error("Failed to update activity timestamp:", error);
+        return;
+      }
+      isTrackingEnabled = true;
+    };
+
+    const disableActivityTracking = () => {
+      if (!isTrackingEnabled) return;
+
+      storageSettings.activityTimeoutMinutes = undefined;
+      storageSettings.activityTimeoutPreWarningMinutes = undefined;
+      storageSettings.onActivityTimeout = undefined;
+      setActiveStorage(store);
+      isTrackingEnabled = false;
+    };
+
     const unsubscribe = store.subscribe(async () => {
       try {
         const [authenticated, user] = await Promise.all([
@@ -161,8 +203,10 @@ export const KindeProvider = ({
         ]);
 
         if (authenticated && user) {
+          enableActivityTracking();
           setState((val) => ({ ...val, user, isAuthenticated: true }));
         } else {
+          disableActivityTracking();
           setState((val) => ({
             ...val,
             user: undefined,
@@ -171,6 +215,7 @@ export const KindeProvider = ({
         }
       } catch (error) {
         console.error("Store subscription update failed:", error);
+        disableActivityTracking();
         setState((val) => ({
           ...val,
           user: undefined,
@@ -178,8 +223,11 @@ export const KindeProvider = ({
         }));
       }
     });
-    return unsubscribe;
-  }, [store]);
+    return () => {
+      unsubscribe();
+      disableActivityTracking();
+    };
+  }, [store, activityTimeout]);
 
   frameworkSettings.framework = "react";
   frameworkSettings.frameworkVersion = React.version;
@@ -240,7 +288,15 @@ export const KindeProvider = ({
         );
       }
     },
-    [audience, clientId, redirectUri, popupOptions, mergedCallbacks, domain, scope],
+    [
+      audience,
+      clientId,
+      redirectUri,
+      popupOptions,
+      mergedCallbacks,
+      domain,
+      scope,
+    ],
   );
 
   const register = useCallback(

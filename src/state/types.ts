@@ -4,6 +4,11 @@ import {
   UserProfile,
 } from "@kinde/js-utils";
 
+export enum TimeoutActivityType {
+  preWarning = "preWarning",
+  timeout = "timeout",
+}
+
 export type State = {
   user?: UserProfile;
   isLoading: boolean;
@@ -51,4 +56,17 @@ export type PopupOptions = {
   height?: number;
   left?: number;
   top?: number;
+};
+
+/**
+ * Activity timeout configuration.
+ * ⚠️ Must be memoized or defined outside component to prevent effect re-runs.
+ * @example
+ * const config = useMemo(() => ({ timeoutMinutes: 30 }), []);
+ * <KindeProvider activityTimeout={config} ... />
+ */
+export type ActivityTimeoutConfig = {
+  timeoutMinutes: number;
+  preWarningMinutes?: number;
+  onTimeout?: (type: TimeoutActivityType) => void | Promise<void>;
 };
