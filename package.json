@@ -69,7 +69,7 @@
     "eslint-plugin-react": "^7.37.4",
     "genversion": "^3.2.0",
     "globals": "^16.0.0",
-    "jsdom": "^26.0.0",
+    "jsdom": "^27.0.0",
     "prettier": "^3.5.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -78,7 +78,7 @@
     "rollup-plugin-dts": "^6.1.1",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-typescript2": "0.36.0",
-    "typescript": "5.8.3",
+    "typescript": "5.9.3",
     "vite": "^6.2.0",
     "vite-plugin-dts": "^4.5.0",
     "vitest": "^3.0.7"
