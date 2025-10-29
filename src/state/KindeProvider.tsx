@@ -172,15 +172,18 @@ const useOnLocationChange = (
     // pushState/replaceState don't emit events: patch them
     const origPush = history.pushState;
     const origReplace = history.replaceState;
-
-    history.pushState = function (...args) {
-      origPush.apply(this, args);
-      notify();
-    };
-    history.replaceState = function (...args) {
-      origReplace.apply(this, args);
-      notify();
-    };
+    if (history.pushState === origPush) {
+      history.pushState = function (...args) {
+        origPush.apply(this, args);
+        notify();
+      };
+    }
+    if (history.replaceState === origReplace) {
+      history.replaceState = function (...args) {
+        origReplace.apply(this, args);
+        notify();
+      };
+    }
 
     // Optional: Navigation API (Chromium, evolving support)
     // const nav: any = (window as any).navigation;
@@ -214,9 +217,7 @@ export const KindeProvider = ({
 }: KindeProviderProps) => {
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
 
-  useOnLocationChange(() => {
-    updateActivityTimestamp();
-  });
+  useOnLocationChange(updateActivityTimestamp);
 
   useEffect(() => {
     setActiveStorage(store);
@@ -239,9 +240,9 @@ export const KindeProvider = ({
             const refreshToken = tokens?.refreshToken;
 
             await Promise.all([
-              await fetch(`${domain}/logout`),
+              fetch(`${domain}/logout`),
               refreshToken &&
-                (await fetch(`${domain}/oauth2/revoke`, {
+                fetch(`${domain}/oauth2/revoke`, {
                   method: "POST",
                   body: JSON.stringify({
                     token: refreshToken,
@@ -250,7 +251,7 @@ export const KindeProvider = ({
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${accessToken}`,
                   },
-                })),
+                }),
             ]);
             if (accessToken) {
               await fetch(`${domain}/oauth2/revoke`, {
