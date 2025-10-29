@@ -31,7 +31,6 @@ import {
   setActiveStorage,
   isAuthenticated,
   updateActivityTimestamp,
-  getInsecureStorage,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -55,6 +54,7 @@ import type {
   RefreshTokenResult,
   Scopes,
   SessionManager,
+  TimeoutTokenData,
 } from "@kinde/js-utils";
 // TODO: need to look for old token store and convert.
 storageSettings.keyPrefix = "";
@@ -229,27 +229,26 @@ export const KindeProvider = ({
       storageSettings.activityTimeoutMinutes = activityTimeout.timeoutMinutes;
       storageSettings.activityTimeoutPreWarningMinutes =
         activityTimeout.preWarningMinutes;
-      storageSettings.onActivityTimeout = async (type: TimeoutActivityType) => {
+      storageSettings.onActivityTimeout = async (
+        type: TimeoutActivityType,
+        tokens?: TimeoutTokenData,
+      ) => {
         try {
           if (type === TimeoutActivityType.timeout) {
-            const insecureStorage = getInsecureStorage();
-            const accessToken = await store.getSessionItem(
-              StorageKeys.accessToken,
-            );
-            const refreshToken = await insecureStorage?.getSessionItem(
-              StorageKeys.refreshToken,
-            );
+            const accessToken = tokens?.accessToken;
+            const refreshToken = tokens?.refreshToken;
+
             await Promise.all([
               await fetch(`${domain}/logout`),
               refreshToken &&
                 (await fetch(`${domain}/oauth2/revoke`, {
                   method: "POST",
                   body: JSON.stringify({
-                    token: await store.getSessionItem(StorageKeys.accessToken),
+                    token: refreshToken,
                   }),
                   headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${await store.getSessionItem(StorageKeys.accessToken)}`,
+                    Authorization: `Bearer ${accessToken}`,
                   },
                 })),
             ]);
@@ -257,11 +256,11 @@ export const KindeProvider = ({
               await fetch(`${domain}/oauth2/revoke`, {
                 method: "POST",
                 body: JSON.stringify({
-                  token: await store.getSessionItem(StorageKeys.accessToken),
+                  token: accessToken,
                 }),
                 headers: {
                   "Content-Type": "application/json",
-                  Authorization: `Bearer ${await store.getSessionItem(StorageKeys.accessToken)}`,
+                  Authorization: `Bearer ${accessToken}`,
                 },
               });
             }
