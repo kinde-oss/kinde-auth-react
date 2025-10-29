@@ -147,6 +147,16 @@ type ProviderState = {
   isLoading: boolean;
 };
 
+const isSameOriginOpener = (): boolean => {
+  try {
+    const opener = window.opener;
+    if (!opener || opener.closed) return false;
+    return opener.location.origin === window.location.origin;
+  } catch {
+    return false;
+  }
+};
+
 type Options = { skipInitial?: boolean };
 
 const useOnLocationChange = (
@@ -239,7 +249,10 @@ export const KindeProvider = ({
             const accessToken = tokens?.accessToken;
             const refreshToken = tokens?.refreshToken;
 
-            const revokeToken = async (token: string | null | undefined, tokenTypeHint: string) => {
+            const revokeToken = async (
+              token: string | null | undefined,
+              tokenTypeHint: string,
+            ) => {
               if (!token) return;
               const response = await fetch(`${domain}/oauth2/revoke`, {
                 method: "POST",
@@ -249,7 +262,10 @@ export const KindeProvider = ({
                 },
               });
               if (!response.ok) {
-                console.warn(`Failed to revoke ${tokenTypeHint}:`, response.status);
+                console.warn(
+                  `Failed to revoke ${tokenTypeHint}:`,
+                  response.status,
+                );
               }
             };
 
@@ -746,7 +762,7 @@ export const KindeProvider = ({
         await storeState.localStorage.removeSessionItem(
           storeState.LocalKeys.performingLogout,
         );
-        if (window.opener) {
+        if (isSameOriginOpener()) {
           window.close();
         }
       }
@@ -771,7 +787,7 @@ export const KindeProvider = ({
         return;
       }
 
-      if (window.opener) {
+      if (isSameOriginOpener()) {
         const searchParams = new URLSearchParams(window.location.search);
         window.opener.postMessage(
           {
@@ -785,7 +801,7 @@ export const KindeProvider = ({
       }
       await processAuthResult(new URLSearchParams(window.location.search));
     } finally {
-      if (window.opener) {
+      if (isSameOriginOpener()) {
         window.close();
       }
     }
