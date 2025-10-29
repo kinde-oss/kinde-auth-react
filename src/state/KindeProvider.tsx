@@ -134,6 +134,16 @@ type ProviderState = {
   isLoading: boolean;
 };
 
+const isSameOriginOpener = (): boolean => {
+  try {
+    const opener = window.opener;
+    if (!opener || opener.closed) return false;
+    return opener.location.origin === window.location.origin;
+  } catch {
+    return false;
+  }
+};
+
 export const KindeProvider = ({
   audience,
   scope,
@@ -418,11 +428,7 @@ export const KindeProvider = ({
         return await getFlag<T>(name);
       },
 
-      getUserProfile: async <T = undefined,>(): Promise<
-        (UserProfile & T) | null
-      > => {
-        return getUserProfile<T>();
-      },
+      getUserProfile,
 
       getPermission: async <T = string,>(
         permissionKey: T,
@@ -603,7 +609,7 @@ export const KindeProvider = ({
         await storeState.localStorage.removeSessionItem(
           storeState.LocalKeys.performingLogout,
         );
-        if (window.opener) {
+        if (isSameOriginOpener()) {
           window.close();
         }
       }
@@ -628,7 +634,7 @@ export const KindeProvider = ({
         return;
       }
 
-      if (window.opener) {
+      if (isSameOriginOpener()) {
         const searchParams = new URLSearchParams(window.location.search);
         window.opener.postMessage(
           {
@@ -642,7 +648,7 @@ export const KindeProvider = ({
       }
       await processAuthResult(new URLSearchParams(window.location.search));
     } finally {
-      if (window.opener) {
+      if (isSameOriginOpener()) {
         window.close();
       }
     }
