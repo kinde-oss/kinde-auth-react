@@ -239,25 +239,27 @@ export const KindeProvider = ({
             const accessToken = tokens?.accessToken;
             const refreshToken = tokens?.refreshToken;
 
-            await Promise.all([
-              fetch(`${domain}/logout`),
+            await fetch(`${domain}/logout`),
               refreshToken &&
                 fetch(`${domain}/oauth2/revoke`, {
                   method: "POST",
                   body: JSON.stringify({
                     token: refreshToken,
+                    client_id: clientId,
+                    token_type: "refresh_token",
                   }),
                   headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${accessToken}`,
                   },
                 }),
-            ]);
             if (accessToken) {
               await fetch(`${domain}/oauth2/revoke`, {
                 method: "POST",
                 body: JSON.stringify({
                   token: accessToken,
+                  client_id: clientId,
+                  token_type: "access_token",
                 }),
                 headers: {
                   "Content-Type": "application/json",
