@@ -246,6 +246,8 @@ export const KindeProvider = ({
                   method: "POST",
                   body: JSON.stringify({
                     token: refreshToken,
+                    client_id: clientId,
+                    token_type: "refresh_token",
                   }),
                   headers: {
                     "Content-Type": "application/json",
@@ -258,6 +260,8 @@ export const KindeProvider = ({
                 method: "POST",
                 body: JSON.stringify({
                   token: accessToken,
+                  client_id: clientId,
+                  token_type: "access_token",
                 }),
                 headers: {
                   "Content-Type": "application/json",
