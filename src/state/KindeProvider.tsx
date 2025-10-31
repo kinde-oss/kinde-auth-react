@@ -250,7 +250,7 @@ export const KindeProvider = ({
                     token_type: "refresh_token",
                   }),
                   headers: {
-                    "Content-Type": "application/json",
+                    "Content-Type": "application/x-www-form-urlencoded",
                     Authorization: `Bearer ${accessToken}`,
                   },
                 }),
@@ -264,7 +264,7 @@ export const KindeProvider = ({
                   token_type: "access_token",
                 }),
                 headers: {
-                  "Content-Type": "application/json",
+                  "Content-Type": "application/x-www-form-urlencoded",
                   Authorization: `Bearer ${accessToken}`,
                 },
               });
@@ -573,11 +573,7 @@ export const KindeProvider = ({
         return await getFlag<T>(name);
       },
 
-      getUserProfile: async <T = undefined,>(): Promise<
-        (UserProfile & T) | null
-      > => {
-        return getUserProfile<T>();
-      },
+      getUserProfile,
 
       getPermission: async <T = string,>(
         permissionKey: T,
