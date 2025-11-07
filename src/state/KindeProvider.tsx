@@ -30,6 +30,7 @@ import {
   navigateToKinde,
   setActiveStorage,
   isAuthenticated,
+  updateActivityTimestamp,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -42,11 +43,18 @@ import React, {
 import { KindeContext, KindeContextProps } from "./KindeContext";
 import { getRedirectUrl } from "../utils/getRedirectUrl";
 import packageJson from "../../package.json";
-import { ErrorProps, LogoutOptions, PopupOptions } from "./types";
+import {
+  ErrorProps,
+  LogoutOptions,
+  PopupOptions,
+  ActivityTimeoutConfig,
+  TimeoutActivityType,
+} from "./types";
 import type {
   RefreshTokenResult,
   Scopes,
   SessionManager,
+  TimeoutTokenData,
 } from "@kinde/js-utils";
 // TODO: need to look for old token store and convert.
 storageSettings.keyPrefix = "";
@@ -112,6 +120,12 @@ type KindeProviderProps = {
    */
   popupOptions?: PopupOptions;
   store?: SessionManager;
+  /**
+   * Configuration for activity timeout tracking.
+   * ⚠️ Must be memoized or defined outside component to prevent effect re-runs.
+   */
+  activityTimeout?: ActivityTimeoutConfig;
+  refreshOnFocus?: boolean;
 };
 
 const defaultCallbacks: KindeCallbacks = {
@@ -134,6 +148,58 @@ type ProviderState = {
   isLoading: boolean;
 };
 
+type Options = { skipInitial?: boolean };
+
+const useOnLocationChange = (
+  run: (loc: Location) => void,
+  { skipInitial = false }: Options = {},
+) => {
+  const initial = useRef(true);
+
+  useEffect(() => {
+    const notify = () => {
+      if (skipInitial && initial.current) {
+        initial.current = false;
+        return;
+      }
+      run(window.location);
+    };
+
+    // back/forward
+    const onPop = () => notify();
+    window.addEventListener("popstate", onPop);
+    window.addEventListener("hashchange", onPop);
+
+    // pushState/replaceState don't emit events: patch them
+    const origPush = history.pushState;
+    const origReplace = history.replaceState;
+    if (history.pushState === origPush) {
+      history.pushState = function (...args) {
+        origPush.apply(this, args);
+        notify();
+      };
+    }
+    if (history.replaceState === origReplace) {
+      history.replaceState = function (...args) {
+        origReplace.apply(this, args);
+        notify();
+      };
+    }
+
+    // Optional: Navigation API (Chromium, evolving support)
+    // const nav: any = (window as any).navigation;
+    // if (nav?.addEventListener) nav.addEventListener('navigate', notify);
+
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("hashchange", onPop);
+      history.pushState = origPush;
+      history.replaceState = origReplace;
+      // if (nav?.removeEventListener) nav.removeEventListener('navigate', notify);
+    };
+  }, [run, skipInitial]);
+};
+
 export const KindeProvider = ({
   audience,
   scope,
@@ -148,11 +214,88 @@ export const KindeProvider = ({
   forceChildrenRender = false,
   popupOptions = {},
   store = storeState.memoryStorage,
+  activityTimeout,
+  refreshOnFocus = false,
 }: KindeProviderProps) => {
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
 
+  useOnLocationChange(updateActivityTimestamp);
+
   useEffect(() => {
     setActiveStorage(store);
+
+    // Track if activity tracking is currently enabled
+    let isTrackingEnabled = false;
+
+    const enableActivityTracking = () => {
+      if (!activityTimeout || isTrackingEnabled) return;
+      storageSettings.activityTimeoutMinutes = activityTimeout.timeoutMinutes;
+      storageSettings.activityTimeoutPreWarningMinutes =
+        activityTimeout.preWarningMinutes;
+      storageSettings.onActivityTimeout = async (
+        type: TimeoutActivityType,
+        tokens?: TimeoutTokenData,
+      ) => {
+        try {
+          if (type === TimeoutActivityType.timeout) {
+            const accessToken = tokens?.accessToken;
+            const refreshToken = tokens?.refreshToken;
+
+            await Promise.all([
+              fetch(`${domain}/logout`),
+              refreshToken &&
+                fetch(`${domain}/oauth2/revoke`, {
+                  method: "POST",
+                  body: JSON.stringify({
+                    token: refreshToken,
+                    client_id: clientId,
+                    token_type: "refresh_token",
+                  }),
+                  headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    Authorization: `Bearer ${accessToken}`,
+                  },
+                }),
+            ]);
+            if (accessToken) {
+              await fetch(`${domain}/oauth2/revoke`, {
+                method: "POST",
+                body: JSON.stringify({
+                  token: accessToken,
+                  client_id: clientId,
+                  token_type: "access_token",
+                }),
+                headers: {
+                  "Content-Type": "application/x-www-form-urlencoded",
+                  Authorization: `Bearer ${accessToken}`,
+                },
+              });
+            }
+          }
+        } catch (error) {
+          console.error("Failed to logout:", error);
+        } finally {
+          activityTimeout.onTimeout?.(type);
+        }
+      };
+      try {
+        updateActivityTimestamp();
+      } catch (error) {
+        console.error("Failed to update activity timestamp:", error);
+        return;
+      }
+      isTrackingEnabled = true;
+    };
+
+    const disableActivityTracking = () => {
+      if (!isTrackingEnabled) return;
+
+      storageSettings.activityTimeoutMinutes = undefined;
+      storageSettings.activityTimeoutPreWarningMinutes = undefined;
+      storageSettings.onActivityTimeout = undefined;
+      isTrackingEnabled = false;
+    };
+
     const unsubscribe = store.subscribe(async () => {
       try {
         const [authenticated, user] = await Promise.all([
@@ -161,8 +304,10 @@ export const KindeProvider = ({
         ]);
 
         if (authenticated && user) {
+          enableActivityTracking();
           setState((val) => ({ ...val, user, isAuthenticated: true }));
         } else {
+          disableActivityTracking();
           setState((val) => ({
             ...val,
             user: undefined,
@@ -171,6 +316,7 @@ export const KindeProvider = ({
         }
       } catch (error) {
         console.error("Store subscription update failed:", error);
+        disableActivityTracking();
         setState((val) => ({
           ...val,
           user: undefined,
@@ -178,8 +324,11 @@ export const KindeProvider = ({
         }));
       }
     });
-    return unsubscribe;
-  }, [store]);
+    return () => {
+      unsubscribe();
+      disableActivityTracking();
+    };
+  }, [store, activityTimeout]);
 
   frameworkSettings.framework = "react";
   frameworkSettings.frameworkVersion = React.version;
@@ -259,7 +408,15 @@ export const KindeProvider = ({
         );
       }
     },
-    [audience, clientId, redirectUri, popupOptions, mergedCallbacks, domain, scope, buildAuthUrl],
+    [
+      audience,
+      clientId,
+      redirectUri,
+      popupOptions,
+      mergedCallbacks,
+      domain,
+      scope,
+    ],
   );
 
   const register = useCallback(
@@ -440,11 +597,7 @@ export const KindeProvider = ({
         return await getFlag<T>(name);
       },
 
-      getUserProfile: async <T = undefined,>(): Promise<
-        (UserProfile & T) | null
-      > => {
-        return getUserProfile<T>();
-      },
+      getUserProfile,
 
       getPermission: async <T = string,>(
         permissionKey: T,
@@ -573,32 +726,39 @@ export const KindeProvider = ({
   );
 
   const handleFocus = useCallback(() => {
-    if (document.visibilityState === "visible" && state.isAuthenticated) {
+    if (
+      document.visibilityState === "visible" &&
+      state.isAuthenticated &&
+      refreshOnFocus
+    ) {
       refreshToken({ domain, clientId, onRefresh }).catch((error) => {
         console.error("Error refreshing token:", error);
       });
     }
-  }, [state.isAuthenticated, domain, clientId, onRefresh]);
+  }, [state.isAuthenticated, domain, clientId, onRefresh, refreshOnFocus]);
 
   useEffect(() => {
     // remove any existing event listener before adding a new one
+
     document.removeEventListener("visibilitychange", handleFocus);
-    document.addEventListener("visibilitychange", handleFocus);
-    return () => {
-      document.removeEventListener("visibilitychange", handleFocus);
-    };
-  }, [handleFocus]);
+    if (refreshOnFocus) {
+      document.addEventListener("visibilitychange", handleFocus);
+      return () => {
+        document.removeEventListener("visibilitychange", handleFocus);
+      };
+    }
+  }, [handleFocus, refreshOnFocus]);
 
   const init = useCallback(async () => {
     if (initRef.current) return;
     try {
       try {
+        initRef.current = true;
         await checkAuth({ domain, clientId });
       } catch (err) {
         console.warn("checkAuth failed:", err);
         setState((v: ProviderState) => ({ ...v, isLoading: false }));
       }
-      initRef.current = true;
       const params = new URLSearchParams(window.location.search);
 
       if (params.has("error")) {

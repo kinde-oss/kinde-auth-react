@@ -42,6 +42,4 @@ export interface KindeContextProps extends State {
   ) => Promise<{ url: URL }>;
 }
 
-export const KindeContext = createContext<KindeContextProps | null>(
-  null
-);
+export const KindeContext = createContext<KindeContextProps | null>(null);
