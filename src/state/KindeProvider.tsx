@@ -239,36 +239,24 @@ export const KindeProvider = ({
             const accessToken = tokens?.accessToken;
             const refreshToken = tokens?.refreshToken;
 
-            await Promise.all([
-              fetch(`${domain}/logout`),
-              refreshToken &&
-                fetch(`${domain}/oauth2/revoke`, {
-                  method: "POST",
-                  body: JSON.stringify({
-                    token: refreshToken,
-                    client_id: clientId,
-                    token_type: "refresh_token",
-                  }),
-                  headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    Authorization: `Bearer ${accessToken}`,
-                  },
-                }),
-            ]);
-            if (accessToken) {
-              await fetch(`${domain}/oauth2/revoke`, {
+            const revokeToken = async (token: string | null | undefined, tokenTypeHint: string) => {
+              if (!token) return;
+              const response = await fetch(`${domain}/oauth2/revoke`, {
                 method: "POST",
-                body: JSON.stringify({
-                  token: accessToken,
-                  client_id: clientId,
-                  token_type: "access_token",
-                }),
+                body: `token=${encodeURIComponent(token)}&client_id=${encodeURIComponent(clientId)}&token_type_hint=${tokenTypeHint}`,
                 headers: {
                   "Content-Type": "application/x-www-form-urlencoded",
-                  Authorization: `Bearer ${accessToken}`,
                 },
               });
-            }
+              if (!response.ok) {
+                console.warn(`Failed to revoke ${tokenTypeHint}:`, response.status);
+              }
+            };
+
+            await Promise.allSettled([
+              revokeToken(accessToken, "access_token"),
+              revokeToken(refreshToken, "refresh_token"),
+            ]);
           }
         } catch (error) {
           console.error("Failed to logout:", error);
