@@ -227,16 +227,38 @@ export const KindeProvider = ({
 }: KindeProviderProps) => {
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
 
-  useOnLocationChange(updateActivityTimestamp);
+  // Track if activity tracking is currently enabled
+  const [isActivityTrackingEnabled, setIsActivityTrackingEnabled] =
+    useState(false);
+
+  const [state, setState] = useState<ProviderState>({
+    user: undefined,
+    isAuthenticated: false,
+    isLoading: true,
+  });
+
+  // Callback that only updates activity timestamp when tracking is enabled and user is authenticated
+  const handleLocationChange = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (_loc: Location) => {
+      if (isActivityTrackingEnabled && activityTimeout && state.isAuthenticated) {
+        updateActivityTimestamp();
+      }
+    },
+    [isActivityTrackingEnabled, activityTimeout, state.isAuthenticated],
+  );
+
+  // Only track location changes when activity timeout is configured
+  useOnLocationChange(
+    handleLocationChange,
+    activityTimeout ? {} : { skipInitial: true },
+  );
 
   useEffect(() => {
     setActiveStorage(store);
 
-    // Track if activity tracking is currently enabled
-    let isTrackingEnabled = false;
-
     const enableActivityTracking = () => {
-      if (!activityTimeout || isTrackingEnabled) return;
+      if (!activityTimeout || isActivityTrackingEnabled) return;
       storageSettings.activityTimeoutMinutes = activityTimeout.timeoutMinutes;
       storageSettings.activityTimeoutPreWarningMinutes =
         activityTimeout.preWarningMinutes;
@@ -286,16 +308,16 @@ export const KindeProvider = ({
         console.error("Failed to update activity timestamp:", error);
         return;
       }
-      isTrackingEnabled = true;
+      setIsActivityTrackingEnabled(true);
     };
 
     const disableActivityTracking = () => {
-      if (!isTrackingEnabled) return;
+      if (!isActivityTrackingEnabled) return;
 
       storageSettings.activityTimeoutMinutes = undefined;
       storageSettings.activityTimeoutPreWarningMinutes = undefined;
       storageSettings.onActivityTimeout = undefined;
-      isTrackingEnabled = false;
+      setIsActivityTrackingEnabled(false);
     };
 
     const unsubscribe = store.subscribe(async () => {
@@ -330,7 +352,7 @@ export const KindeProvider = ({
       unsubscribe();
       disableActivityTracking();
     };
-  }, [store, activityTimeout]);
+  }, [store, activityTimeout, isActivityTrackingEnabled]);
 
   frameworkSettings.framework = "react";
   frameworkSettings.frameworkVersion = React.version;
@@ -338,11 +360,6 @@ export const KindeProvider = ({
 
   storageSettings.useInsecureForRefreshToken = useInsecureForRefreshToken;
 
-  const [state, setState] = useState<ProviderState>({
-    user: undefined,
-    isAuthenticated: false,
-    isLoading: true,
-  });
   const initRef = useRef(false);
 
   const login = useCallback(
