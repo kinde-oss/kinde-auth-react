@@ -74,12 +74,12 @@ type EventTypes = {
   (
     event: AuthEvent.tokenRefreshed,
     state: RefreshTokenResult,
-    context: KindeContextProps,
+    context: KindeContextProps
   ): void;
   (
     event: AuthEvent,
     state: Record<string, unknown>,
-    context: KindeContextProps,
+    context: KindeContextProps
   ): void;
 };
 
@@ -87,12 +87,12 @@ type KindeCallbacks = {
   onSuccess?: (
     user: UserProfile,
     state: Record<string, unknown>,
-    context: KindeContextProps,
+    context: KindeContextProps
   ) => void;
   onError?: (
     props: ErrorProps,
     state: Record<string, string>,
-    context: KindeContextProps,
+    context: KindeContextProps
   ) => void;
   onEvent?: EventTypes;
 };
@@ -150,9 +150,11 @@ type ProviderState = {
 const isSameOriginOpener = (): boolean => {
   try {
     const opener = window.opener;
+    console.log("PESICKA, opener", opener);
     if (!opener || opener.closed) return false;
     return opener.location.origin === window.location.origin;
   } catch {
+    console.log("PESICKA, error in isSameOriginOpener");
     return false;
   }
 };
@@ -161,7 +163,7 @@ type Options = { skipInitial?: boolean };
 
 const useOnLocationChange = (
   run: (loc: Location) => void,
-  { skipInitial = false }: Options = {},
+  { skipInitial = false }: Options = {}
 ) => {
   const initial = useRef(true);
 
@@ -264,7 +266,7 @@ export const KindeProvider = ({
         activityTimeout.preWarningMinutes;
       storageSettings.onActivityTimeout = async (
         type: TimeoutActivityType,
-        tokens?: TimeoutTokenData,
+        tokens?: TimeoutTokenData
       ) => {
         try {
           if (type === TimeoutActivityType.timeout) {
@@ -273,7 +275,7 @@ export const KindeProvider = ({
 
             const revokeToken = async (
               token: string | null | undefined,
-              tokenTypeHint: string,
+              tokenTypeHint: string
             ) => {
               if (!token) return;
               const response = await fetch(`${domain}/oauth2/revoke`, {
@@ -286,7 +288,7 @@ export const KindeProvider = ({
               if (!response.ok) {
                 console.warn(
                   `Failed to revoke ${tokenTypeHint}:`,
-                  response.status,
+                  response.status
                 );
               }
             };
@@ -364,11 +366,20 @@ export const KindeProvider = ({
 
   const login = useCallback(
     async (
-      options: LoginMethodParams & { state?: Record<string, string> } = {},
+      options: LoginMethodParams & { state?: Record<string, string> } = {}
     ) => {
       const optionsState: Record<string, string> = options.state || {};
+      console.log("PESICKA, options", options);
+      console.log("PESICKA, optionsState", optionsState);
 
       options.state = undefined;
+      console.log(
+        "PESICKA, state before Encode",
+        JSON.stringify({
+          kinde: { event: AuthEvent.login },
+          ...optionsState,
+        })
+      );
 
       const authProps: LoginOptions = {
         audience,
@@ -380,31 +391,37 @@ export const KindeProvider = ({
           JSON.stringify({
             kinde: { event: AuthEvent.login },
             ...optionsState,
-          }),
+          })
         ),
         redirectURL: getRedirectUrl(options.redirectURL || redirectUri),
       };
 
+      console.log("PESICKA, authProps", authProps);
+
       const authUrl = await generateAuthUrl(
         domain,
         IssuerRouteTypes.login,
-        authProps,
+        authProps
       );
 
+      console.log("PESICKA, authUrl", authUrl);
+
       try {
+        console.log("PESICKA, navigating to Kinde");
         navigateToKinde({
           url: authUrl.url.toString(),
           popupOptions,
           handleResult: processAuthResult,
         });
       } catch (error) {
+        console.log("PESICKA, error", error);
         mergedCallbacks.onError?.(
           {
             error: "ERR_POPUP",
             errorDescription: (error as Error).message,
           },
           {},
-          {} as KindeContextProps,
+          {} as KindeContextProps
         );
       }
     },
@@ -416,12 +433,12 @@ export const KindeProvider = ({
       mergedCallbacks,
       domain,
       scope,
-    ],
+    ]
   );
 
   const register = useCallback(
     async (
-      options: LoginMethodParams & { state?: Record<string, string> } = {},
+      options: LoginMethodParams & { state?: Record<string, string> } = {}
     ) => {
       const optionsState: Record<string, string> = options.state || {};
 
@@ -433,7 +450,7 @@ export const KindeProvider = ({
           JSON.stringify({
             kinde: { event: AuthEvent.register },
             ...optionsState,
-          }),
+          })
         ),
         supportsReauth: true,
         audience,
@@ -446,7 +463,7 @@ export const KindeProvider = ({
         const authUrl = await generateAuthUrl(
           domain,
           IssuerRouteTypes.register,
-          authProps,
+          authProps
         );
         try {
           navigateToKinde({
@@ -461,7 +478,7 @@ export const KindeProvider = ({
               errorDescription: (error as Error).message,
             },
             {},
-            {} as KindeContextProps,
+            {} as KindeContextProps
           );
         }
       } catch (error) {
@@ -472,11 +489,11 @@ export const KindeProvider = ({
             errorDescription: String(error),
           },
           {},
-          contextValue,
+          contextValue
         );
       }
     },
-    [redirectUri, popupOptions, mergedCallbacks, audience, clientId, domain],
+    [redirectUri, popupOptions, mergedCallbacks, audience, clientId, domain]
   );
 
   const logout = useCallback(
@@ -512,7 +529,7 @@ export const KindeProvider = ({
 
         await storeState.localStorage.setSessionItem(
           storeState.LocalKeys.performingLogout,
-          "true",
+          "true"
         );
 
         try {
@@ -527,7 +544,7 @@ export const KindeProvider = ({
               errorDescription: (error as Error).message,
             },
             {},
-            {} as KindeContextProps,
+            {} as KindeContextProps
           );
         }
       } catch (error) {
@@ -538,11 +555,11 @@ export const KindeProvider = ({
             errorDescription: String(error),
           },
           {},
-          contextValue,
+          contextValue
         );
       }
     },
-    [store, popupOptions, mergedCallbacks, logoutUri, domain],
+    [store, popupOptions, mergedCallbacks, logoutUri, domain]
   );
 
   const contextValue = useMemo((): KindeContextProps => {
@@ -559,20 +576,20 @@ export const KindeProvider = ({
       getAccessToken: async (): Promise<string | undefined> => {
         const storage = getActiveStorage();
         return (await storage?.getSessionItem(
-          StorageKeys.accessToken,
+          StorageKeys.accessToken
         )) as string;
       },
       /** @deprecated use `getAccessToken` instead */
       getToken: async (): Promise<string | undefined> => {
         const storage = getActiveStorage();
         return (await storage?.getSessionItem(
-          StorageKeys.accessToken,
+          StorageKeys.accessToken
         )) as string;
       },
 
       getClaim: async <T, V = string | number | string[]>(
         keyName: keyof T,
-        tokenType?: "accessToken" | "idToken",
+        tokenType?: "accessToken" | "idToken"
       ): Promise<{ name: keyof T; value: V } | null> => {
         return getClaim<T, V>(keyName, tokenType);
       },
@@ -589,7 +606,7 @@ export const KindeProvider = ({
         return await getCurrentOrganization();
       },
       getFlag: async <T = string | number | boolean,>(
-        name: string,
+        name: string
       ): Promise<T | null> => {
         return await getFlag<T>(name);
       },
@@ -597,7 +614,7 @@ export const KindeProvider = ({
       getUserProfile,
 
       getPermission: async <T = string,>(
-        permissionKey: T,
+        permissionKey: T
       ): Promise<PermissionAccess> => {
         return await getPermission(permissionKey);
       },
@@ -612,7 +629,7 @@ export const KindeProvider = ({
         return await getRoles();
       },
       generatePortalUrl: async (
-        options: Omit<GeneratePortalUrlParams, "domain">,
+        options: Omit<GeneratePortalUrlParams, "domain">
       ): Promise<{ url: URL }> => {
         return await generatePortalUrl({
           domain,
@@ -636,19 +653,23 @@ export const KindeProvider = ({
         mergedCallbacks.onEvent(AuthEvent.tokenRefreshed, data, contextValue);
       }
     },
-    [mergedCallbacks, contextValue],
+    [mergedCallbacks, contextValue]
   );
 
   // Function to process authentication result from popup
   const processAuthResult = useCallback(
     async (searchParams: URLSearchParams) => {
+      console.log("PESICKA, searchParams", searchParams);
       const decoded = atob(searchParams.get("state") || "");
+      console.log("PESICKA, decoded", decoded);
       let returnedState: StateWithKinde;
       let kindeState: KindeState;
       try {
+        console.log("PESICKA, trying to parse decoded");
         returnedState = JSON.parse(decoded);
+        console.log("PESICKA, returnedState", returnedState);
         kindeState = Object.assign(
-          returnedState.kinde || { event: PromptTypes.login },
+          returnedState.kinde || { event: PromptTypes.login }
         );
       } catch (error) {
         console.error("Error parsing state:", error);
@@ -658,7 +679,7 @@ export const KindeProvider = ({
             errorDescription: String(error),
           },
           {},
-          contextValue,
+          contextValue
         );
         returnedState = {} as StateWithKinde;
         kindeState = { event: AuthEvent.login };
@@ -672,6 +693,7 @@ export const KindeProvider = ({
           autoRefresh: true,
           onRefresh,
         });
+        console.log("PESICKA, codeResponse", codeResponse);
 
         if (codeResponse.success) {
           const user = await getUserProfile();
@@ -683,7 +705,7 @@ export const KindeProvider = ({
                 ...returnedState,
                 kinde: undefined,
               },
-              contextValue,
+              contextValue
             );
             if (mergedCallbacks.onEvent) {
               mergedCallbacks.onEvent(
@@ -692,34 +714,39 @@ export const KindeProvider = ({
                   ...returnedState,
                   kinde: undefined,
                 },
-                contextValue,
+                contextValue
               );
             }
           }
         } else {
+          console.log("PESICKA, codeResponse.error", codeResponse.error);
           mergedCallbacks.onError?.(
             {
               error: "ERR_CODE_EXCHANGE",
               errorDescription: codeResponse.error,
             },
             returnedState,
-            contextValue,
+            contextValue
           );
         }
       } catch (error) {
+        console.log("PESICKA, processAuthResult.catch error", error);
         mergedCallbacks.onError?.(
           {
             error: "ERR_POPUP_AUTH",
             errorDescription: String(error),
           },
           returnedState,
-          contextValue,
+          contextValue
         );
       } finally {
+        console.log(
+          "PESICKA, processAuthResult.finally setting isLoading to false"
+        );
         setState((val) => ({ ...val, isLoading: false }));
       }
     },
-    [domain, clientId, redirectUri, onRefresh, mergedCallbacks, contextValue],
+    [domain, clientId, redirectUri, onRefresh, mergedCallbacks, contextValue]
   );
 
   const handleFocus = useCallback(() => {
@@ -748,7 +775,9 @@ export const KindeProvider = ({
 
   const init = useCallback(async () => {
     if (initRef.current) return;
+    console.log("PESICKA, init");
     try {
+      console.log("PESICKA, init.try");
       try {
         initRef.current = true;
         await checkAuth({ domain, clientId });
@@ -773,11 +802,11 @@ export const KindeProvider = ({
 
       if (
         (await storeState.localStorage.getSessionItem(
-          storeState.LocalKeys.performingLogout,
+          storeState.LocalKeys.performingLogout
         )) === "true"
       ) {
         await storeState.localStorage.removeSessionItem(
-          storeState.LocalKeys.performingLogout,
+          storeState.LocalKeys.performingLogout
         );
         if (isSameOriginOpener()) {
           window.close();
@@ -786,9 +815,13 @@ export const KindeProvider = ({
 
       const hasCode = params.has("code");
       const isOnRedirectUri = window.location.href.startsWith(redirectUri);
+      console.log("PESICKA, hasCode", hasCode);
+      console.log("PESICKA, isOnRedirectUri", isOnRedirectUri);
+      console.log("PESICKA, redirectUri", redirectUri);
       if (!hasCode || !isOnRedirectUri) {
         try {
           const user = await getUserProfile();
+          console.log("PESICKA, user", user);
           if (user) {
             setState((val: ProviderState) => ({
               ...val,
@@ -799,11 +832,12 @@ export const KindeProvider = ({
         } catch (error) {
           console.warn("Error getting user profile", error);
         } finally {
+          console.log("PESICKA, setting isLoading to false");
           setState((val: ProviderState) => ({ ...val, isLoading: false }));
         }
         return;
       }
-
+      console.log("PESICKA, isSameOriginOpener", isSameOriginOpener());
       if (isSameOriginOpener()) {
         const searchParams = new URLSearchParams(window.location.search);
         window.opener.postMessage(
@@ -811,7 +845,7 @@ export const KindeProvider = ({
             type: "KINDE_AUTH_RESULT",
             result: Object.fromEntries(searchParams.entries()),
           },
-          window.location.origin,
+          window.location.origin
         );
         window.close();
         return;
