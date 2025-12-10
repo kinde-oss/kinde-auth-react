@@ -92,8 +92,8 @@
     "React authentication"
   ],
   "peerDependencies": {
-    "react": "^17 || ^18 || ^19",
-    "react-dom": "^17 || ^18 || ^19"
+    "react": "^17 || ^18 || >=19.2.1",
+    "react-dom": "^17 || ^18 || >=19.2.1"
   },
   "files": [
     "dist",
