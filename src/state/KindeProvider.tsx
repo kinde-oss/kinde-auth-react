@@ -74,12 +74,12 @@ type EventTypes = {
   (
     event: AuthEvent.tokenRefreshed,
     state: RefreshTokenResult,
-    context: KindeContextProps,
+    context: KindeContextProps
   ): void;
   (
     event: AuthEvent,
     state: Record<string, unknown>,
-    context: KindeContextProps,
+    context: KindeContextProps
   ): void;
 };
 
@@ -87,12 +87,12 @@ type KindeCallbacks = {
   onSuccess?: (
     user: UserProfile,
     state: Record<string, unknown>,
-    context: KindeContextProps,
+    context: KindeContextProps
   ) => void;
   onError?: (
     props: ErrorProps,
     state: Record<string, string>,
-    context: KindeContextProps,
+    context: KindeContextProps
   ) => void;
   onEvent?: EventTypes;
 };
@@ -112,6 +112,16 @@ type KindeProviderProps = {
   redirectUri: string;
   callbacks?: KindeCallbacks;
   scope?: string;
+  /**
+   * When true, renders children immediately and actively manages `isLoading`
+   * across init, login, logout, and register flows.
+   *
+   * This allows consumers to:
+   * 1. Access the auth context immediately (no empty render)
+   * 2. Rely on `isLoading` to show loading states during auth operations
+   *
+   * When false (default), children only render after initialization completes.
+   */
   forceChildrenRender?: boolean;
   /**
    * When the application is shown in an iFrame, auth will open in a popup window.
@@ -161,7 +171,7 @@ type Options = { skipInitial?: boolean };
 
 const useOnLocationChange = (
   run: (loc: Location) => void,
-  { skipInitial = false }: Options = {},
+  { skipInitial = false }: Options = {}
 ) => {
   const initial = useRef(true);
 
@@ -225,7 +235,10 @@ export const KindeProvider = ({
   activityTimeout,
   refreshOnFocus = false,
 }: KindeProviderProps) => {
-  const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
+  const mergedCallbacks = useMemo(
+    () => ({ ...defaultCallbacks, ...callbacks }),
+    [callbacks]
+  );
 
   // Track if activity tracking is currently enabled
   const [isActivityTrackingEnabled, setIsActivityTrackingEnabled] =
@@ -236,6 +249,18 @@ export const KindeProvider = ({
     isAuthenticated: false,
     isLoading: true,
   });
+
+  const [initStarted, setInitStarted] = useState(false);
+  const contextRef = useRef<KindeContextProps | null>(null);
+
+  const setLoading = useCallback(
+    (loading: boolean) => {
+      if (forceChildrenRender) {
+        setState((prev) => ({ ...prev, isLoading: loading }));
+      }
+    },
+    [forceChildrenRender]
+  );
 
   // Callback that only updates activity timestamp when tracking is enabled and user is authenticated
   const handleLocationChange = useCallback(
@@ -249,13 +274,13 @@ export const KindeProvider = ({
         updateActivityTimestamp();
       }
     },
-    [isActivityTrackingEnabled, activityTimeout, state.isAuthenticated],
+    [isActivityTrackingEnabled, activityTimeout, state.isAuthenticated]
   );
 
   // Only track location changes when activity timeout is configured
   useOnLocationChange(
     handleLocationChange,
-    activityTimeout ? {} : { skipInitial: true },
+    activityTimeout ? {} : { skipInitial: true }
   );
 
   useEffect(() => {
@@ -268,7 +293,7 @@ export const KindeProvider = ({
         activityTimeout.preWarningMinutes;
       storageSettings.onActivityTimeout = async (
         type: TimeoutActivityType,
-        tokens?: TimeoutTokenData,
+        tokens?: TimeoutTokenData
       ) => {
         try {
           if (type === TimeoutActivityType.timeout) {
@@ -277,7 +302,7 @@ export const KindeProvider = ({
 
             const revokeToken = async (
               token: string | null | undefined,
-              tokenTypeHint: string,
+              tokenTypeHint: string
             ) => {
               if (!token) return;
               const response = await fetch(`${domain}/oauth2/revoke`, {
@@ -290,7 +315,7 @@ export const KindeProvider = ({
               if (!response.ok) {
                 console.warn(
                   `Failed to revoke ${tokenTypeHint}:`,
-                  response.status,
+                  response.status
                 );
               }
             };
@@ -368,8 +393,9 @@ export const KindeProvider = ({
 
   const login = useCallback(
     async (
-      options: LoginMethodParams & { state?: Record<string, string> } = {},
+      options: LoginMethodParams & { state?: Record<string, string> } = {}
     ) => {
+      setLoading(true);
       const optionsState: Record<string, string> = options.state || {};
 
       options.state = undefined;
@@ -384,7 +410,7 @@ export const KindeProvider = ({
           JSON.stringify({
             kinde: { event: AuthEvent.login },
             ...optionsState,
-          }),
+          })
         ),
         redirectURL: getRedirectUrl(options.redirectURL || redirectUri),
       };
@@ -392,7 +418,7 @@ export const KindeProvider = ({
       const authUrl = await generateAuthUrl(
         domain,
         IssuerRouteTypes.login,
-        authProps,
+        authProps
       );
 
       try {
@@ -402,13 +428,14 @@ export const KindeProvider = ({
           handleResult: processAuthResult,
         });
       } catch (error) {
+        setLoading(false);
         mergedCallbacks.onError?.(
           {
             error: "ERR_POPUP",
             errorDescription: (error as Error).message,
           },
           {},
-          {} as KindeContextProps,
+          contextRef.current ?? ({} as KindeContextProps)
         );
       }
     },
@@ -420,13 +447,15 @@ export const KindeProvider = ({
       mergedCallbacks,
       domain,
       scope,
-    ],
+      setLoading,
+    ]
   );
 
   const register = useCallback(
     async (
-      options: LoginMethodParams & { state?: Record<string, string> } = {},
+      options: LoginMethodParams & { state?: Record<string, string> } = {}
     ) => {
+      setLoading(true);
       const optionsState: Record<string, string> = options.state || {};
 
       options.state = undefined;
@@ -437,7 +466,7 @@ export const KindeProvider = ({
           JSON.stringify({
             kinde: { event: AuthEvent.register },
             ...optionsState,
-          }),
+          })
         ),
         supportsReauth: true,
         audience,
@@ -450,7 +479,7 @@ export const KindeProvider = ({
         const authUrl = await generateAuthUrl(
           domain,
           IssuerRouteTypes.register,
-          authProps,
+          authProps
         );
         try {
           navigateToKinde({
@@ -459,16 +488,18 @@ export const KindeProvider = ({
             handleResult: processAuthResult,
           });
         } catch (error) {
+          setLoading(false);
           mergedCallbacks.onError?.(
             {
               error: "ERR_POPUP",
               errorDescription: (error as Error).message,
             },
             {},
-            {} as KindeContextProps,
+            contextRef.current ?? ({} as KindeContextProps)
           );
         }
       } catch (error) {
+        setLoading(false);
         console.error("Register error:", error);
         mergedCallbacks.onError?.(
           {
@@ -476,15 +507,24 @@ export const KindeProvider = ({
             errorDescription: String(error),
           },
           {},
-          contextValue,
+          contextRef.current ?? ({} as KindeContextProps)
         );
       }
     },
-    [redirectUri, popupOptions, mergedCallbacks, audience, clientId, domain],
+    [
+      redirectUri,
+      popupOptions,
+      mergedCallbacks,
+      audience,
+      clientId,
+      domain,
+      setLoading,
+    ]
   );
 
   const logout = useCallback(
     async (options?: string | LogoutOptions) => {
+      setLoading(true);
       try {
         const params = new URLSearchParams();
 
@@ -516,7 +556,7 @@ export const KindeProvider = ({
 
         await storeState.localStorage.setSessionItem(
           storeState.LocalKeys.performingLogout,
-          "true",
+          "true"
         );
 
         try {
@@ -525,16 +565,18 @@ export const KindeProvider = ({
             popupOptions,
           });
         } catch (error) {
+          setLoading(false);
           mergedCallbacks.onError?.(
             {
               error: "ERR_POPUP",
               errorDescription: (error as Error).message,
             },
             {},
-            {} as KindeContextProps,
+            contextRef.current ?? ({} as KindeContextProps)
           );
         }
       } catch (error) {
+        setLoading(false);
         console.error("Logout error:", error);
         mergedCallbacks.onError?.(
           {
@@ -542,11 +584,11 @@ export const KindeProvider = ({
             errorDescription: String(error),
           },
           {},
-          contextValue,
+          contextRef.current ?? ({} as KindeContextProps)
         );
       }
     },
-    [store, popupOptions, mergedCallbacks, logoutUri, domain],
+    [store, popupOptions, mergedCallbacks, logoutUri, domain, setLoading]
   );
 
   const contextValue = useMemo((): KindeContextProps => {
@@ -563,20 +605,20 @@ export const KindeProvider = ({
       getAccessToken: async (): Promise<string | undefined> => {
         const storage = getActiveStorage();
         return (await storage?.getSessionItem(
-          StorageKeys.accessToken,
+          StorageKeys.accessToken
         )) as string;
       },
       /** @deprecated use `getAccessToken` instead */
       getToken: async (): Promise<string | undefined> => {
         const storage = getActiveStorage();
         return (await storage?.getSessionItem(
-          StorageKeys.accessToken,
+          StorageKeys.accessToken
         )) as string;
       },
 
       getClaim: async <T, V = string | number | string[]>(
         keyName: keyof T,
-        tokenType?: "accessToken" | "idToken",
+        tokenType?: "accessToken" | "idToken"
       ): Promise<{ name: keyof T; value: V } | null> => {
         return getClaim<T, V>(keyName, tokenType);
       },
@@ -593,7 +635,7 @@ export const KindeProvider = ({
         return await getCurrentOrganization();
       },
       getFlag: async <T = string | number | boolean,>(
-        name: string,
+        name: string
       ): Promise<T | null> => {
         return await getFlag<T>(name);
       },
@@ -601,7 +643,7 @@ export const KindeProvider = ({
       getUserProfile,
 
       getPermission: async <T = string,>(
-        permissionKey: T,
+        permissionKey: T
       ): Promise<PermissionAccess> => {
         return await getPermission(permissionKey);
       },
@@ -616,7 +658,7 @@ export const KindeProvider = ({
         return await getRoles();
       },
       generatePortalUrl: async (
-        options: Omit<GeneratePortalUrlParams, "domain">,
+        options: Omit<GeneratePortalUrlParams, "domain">
       ): Promise<{ url: URL }> => {
         return await generatePortalUrl({
           domain,
@@ -634,13 +676,16 @@ export const KindeProvider = ({
     };
   }, [state, login, logout, register]);
 
+  // Keep contextRef in sync with the latest contextValue
+  contextRef.current = contextValue;
+
   const onRefresh = useCallback(
     (data: RefreshTokenResult): void => {
       if (mergedCallbacks.onEvent) {
         mergedCallbacks.onEvent(AuthEvent.tokenRefreshed, data, contextValue);
       }
     },
-    [mergedCallbacks, contextValue],
+    [mergedCallbacks, contextValue]
   );
 
   // Function to process authentication result from popup
@@ -652,7 +697,7 @@ export const KindeProvider = ({
       try {
         returnedState = JSON.parse(decoded);
         kindeState = Object.assign(
-          returnedState.kinde || { event: PromptTypes.login },
+          returnedState.kinde || { event: PromptTypes.login }
         );
       } catch (error) {
         console.error("Error parsing state:", error);
@@ -662,7 +707,7 @@ export const KindeProvider = ({
             errorDescription: String(error),
           },
           {},
-          contextValue,
+          contextValue
         );
         returnedState = {} as StateWithKinde;
         kindeState = { event: AuthEvent.login };
@@ -687,7 +732,7 @@ export const KindeProvider = ({
                 ...returnedState,
                 kinde: undefined,
               },
-              contextValue,
+              contextValue
             );
             if (mergedCallbacks.onEvent) {
               mergedCallbacks.onEvent(
@@ -696,7 +741,7 @@ export const KindeProvider = ({
                   ...returnedState,
                   kinde: undefined,
                 },
-                contextValue,
+                contextValue
               );
             }
           }
@@ -707,7 +752,7 @@ export const KindeProvider = ({
               errorDescription: codeResponse.error,
             },
             returnedState,
-            contextValue,
+            contextValue
           );
         }
       } catch (error) {
@@ -717,13 +762,13 @@ export const KindeProvider = ({
             errorDescription: String(error),
           },
           returnedState,
-          contextValue,
+          contextValue
         );
       } finally {
         setState((val) => ({ ...val, isLoading: false }));
       }
     },
-    [domain, clientId, redirectUri, onRefresh, mergedCallbacks, contextValue],
+    [domain, clientId, redirectUri, onRefresh, mergedCallbacks, contextValue]
   );
 
   const handleFocus = useCallback(() => {
@@ -752,6 +797,9 @@ export const KindeProvider = ({
 
   const init = useCallback(async () => {
     if (initRef.current) return;
+    if (forceChildrenRender) {
+      setInitStarted(true);
+    }
     try {
       try {
         initRef.current = true;
@@ -777,11 +825,11 @@ export const KindeProvider = ({
 
       if (
         (await storeState.localStorage.getSessionItem(
-          storeState.LocalKeys.performingLogout,
+          storeState.LocalKeys.performingLogout
         )) === "true"
       ) {
         await storeState.localStorage.removeSessionItem(
-          storeState.LocalKeys.performingLogout,
+          storeState.LocalKeys.performingLogout
         );
         if (isSameOriginOpener()) {
           window.close();
@@ -815,7 +863,7 @@ export const KindeProvider = ({
             type: "KINDE_AUTH_RESULT",
             result: Object.fromEntries(searchParams.entries()),
           },
-          window.location.origin,
+          window.location.origin
         );
         window.close();
         return;
@@ -835,6 +883,7 @@ export const KindeProvider = ({
     onRefresh,
     login,
     processAuthResult,
+    forceChildrenRender,
   ]);
 
   useEffect(() => {
@@ -849,7 +898,11 @@ export const KindeProvider = ({
     };
   }, [init]);
 
-  return forceChildrenRender || initRef.current ? (
+  const shouldRenderChildren = forceChildrenRender
+    ? initStarted
+    : initRef.current;
+
+  return shouldRenderChildren ? (
     <KindeContext.Provider value={contextValue}>
       {children}
     </KindeContext.Provider>
