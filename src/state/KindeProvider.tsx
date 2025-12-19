@@ -429,13 +429,17 @@ export const KindeProvider = ({
         });
       } catch (error) {
         setLoading(false);
+        if (!contextRef.current) {
+          console.error("Login error (context unavailable):", error);
+          return;
+        }
         mergedCallbacks.onError?.(
           {
             error: "ERR_POPUP",
             errorDescription: (error as Error).message,
           },
           {},
-          contextRef.current ?? ({} as KindeContextProps)
+          contextRef.current
         );
       }
     },
@@ -489,25 +493,32 @@ export const KindeProvider = ({
           });
         } catch (error) {
           setLoading(false);
+          if (!contextRef.current) {
+            console.error("Register error (context unavailable):", error);
+            return;
+          }
           mergedCallbacks.onError?.(
             {
               error: "ERR_POPUP",
               errorDescription: (error as Error).message,
             },
             {},
-            contextRef.current ?? ({} as KindeContextProps)
+            contextRef.current
           );
         }
       } catch (error) {
         setLoading(false);
         console.error("Register error:", error);
+        if (!contextRef.current) {
+          return;
+        }
         mergedCallbacks.onError?.(
           {
             error: "ERR_REGISTER",
             errorDescription: String(error),
           },
           {},
-          contextRef.current ?? ({} as KindeContextProps)
+          contextRef.current
         );
       }
     },
@@ -566,25 +577,32 @@ export const KindeProvider = ({
           });
         } catch (error) {
           setLoading(false);
+          if (!contextRef.current) {
+            console.error("Logout error (context unavailable):", error);
+            return;
+          }
           mergedCallbacks.onError?.(
             {
               error: "ERR_POPUP",
               errorDescription: (error as Error).message,
             },
             {},
-            contextRef.current ?? ({} as KindeContextProps)
+            contextRef.current
           );
         }
       } catch (error) {
         setLoading(false);
         console.error("Logout error:", error);
+        if (!contextRef.current) {
+          return;
+        }
         mergedCallbacks.onError?.(
           {
             error: "ERR_LOGOUT",
             errorDescription: String(error),
           },
           {},
-          contextRef.current ?? ({} as KindeContextProps)
+          contextRef.current
         );
       }
     },
