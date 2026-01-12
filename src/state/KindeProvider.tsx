@@ -241,7 +241,11 @@ export const KindeProvider = ({
   const handleLocationChange = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     (_loc: Location) => {
-      if (isActivityTrackingEnabled && activityTimeout && state.isAuthenticated) {
+      if (
+        isActivityTrackingEnabled &&
+        activityTimeout &&
+        state.isAuthenticated
+      ) {
         updateActivityTimestamp();
       }
     },
