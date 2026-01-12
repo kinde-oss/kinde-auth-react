@@ -182,9 +182,10 @@ describe("KindeProvider", () => {
       <KindeProvider
         clientId="test"
         domain="test.com"
-        redirectUri="http://localhost:3000">
+        redirectUri="http://localhost:3000"
+      >
         <div>Test Child</div>
-      </KindeProvider>
+      </KindeProvider>,
     );
 
     await act(async () => {
@@ -200,16 +201,17 @@ describe("KindeProvider", () => {
       () =>
         new Promise<void>((resolve) => {
           resolveDefault = resolve;
-        })
+        }),
     );
 
     const noFlagView = render(
       <KindeProvider
         clientId="client"
         domain="domain"
-        redirectUri="http://localhost:3000">
+        redirectUri="http://localhost:3000"
+      >
         <TestConsumer />
-      </KindeProvider>
+      </KindeProvider>,
     );
 
     expect(noFlagView.queryByTestId("loading-indicator")).toBeNull();
@@ -225,7 +227,7 @@ describe("KindeProvider", () => {
       () =>
         new Promise<void>((resolve) => {
           resolveWithFlag = resolve;
-        })
+        }),
     );
 
     const withFlagView = render(
@@ -233,9 +235,10 @@ describe("KindeProvider", () => {
         clientId="client"
         domain="domain"
         redirectUri="http://localhost:3000"
-        forceChildrenRender>
+        forceChildrenRender
+      >
         <TestConsumer />
-      </KindeProvider>
+      </KindeProvider>,
     );
 
     await withFlagView.findByTestId("loading-indicator");
@@ -253,21 +256,22 @@ describe("KindeProvider", () => {
         clientId="client"
         domain="domain"
         redirectUri="http://localhost:3000"
-        forceChildrenRender>
+        forceChildrenRender
+      >
         <TestConsumer />
-      </KindeProvider>
+      </KindeProvider>,
     );
 
     await viewWithFlag.findByTestId("loading-indicator");
     await act(async () => {
       fireEvent.click(
-        viewWithFlag.getByRole("button", { name: /trigger login/i })
+        viewWithFlag.getByRole("button", { name: /trigger login/i }),
       );
     });
 
     await viewWithFlag.findByTestId("loading-indicator");
     expect(viewWithFlag.getByTestId("loading-indicator").textContent).toBe(
-      "true"
+      "true",
     );
 
     viewWithFlag.unmount();
@@ -276,21 +280,22 @@ describe("KindeProvider", () => {
       <KindeProvider
         clientId="client"
         domain="domain"
-        redirectUri="http://localhost:3000">
+        redirectUri="http://localhost:3000"
+      >
         <TestConsumer />
-      </KindeProvider>
+      </KindeProvider>,
     );
 
     await viewWithoutFlag.findByTestId("loading-indicator");
 
     await act(async () => {
       fireEvent.click(
-        viewWithoutFlag.getByRole("button", { name: /trigger login/i })
+        viewWithoutFlag.getByRole("button", { name: /trigger login/i }),
       );
     });
 
     expect(viewWithoutFlag.getByTestId("loading-indicator").textContent).toBe(
-      "false"
+      "false",
     );
 
     viewWithoutFlag.unmount();

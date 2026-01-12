@@ -74,12 +74,12 @@ type EventTypes = {
   (
     event: AuthEvent.tokenRefreshed,
     state: RefreshTokenResult,
-    context: KindeContextProps
+    context: KindeContextProps,
   ): void;
   (
     event: AuthEvent,
     state: Record<string, unknown>,
-    context: KindeContextProps
+    context: KindeContextProps,
   ): void;
 };
 
@@ -87,12 +87,12 @@ type KindeCallbacks = {
   onSuccess?: (
     user: UserProfile,
     state: Record<string, unknown>,
-    context: KindeContextProps
+    context: KindeContextProps,
   ) => void;
   onError?: (
     props: ErrorProps,
     state: Record<string, string>,
-    context: KindeContextProps
+    context: KindeContextProps,
   ) => void;
   onEvent?: EventTypes;
 };
@@ -171,7 +171,7 @@ type Options = { skipInitial?: boolean };
 
 const useOnLocationChange = (
   run: (loc: Location) => void,
-  { skipInitial = false }: Options = {}
+  { skipInitial = false }: Options = {},
 ) => {
   const initial = useRef(true);
 
@@ -237,7 +237,7 @@ export const KindeProvider = ({
 }: KindeProviderProps) => {
   const mergedCallbacks = useMemo(
     () => ({ ...defaultCallbacks, ...callbacks }),
-    [callbacks]
+    [callbacks],
   );
 
   // Track if activity tracking is currently enabled
@@ -259,7 +259,7 @@ export const KindeProvider = ({
         setState((prev) => ({ ...prev, isLoading: loading }));
       }
     },
-    [forceChildrenRender]
+    [forceChildrenRender],
   );
 
   // Callback that only updates activity timestamp when tracking is enabled and user is authenticated
@@ -274,13 +274,13 @@ export const KindeProvider = ({
         updateActivityTimestamp();
       }
     },
-    [isActivityTrackingEnabled, activityTimeout, state.isAuthenticated]
+    [isActivityTrackingEnabled, activityTimeout, state.isAuthenticated],
   );
 
   // Only track location changes when activity timeout is configured
   useOnLocationChange(
     handleLocationChange,
-    activityTimeout ? {} : { skipInitial: true }
+    activityTimeout ? {} : { skipInitial: true },
   );
 
   useEffect(() => {
@@ -293,7 +293,7 @@ export const KindeProvider = ({
         activityTimeout.preWarningMinutes;
       storageSettings.onActivityTimeout = async (
         type: TimeoutActivityType,
-        tokens?: TimeoutTokenData
+        tokens?: TimeoutTokenData,
       ) => {
         try {
           if (type === TimeoutActivityType.timeout) {
@@ -302,7 +302,7 @@ export const KindeProvider = ({
 
             const revokeToken = async (
               token: string | null | undefined,
-              tokenTypeHint: string
+              tokenTypeHint: string,
             ) => {
               if (!token) return;
               const response = await fetch(`${domain}/oauth2/revoke`, {
@@ -315,7 +315,7 @@ export const KindeProvider = ({
               if (!response.ok) {
                 console.warn(
                   `Failed to revoke ${tokenTypeHint}:`,
-                  response.status
+                  response.status,
                 );
               }
             };
@@ -393,7 +393,7 @@ export const KindeProvider = ({
 
   const login = useCallback(
     async (
-      options: LoginMethodParams & { state?: Record<string, string> } = {}
+      options: LoginMethodParams & { state?: Record<string, string> } = {},
     ) => {
       setLoading(true);
       const optionsState: Record<string, string> = options.state || {};
@@ -410,7 +410,7 @@ export const KindeProvider = ({
           JSON.stringify({
             kinde: { event: AuthEvent.login },
             ...optionsState,
-          })
+          }),
         ),
         redirectURL: getRedirectUrl(options.redirectURL || redirectUri),
       };
@@ -418,7 +418,7 @@ export const KindeProvider = ({
       const authUrl = await generateAuthUrl(
         domain,
         IssuerRouteTypes.login,
-        authProps
+        authProps,
       );
 
       try {
@@ -439,7 +439,7 @@ export const KindeProvider = ({
             errorDescription: (error as Error).message,
           },
           {},
-          contextRef.current
+          contextRef.current,
         );
       }
     },
@@ -452,12 +452,12 @@ export const KindeProvider = ({
       domain,
       scope,
       setLoading,
-    ]
+    ],
   );
 
   const register = useCallback(
     async (
-      options: LoginMethodParams & { state?: Record<string, string> } = {}
+      options: LoginMethodParams & { state?: Record<string, string> } = {},
     ) => {
       setLoading(true);
       const optionsState: Record<string, string> = options.state || {};
@@ -470,7 +470,7 @@ export const KindeProvider = ({
           JSON.stringify({
             kinde: { event: AuthEvent.register },
             ...optionsState,
-          })
+          }),
         ),
         supportsReauth: true,
         audience,
@@ -483,7 +483,7 @@ export const KindeProvider = ({
         const authUrl = await generateAuthUrl(
           domain,
           IssuerRouteTypes.register,
-          authProps
+          authProps,
         );
         try {
           navigateToKinde({
@@ -503,7 +503,7 @@ export const KindeProvider = ({
               errorDescription: (error as Error).message,
             },
             {},
-            contextRef.current
+            contextRef.current,
           );
         }
       } catch (error) {
@@ -518,7 +518,7 @@ export const KindeProvider = ({
             errorDescription: String(error),
           },
           {},
-          contextRef.current
+          contextRef.current,
         );
       }
     },
@@ -530,7 +530,7 @@ export const KindeProvider = ({
       clientId,
       domain,
       setLoading,
-    ]
+    ],
   );
 
   const logout = useCallback(
@@ -567,7 +567,7 @@ export const KindeProvider = ({
 
         await storeState.localStorage.setSessionItem(
           storeState.LocalKeys.performingLogout,
-          "true"
+          "true",
         );
 
         try {
@@ -587,7 +587,7 @@ export const KindeProvider = ({
               errorDescription: (error as Error).message,
             },
             {},
-            contextRef.current
+            contextRef.current,
           );
         }
       } catch (error) {
@@ -602,11 +602,11 @@ export const KindeProvider = ({
             errorDescription: String(error),
           },
           {},
-          contextRef.current
+          contextRef.current,
         );
       }
     },
-    [store, popupOptions, mergedCallbacks, logoutUri, domain, setLoading]
+    [store, popupOptions, mergedCallbacks, logoutUri, domain, setLoading],
   );
 
   const contextValue = useMemo((): KindeContextProps => {
@@ -623,20 +623,20 @@ export const KindeProvider = ({
       getAccessToken: async (): Promise<string | undefined> => {
         const storage = getActiveStorage();
         return (await storage?.getSessionItem(
-          StorageKeys.accessToken
+          StorageKeys.accessToken,
         )) as string;
       },
       /** @deprecated use `getAccessToken` instead */
       getToken: async (): Promise<string | undefined> => {
         const storage = getActiveStorage();
         return (await storage?.getSessionItem(
-          StorageKeys.accessToken
+          StorageKeys.accessToken,
         )) as string;
       },
 
       getClaim: async <T, V = string | number | string[]>(
         keyName: keyof T,
-        tokenType?: "accessToken" | "idToken"
+        tokenType?: "accessToken" | "idToken",
       ): Promise<{ name: keyof T; value: V } | null> => {
         return getClaim<T, V>(keyName, tokenType);
       },
@@ -653,7 +653,7 @@ export const KindeProvider = ({
         return await getCurrentOrganization();
       },
       getFlag: async <T = string | number | boolean,>(
-        name: string
+        name: string,
       ): Promise<T | null> => {
         return await getFlag<T>(name);
       },
@@ -661,7 +661,7 @@ export const KindeProvider = ({
       getUserProfile,
 
       getPermission: async <T = string,>(
-        permissionKey: T
+        permissionKey: T,
       ): Promise<PermissionAccess> => {
         return await getPermission(permissionKey);
       },
@@ -676,7 +676,7 @@ export const KindeProvider = ({
         return await getRoles();
       },
       generatePortalUrl: async (
-        options: Omit<GeneratePortalUrlParams, "domain">
+        options: Omit<GeneratePortalUrlParams, "domain">,
       ): Promise<{ url: URL }> => {
         return await generatePortalUrl({
           domain,
@@ -703,7 +703,7 @@ export const KindeProvider = ({
         mergedCallbacks.onEvent(AuthEvent.tokenRefreshed, data, contextValue);
       }
     },
-    [mergedCallbacks, contextValue]
+    [mergedCallbacks, contextValue],
   );
 
   // Function to process authentication result from popup
@@ -715,7 +715,7 @@ export const KindeProvider = ({
       try {
         returnedState = JSON.parse(decoded);
         kindeState = Object.assign(
-          returnedState.kinde || { event: PromptTypes.login }
+          returnedState.kinde || { event: PromptTypes.login },
         );
       } catch (error) {
         console.error("Error parsing state:", error);
@@ -725,7 +725,7 @@ export const KindeProvider = ({
             errorDescription: String(error),
           },
           {},
-          contextValue
+          contextValue,
         );
         returnedState = {} as StateWithKinde;
         kindeState = { event: AuthEvent.login };
@@ -750,7 +750,7 @@ export const KindeProvider = ({
                 ...returnedState,
                 kinde: undefined,
               },
-              contextValue
+              contextValue,
             );
             if (mergedCallbacks.onEvent) {
               mergedCallbacks.onEvent(
@@ -759,7 +759,7 @@ export const KindeProvider = ({
                   ...returnedState,
                   kinde: undefined,
                 },
-                contextValue
+                contextValue,
               );
             }
           }
@@ -770,7 +770,7 @@ export const KindeProvider = ({
               errorDescription: codeResponse.error,
             },
             returnedState,
-            contextValue
+            contextValue,
           );
         }
       } catch (error) {
@@ -780,13 +780,13 @@ export const KindeProvider = ({
             errorDescription: String(error),
           },
           returnedState,
-          contextValue
+          contextValue,
         );
       } finally {
         setState((val) => ({ ...val, isLoading: false }));
       }
     },
-    [domain, clientId, redirectUri, onRefresh, mergedCallbacks, contextValue]
+    [domain, clientId, redirectUri, onRefresh, mergedCallbacks, contextValue],
   );
 
   const handleFocus = useCallback(() => {
@@ -843,11 +843,11 @@ export const KindeProvider = ({
 
       if (
         (await storeState.localStorage.getSessionItem(
-          storeState.LocalKeys.performingLogout
+          storeState.LocalKeys.performingLogout,
         )) === "true"
       ) {
         await storeState.localStorage.removeSessionItem(
-          storeState.LocalKeys.performingLogout
+          storeState.LocalKeys.performingLogout,
         );
         if (isSameOriginOpener()) {
           window.close();
@@ -881,7 +881,7 @@ export const KindeProvider = ({
             type: "KINDE_AUTH_RESULT",
             result: Object.fromEntries(searchParams.entries()),
           },
-          window.location.origin
+          window.location.origin,
         );
         window.close();
         return;
