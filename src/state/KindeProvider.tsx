@@ -225,8 +225,15 @@ export const KindeProvider = ({
   activityTimeout,
   refreshOnFocus = false,
 }: KindeProviderProps) => {
-  const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
+  // Check for invitation_code synchronously before any hooks/rendering
+  const params = new URLSearchParams(window.location.search);
+  const hasInvitationCode = params.has("invitation_code");
+  const invitationCodeRef = useRef<string | null>(
+    hasInvitationCode ? params.get("invitation_code") : null,
+  );
+  const isRedirectingRef = useRef(hasInvitationCode);
 
+  const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
   // Track if activity tracking is currently enabled
   const [isActivityTrackingEnabled, setIsActivityTrackingEnabled] =
     useState(false);
@@ -365,6 +372,8 @@ export const KindeProvider = ({
   storageSettings.useInsecureForRefreshToken = useInsecureForRefreshToken;
 
   const initRef = useRef(false);
+  const loginRef = useRef<typeof login | null>(null);
+  const redirectInitiatedRef = useRef(false);
 
   const login = useCallback(
     async (
@@ -422,6 +431,29 @@ export const KindeProvider = ({
       scope,
     ],
   );
+
+  // Store login in ref for immediate access
+  loginRef.current = login;
+
+  // Handle invitation_code redirect immediately, before any render
+  useEffect(() => {
+    if (
+      isRedirectingRef.current &&
+      invitationCodeRef.current &&
+      login &&
+      !redirectInitiatedRef.current
+    ) {
+      redirectInitiatedRef.current = true;
+      login({
+        prompt: PromptTypes.create,
+        invitationCode: invitationCodeRef.current,
+      }).catch((error) => {
+        console.error("Error processing invitation code:", error);
+        isRedirectingRef.current = false;
+        redirectInitiatedRef.current = false;
+      });
+    }
+  }, [login]); // Include login to ensure it's ready when it becomes available
 
   const register = useCallback(
     async (
@@ -753,6 +785,13 @@ export const KindeProvider = ({
   const init = useCallback(async () => {
     if (initRef.current) return;
     try {
+      const params = new URLSearchParams(window.location.search);
+
+      // Skip initialization if redirecting for invitation (handled in useEffect above)
+      if (isRedirectingRef.current) {
+        return;
+      }
+
       try {
         initRef.current = true;
         await checkAuth({ domain, clientId });
@@ -760,7 +799,6 @@ export const KindeProvider = ({
         console.warn("checkAuth failed:", err);
         setState((v: ProviderState) => ({ ...v, isLoading: false }));
       }
-      const params = new URLSearchParams(window.location.search);
 
       if (params.has("error")) {
         const errorCode = params.get("error");
@@ -848,6 +886,11 @@ export const KindeProvider = ({
       mounted.current = false;
     };
   }, [init]);
+
+  // Don't render children if redirecting for invitation
+  if (isRedirectingRef.current && !forceChildrenRender) {
+    return <></>;
+  }
 
   return forceChildrenRender || initRef.current ? (
     <KindeContext.Provider value={contextValue}>
