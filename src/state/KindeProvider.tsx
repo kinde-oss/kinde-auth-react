@@ -788,39 +788,47 @@ export const KindeProvider = ({
         }
       }
 
-      const hasCode = params.has("code");
-      const isOnRedirectUri = window.location.href.startsWith(redirectUri);
-      if (!hasCode || !isOnRedirectUri) {
-        try {
-          const user = await getUserProfile();
-          if (user) {
-            setState((val: ProviderState) => ({
-              ...val,
-              user,
-              isAuthenticated: true,
-            }));
-          }
-        } catch (error) {
-          console.warn("Error getting user profile", error);
-        } finally {
-          setState((val: ProviderState) => ({ ...val, isLoading: false }));
+      const currentUrlObject = new URL(window.location.href);
+      const redirectUrlObject = new URL(redirectUri);
+
+      const isKindeRedirectUri =
+        currentUrlObject.origin === redirectUrlObject.origin &&
+        currentUrlObject.pathname === redirectUrlObject.pathname;
+
+      const kindeShouldHandle = isKindeRedirectUri && params.has("code");
+
+      if (kindeShouldHandle) {
+        if (isSameOriginOpener()) {
+          const searchParams = new URLSearchParams(window.location.search);
+          window.opener.postMessage(
+            {
+              type: "KINDE_AUTH_RESULT",
+              result: Object.fromEntries(searchParams.entries()),
+            },
+            window.location.origin,
+          );
+          window.close();
+          return;
         }
+        await processAuthResult(new URLSearchParams(window.location.search));
+
         return;
       }
 
-      if (isSameOriginOpener()) {
-        const searchParams = new URLSearchParams(window.location.search);
-        window.opener.postMessage(
-          {
-            type: "KINDE_AUTH_RESULT",
-            result: Object.fromEntries(searchParams.entries()),
-          },
-          window.location.origin,
-        );
-        window.close();
-        return;
+      try {
+        const user = await getUserProfile();
+        if (user) {
+          setState((val: ProviderState) => ({
+            ...val,
+            user,
+            isAuthenticated: true,
+          }));
+        }
+      } catch (error) {
+        console.warn("Error getting user profile", error);
+      } finally {
+        setState((val: ProviderState) => ({ ...val, isLoading: false }));
       }
-      await processAuthResult(new URLSearchParams(window.location.search));
     } finally {
       if (isSameOriginOpener()) {
         window.close();
