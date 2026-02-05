@@ -786,8 +786,14 @@ export const KindeProvider = ({
           contextValue,
         );
       } finally {
-        setState((val) => ({ ...val, isLoading: false }));
-        setLoading(false);
+        // Clear loading state appropriately based on forceChildrenRender
+        if (forceChildrenRender) {
+          // When forceChildrenRender is true, use setLoading to manage state
+          setLoading(false);
+        } else {
+          // When forceChildrenRender is false, directly update state
+          setState((val) => ({ ...val, isLoading: false }));
+        }
       }
     },
     [
@@ -798,6 +804,7 @@ export const KindeProvider = ({
       mergedCallbacks,
       contextValue,
       setLoading,
+      forceChildrenRender,
     ],
   );
 
