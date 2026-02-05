@@ -574,6 +574,9 @@ export const KindeProvider = ({
           await navigateToKinde({
             url: `${domain}/logout?${params.toString()}`,
             popupOptions,
+            handleResult: async () => {
+              setLoading(false);
+            },
           });
         } catch (error) {
           setLoading(false);
@@ -784,9 +787,18 @@ export const KindeProvider = ({
         );
       } finally {
         setState((val) => ({ ...val, isLoading: false }));
+        setLoading(false);
       }
     },
-    [domain, clientId, redirectUri, onRefresh, mergedCallbacks, contextValue],
+    [
+      domain,
+      clientId,
+      redirectUri,
+      onRefresh,
+      mergedCallbacks,
+      contextValue,
+      setLoading,
+    ],
   );
 
   const handleFocus = useCallback(() => {
