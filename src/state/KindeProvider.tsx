@@ -112,6 +112,16 @@ type KindeProviderProps = {
   redirectUri: string;
   callbacks?: KindeCallbacks;
   scope?: string;
+  /**
+   * When true, renders children immediately and actively manages `isLoading`
+   * across init, login, logout, and register flows.
+   *
+   * This allows consumers to:
+   * 1. Access the auth context immediately (no empty render)
+   * 2. Rely on `isLoading` to show loading states during auth operations
+   *
+   * When false (default), children only render after initialization completes.
+   */
   forceChildrenRender?: boolean;
   /**
    * When the application is shown in an iFrame, auth will open in a popup window.
@@ -225,7 +235,10 @@ export const KindeProvider = ({
   activityTimeout,
   refreshOnFocus = false,
 }: KindeProviderProps) => {
-  const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
+  const mergedCallbacks = useMemo(
+    () => ({ ...defaultCallbacks, ...callbacks }),
+    [callbacks],
+  );
 
   // Track if activity tracking is currently enabled
   const [isActivityTrackingEnabled, setIsActivityTrackingEnabled] =
@@ -236,6 +249,18 @@ export const KindeProvider = ({
     isAuthenticated: false,
     isLoading: true,
   });
+
+  const [initStarted, setInitStarted] = useState(false);
+  const contextRef = useRef<KindeContextProps | null>(null);
+
+  const setLoading = useCallback(
+    (loading: boolean) => {
+      if (forceChildrenRender) {
+        setState((prev) => ({ ...prev, isLoading: loading }));
+      }
+    },
+    [forceChildrenRender],
+  );
 
   // Callback that only updates activity timestamp when tracking is enabled and user is authenticated
   const handleLocationChange = useCallback(
@@ -370,6 +395,7 @@ export const KindeProvider = ({
     async (
       options: LoginMethodParams & { state?: Record<string, string> } = {},
     ) => {
+      setLoading(true);
       const optionsState: Record<string, string> = options.state || {};
 
       options.state = undefined;
@@ -402,13 +428,18 @@ export const KindeProvider = ({
           handleResult: processAuthResult,
         });
       } catch (error) {
+        setLoading(false);
+        if (!contextRef.current) {
+          console.error("Login error (context unavailable):", error);
+          return;
+        }
         mergedCallbacks.onError?.(
           {
             error: "ERR_POPUP",
             errorDescription: (error as Error).message,
           },
           {},
-          {} as KindeContextProps,
+          contextRef.current,
         );
       }
     },
@@ -420,6 +451,7 @@ export const KindeProvider = ({
       mergedCallbacks,
       domain,
       scope,
+      setLoading,
     ],
   );
 
@@ -427,6 +459,7 @@ export const KindeProvider = ({
     async (
       options: LoginMethodParams & { state?: Record<string, string> } = {},
     ) => {
+      setLoading(true);
       const optionsState: Record<string, string> = options.state || {};
 
       options.state = undefined;
@@ -459,32 +492,50 @@ export const KindeProvider = ({
             handleResult: processAuthResult,
           });
         } catch (error) {
+          setLoading(false);
+          if (!contextRef.current) {
+            console.error("Register error (context unavailable):", error);
+            return;
+          }
           mergedCallbacks.onError?.(
             {
               error: "ERR_POPUP",
               errorDescription: (error as Error).message,
             },
             {},
-            {} as KindeContextProps,
+            contextRef.current,
           );
         }
       } catch (error) {
+        setLoading(false);
         console.error("Register error:", error);
+        if (!contextRef.current) {
+          return;
+        }
         mergedCallbacks.onError?.(
           {
             error: "ERR_REGISTER",
             errorDescription: String(error),
           },
           {},
-          contextValue,
+          contextRef.current,
         );
       }
     },
-    [redirectUri, popupOptions, mergedCallbacks, audience, clientId, domain],
+    [
+      redirectUri,
+      popupOptions,
+      mergedCallbacks,
+      audience,
+      clientId,
+      domain,
+      setLoading,
+    ],
   );
 
   const logout = useCallback(
     async (options?: string | LogoutOptions) => {
+      setLoading(true);
       try {
         const params = new URLSearchParams();
 
@@ -523,30 +574,42 @@ export const KindeProvider = ({
           await navigateToKinde({
             url: `${domain}/logout?${params.toString()}`,
             popupOptions,
+            handleResult: async () => {
+              setLoading(false);
+            },
           });
         } catch (error) {
+          setLoading(false);
+          if (!contextRef.current) {
+            console.error("Logout error (context unavailable):", error);
+            return;
+          }
           mergedCallbacks.onError?.(
             {
               error: "ERR_POPUP",
               errorDescription: (error as Error).message,
             },
             {},
-            {} as KindeContextProps,
+            contextRef.current,
           );
         }
       } catch (error) {
+        setLoading(false);
         console.error("Logout error:", error);
+        if (!contextRef.current) {
+          return;
+        }
         mergedCallbacks.onError?.(
           {
             error: "ERR_LOGOUT",
             errorDescription: String(error),
           },
           {},
-          contextValue,
+          contextRef.current,
         );
       }
     },
-    [store, popupOptions, mergedCallbacks, logoutUri, domain],
+    [store, popupOptions, mergedCallbacks, logoutUri, domain, setLoading],
   );
 
   const contextValue = useMemo((): KindeContextProps => {
@@ -634,6 +697,9 @@ export const KindeProvider = ({
     };
   }, [state, login, logout, register]);
 
+  // Keep contextRef in sync with the latest contextValue
+  contextRef.current = contextValue;
+
   const onRefresh = useCallback(
     (data: RefreshTokenResult): void => {
       if (mergedCallbacks.onEvent) {
@@ -720,10 +786,26 @@ export const KindeProvider = ({
           contextValue,
         );
       } finally {
-        setState((val) => ({ ...val, isLoading: false }));
+        // Clear loading state appropriately based on forceChildrenRender
+        if (forceChildrenRender) {
+          // When forceChildrenRender is true, use setLoading to manage state
+          setLoading(false);
+        } else {
+          // When forceChildrenRender is false, directly update state
+          setState((val) => ({ ...val, isLoading: false }));
+        }
       }
     },
-    [domain, clientId, redirectUri, onRefresh, mergedCallbacks, contextValue],
+    [
+      domain,
+      clientId,
+      redirectUri,
+      onRefresh,
+      mergedCallbacks,
+      contextValue,
+      setLoading,
+      forceChildrenRender,
+    ],
   );
 
   const handleFocus = useCallback(() => {
@@ -752,6 +834,9 @@ export const KindeProvider = ({
 
   const init = useCallback(async () => {
     if (initRef.current) return;
+    if (forceChildrenRender) {
+      setInitStarted(true);
+    }
     try {
       try {
         initRef.current = true;
@@ -843,6 +928,7 @@ export const KindeProvider = ({
     onRefresh,
     login,
     processAuthResult,
+    forceChildrenRender,
   ]);
 
   useEffect(() => {
@@ -857,7 +943,11 @@ export const KindeProvider = ({
     };
   }, [init]);
 
-  return forceChildrenRender || initRef.current ? (
+  const shouldRenderChildren = forceChildrenRender
+    ? initStarted
+    : initRef.current;
+
+  return shouldRenderChildren ? (
     <KindeContext.Provider value={contextValue}>
       {children}
     </KindeContext.Provider>
