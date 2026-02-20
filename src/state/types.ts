@@ -1,4 +1,13 @@
-import { GeneratePortalUrlParams, LoginMethodParams, UserProfile } from "@kinde/js-utils";
+import {
+  GeneratePortalUrlParams,
+  LoginMethodParams,
+  UserProfile,
+} from "@kinde/js-utils";
+
+export enum TimeoutActivityType {
+  preWarning = "preWarning",
+  timeout = "timeout",
+}
 
 export type State = {
   user?: UserProfile;
@@ -40,4 +49,24 @@ export type ErrorProps = {
 export type LogoutOptions = {
   allSessions?: boolean;
   redirectUrl?: string;
+};
+
+export type PopupOptions = {
+  width?: number;
+  height?: number;
+  left?: number;
+  top?: number;
+};
+
+/**
+ * Activity timeout configuration.
+ * ⚠️ Must be memoized or defined outside component to prevent effect re-runs.
+ * @example
+ * const config = useMemo(() => ({ timeoutMinutes: 30 }), []);
+ * <KindeProvider activityTimeout={config} ... />
+ */
+export type ActivityTimeoutConfig = {
+  timeoutMinutes: number;
+  preWarningMinutes?: number;
+  onTimeout?: (type: TimeoutActivityType) => void | Promise<void>;
 };

@@ -1,26 +1,31 @@
 {
   "name": "@kinde-oss/kinde-auth-react",
-  "version": "5.5.0",
+  "version": "5.11.0",
   "description": "Kinde React SDK for authentication",
-  "module": "./dist/kinde-auth-react.mjs",
-  "main": "./dist/kinde-auth-react.js",
+  "module": "./dist/index.mjs",
+  "main": "./dist/index.cjs",
   "types": "./dist/index.d.ts",
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",
-      "import": "./dist/index.cjs",
-      "require": "./dist/main.js"
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
     },
     "./components": {
       "types": "./dist/src/components/index.d.ts",
-      "import": "./dist/components.cjs",
-      "require": "./dist/components.js"
+      "import": "./dist/components.mjs",
+      "require": "./dist/components.cjs"
     },
     "./utils": {
       "types": "./dist/src/utils/index.d.ts",
-      "import": "./dist/utils.cjs",
-      "require": "./dist/utils.js"
+      "import": "./dist/utils.mjs",
+      "require": "./dist/utils.cjs"
+    },
+    "./react-router": {
+      "types": "./dist/src/components/react-router-dom/index.d.ts",
+      "import": "./dist/react-router.mjs",
+      "require": "./dist/react-router.cjs"
     }
   },
   "scripts": {
@@ -28,7 +33,7 @@
     "test": "vitest",
     "test:coverage": "vitest --coverage",
     "release": "release-it",
-    "lint": "eslint --ext .js,.ts .",
+    "lint": "prettier --check .",
     "lint:fix": "prettier --write .",
     "dev:prepare": "rm -rf playground && git clone https://github.com/kinde-starter-kits/react-starter-kit playground && npm link && cd playground && npm i && mv .env_sample .env && rm -rf .git && npm link @kinde-oss/kinde-auth-react",
     "dev": "cd playground && npm start"
@@ -46,34 +51,26 @@
   "homepage": "https://kinde.com",
   "license": "MIT",
   "devDependencies": {
-    "@babel/plugin-transform-runtime": "7.27.1",
-    "@babel/preset-react": "^7.26.3",
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.21.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
-    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.13.5",
     "@types/react": "19.1.4",
     "@typescript-eslint/eslint-plugin": "8.32.1",
     "@typescript-eslint/parser": "8.32.1",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^3.0.7",
-    "eslint": "9.27.0",
+    "eslint": "9.32.0",
     "eslint-config-prettier": "^10.0.2",
     "eslint-plugin-react": "^7.37.4",
-    "genversion": "^3.2.0",
     "globals": "^16.0.0",
-    "jsdom": "^26.0.0",
+    "jsdom": "^27.0.0",
     "prettier": "^3.5.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "release-it": "^19.0.0",
-    "rollup": "^4.34.8",
-    "rollup-plugin-dts": "^6.1.1",
-    "rollup-plugin-peer-deps-external": "^2.2.4",
-    "rollup-plugin-typescript2": "0.36.0",
-    "typescript": "5.8.3",
+    "typescript": "5.9.3",
     "vite": "^6.2.0",
     "vite-plugin-dts": "^4.5.0",
     "vitest": "^3.0.7"
@@ -87,8 +84,8 @@
     "React authentication"
   ],
   "peerDependencies": {
-    "react": "^17 || ^18 || ^19",
-    "react-dom": "^17 || ^18 || ^19"
+    "react": "^17 || ^18 || >=19.2.1",
+    "react-dom": "^17 || ^18 || >=19.2.1"
   },
   "files": [
     "dist",
@@ -97,7 +94,7 @@
   ],
   "private": false,
   "dependencies": {
-    "@kinde/js-utils": "0.18.0-0"
+    "@kinde/js-utils": "0.29.0"
   },
   "packageManager": "pnpm@10.11.0+sha512.6540583f41cc5f628eb3d9773ecee802f4f9ef9923cc45b69890fb47991d4b092964694ec3a4f738a420c918a333062c8b925d312f42e4f0c263eb603551f977"
 }

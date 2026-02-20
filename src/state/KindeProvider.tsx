@@ -27,6 +27,10 @@ import {
   generatePortalUrl,
   Role,
   GeneratePortalUrlParams,
+  navigateToKinde,
+  setActiveStorage,
+  isAuthenticated,
+  updateActivityTimestamp,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -39,8 +43,19 @@ import React, {
 import { KindeContext, KindeContextProps } from "./KindeContext";
 import { getRedirectUrl } from "../utils/getRedirectUrl";
 import packageJson from "../../package.json";
-import { ErrorProps, LogoutOptions } from "./types";
-import type { RefreshTokenResult } from "@kinde/js-utils";
+import {
+  ErrorProps,
+  LogoutOptions,
+  PopupOptions,
+  ActivityTimeoutConfig,
+  TimeoutActivityType,
+} from "./types";
+import type {
+  RefreshTokenResult,
+  Scopes,
+  SessionManager,
+  TimeoutTokenData,
+} from "@kinde/js-utils";
 // TODO: need to look for old token store and convert.
 storageSettings.keyPrefix = "";
 
@@ -97,7 +112,29 @@ type KindeProviderProps = {
   redirectUri: string;
   callbacks?: KindeCallbacks;
   scope?: string;
+  /**
+   * When true, renders children immediately and actively manages `isLoading`
+   * across init, login, logout, and register flows.
+   *
+   * This allows consumers to:
+   * 1. Access the auth context immediately (no empty render)
+   * 2. Rely on `isLoading` to show loading states during auth operations
+   *
+   * When false (default), children only render after initialization completes.
+   */
   forceChildrenRender?: boolean;
+  /**
+   * When the application is shown in an iFrame, auth will open in a popup window.
+   * This is the options for the popup window.
+   */
+  popupOptions?: PopupOptions;
+  store?: SessionManager;
+  /**
+   * Configuration for activity timeout tracking.
+   * ⚠️ Must be memoized or defined outside component to prevent effect re-runs.
+   */
+  activityTimeout?: ActivityTimeoutConfig;
+  refreshOnFocus?: boolean;
 };
 
 const defaultCallbacks: KindeCallbacks = {
@@ -120,6 +157,68 @@ type ProviderState = {
   isLoading: boolean;
 };
 
+const isSameOriginOpener = (): boolean => {
+  try {
+    const opener = window.opener;
+    if (!opener || opener.closed) return false;
+    return opener.location.origin === window.location.origin;
+  } catch {
+    return false;
+  }
+};
+
+type Options = { skipInitial?: boolean };
+
+const useOnLocationChange = (
+  run: (loc: Location) => void,
+  { skipInitial = false }: Options = {},
+) => {
+  const initial = useRef(true);
+
+  useEffect(() => {
+    const notify = () => {
+      if (skipInitial && initial.current) {
+        initial.current = false;
+        return;
+      }
+      run(window.location);
+    };
+
+    // back/forward
+    const onPop = () => notify();
+    window.addEventListener("popstate", onPop);
+    window.addEventListener("hashchange", onPop);
+
+    // pushState/replaceState don't emit events: patch them
+    const origPush = history.pushState;
+    const origReplace = history.replaceState;
+    if (history.pushState === origPush) {
+      history.pushState = function (...args) {
+        origPush.apply(this, args);
+        notify();
+      };
+    }
+    if (history.replaceState === origReplace) {
+      history.replaceState = function (...args) {
+        origReplace.apply(this, args);
+        notify();
+      };
+    }
+
+    // Optional: Navigation API (Chromium, evolving support)
+    // const nav: any = (window as any).navigation;
+    // if (nav?.addEventListener) nav.addEventListener('navigate', notify);
+
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("hashchange", onPop);
+      history.pushState = origPush;
+      history.replaceState = origReplace;
+      // if (nav?.removeEventListener) nav.removeEventListener('navigate', notify);
+    };
+  }, [run, skipInitial]);
+};
+
 export const KindeProvider = ({
   audience,
   scope,
@@ -131,8 +230,158 @@ export const KindeProvider = ({
   callbacks = {},
   logoutUri,
   forceChildrenRender = false,
+  popupOptions = {},
+  store = storeState.memoryStorage,
+  activityTimeout,
+  refreshOnFocus = false,
 }: KindeProviderProps) => {
-  const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
+  const mergedCallbacks = useMemo(
+    () => ({ ...defaultCallbacks, ...callbacks }),
+    [callbacks],
+  );
+
+  // Track if activity tracking is currently enabled
+  const [isActivityTrackingEnabled, setIsActivityTrackingEnabled] =
+    useState(false);
+
+  const [state, setState] = useState<ProviderState>({
+    user: undefined,
+    isAuthenticated: false,
+    isLoading: true,
+  });
+
+  const [initStarted, setInitStarted] = useState(false);
+  const contextRef = useRef<KindeContextProps | null>(null);
+
+  const setLoading = useCallback(
+    (loading: boolean) => {
+      if (forceChildrenRender) {
+        setState((prev) => ({ ...prev, isLoading: loading }));
+      }
+    },
+    [forceChildrenRender],
+  );
+
+  // Callback that only updates activity timestamp when tracking is enabled and user is authenticated
+  const handleLocationChange = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (_loc: Location) => {
+      if (
+        isActivityTrackingEnabled &&
+        activityTimeout &&
+        state.isAuthenticated
+      ) {
+        updateActivityTimestamp();
+      }
+    },
+    [isActivityTrackingEnabled, activityTimeout, state.isAuthenticated],
+  );
+
+  // Only track location changes when activity timeout is configured
+  useOnLocationChange(
+    handleLocationChange,
+    activityTimeout ? {} : { skipInitial: true },
+  );
+
+  useEffect(() => {
+    setActiveStorage(store);
+
+    const enableActivityTracking = () => {
+      if (!activityTimeout || isActivityTrackingEnabled) return;
+      storageSettings.activityTimeoutMinutes = activityTimeout.timeoutMinutes;
+      storageSettings.activityTimeoutPreWarningMinutes =
+        activityTimeout.preWarningMinutes;
+      storageSettings.onActivityTimeout = async (
+        type: TimeoutActivityType,
+        tokens?: TimeoutTokenData,
+      ) => {
+        try {
+          if (type === TimeoutActivityType.timeout) {
+            const accessToken = tokens?.accessToken;
+            const refreshToken = tokens?.refreshToken;
+
+            const revokeToken = async (
+              token: string | null | undefined,
+              tokenTypeHint: string,
+            ) => {
+              if (!token) return;
+              const response = await fetch(`${domain}/oauth2/revoke`, {
+                method: "POST",
+                body: `token=${encodeURIComponent(token)}&client_id=${encodeURIComponent(clientId)}&token_type_hint=${tokenTypeHint}`,
+                headers: {
+                  "Content-Type": "application/x-www-form-urlencoded",
+                },
+              });
+              if (!response.ok) {
+                console.warn(
+                  `Failed to revoke ${tokenTypeHint}:`,
+                  response.status,
+                );
+              }
+            };
+
+            await Promise.allSettled([
+              revokeToken(accessToken, "access_token"),
+              revokeToken(refreshToken, "refresh_token"),
+            ]);
+          }
+        } catch (error) {
+          console.error("Failed to logout:", error);
+        } finally {
+          activityTimeout.onTimeout?.(type);
+        }
+      };
+      try {
+        updateActivityTimestamp();
+      } catch (error) {
+        console.error("Failed to update activity timestamp:", error);
+        return;
+      }
+      setIsActivityTrackingEnabled(true);
+    };
+
+    const disableActivityTracking = () => {
+      if (!isActivityTrackingEnabled) return;
+
+      storageSettings.activityTimeoutMinutes = undefined;
+      storageSettings.activityTimeoutPreWarningMinutes = undefined;
+      storageSettings.onActivityTimeout = undefined;
+      setIsActivityTrackingEnabled(false);
+    };
+
+    const unsubscribe = store.subscribe(async () => {
+      try {
+        const [authenticated, user] = await Promise.all([
+          isAuthenticated(),
+          getUserProfile(),
+        ]);
+
+        if (authenticated && user) {
+          enableActivityTracking();
+          setState((val) => ({ ...val, user, isAuthenticated: true }));
+        } else {
+          disableActivityTracking();
+          setState((val) => ({
+            ...val,
+            user: undefined,
+            isAuthenticated: false,
+          }));
+        }
+      } catch (error) {
+        console.error("Store subscription update failed:", error);
+        disableActivityTracking();
+        setState((val) => ({
+          ...val,
+          user: undefined,
+          isAuthenticated: false,
+        }));
+      }
+    });
+    return () => {
+      unsubscribe();
+      disableActivityTracking();
+    };
+  }, [store, activityTimeout, isActivityTrackingEnabled]);
 
   frameworkSettings.framework = "react";
   frameworkSettings.frameworkVersion = React.version;
@@ -140,28 +389,13 @@ export const KindeProvider = ({
 
   storageSettings.useInsecureForRefreshToken = useInsecureForRefreshToken;
 
-  const [state, setState] = useState<ProviderState>({
-    user: undefined,
-    isAuthenticated: false,
-    isLoading: true,
-  });
   const initRef = useRef(false);
-
-  useEffect(() => {
-    storeState.memoryStorage.setItems({
-      [storeState.LocalKeys.domain]: domain,
-      [storeState.LocalKeys.clientId]: clientId,
-      [storeState.LocalKeys.audience]: audience,
-      [storeState.LocalKeys.redirectUri]: redirectUri,
-      [storeState.LocalKeys.logoutUri]: logoutUri,
-    });
-    return;
-  }, [audience, scope, clientId, domain, redirectUri, logoutUri]);
 
   const login = useCallback(
     async (
       options: LoginMethodParams & { state?: Record<string, string> } = {},
     ) => {
+      setLoading(true);
       const optionsState: Record<string, string> = options.state || {};
 
       options.state = undefined;
@@ -171,6 +405,7 @@ export const KindeProvider = ({
         clientId,
         ...options,
         supportsReauth: true,
+        scope: scope?.split(" ") as Scopes[],
         state: base64UrlEncode(
           JSON.stringify({
             kinde: { event: AuthEvent.login },
@@ -180,24 +415,51 @@ export const KindeProvider = ({
         redirectURL: getRedirectUrl(options.redirectURL || redirectUri),
       };
 
-      const domain = (await storeState.memoryStorage.getSessionItem(
-        storeState.LocalKeys.domain,
-      )) as string;
-
       const authUrl = await generateAuthUrl(
         domain,
         IssuerRouteTypes.login,
         authProps,
       );
-      document.location = authUrl.url.toString();
+
+      try {
+        navigateToKinde({
+          url: authUrl.url.toString(),
+          popupOptions,
+          handleResult: processAuthResult,
+        });
+      } catch (error) {
+        setLoading(false);
+        if (!contextRef.current) {
+          console.error("Login error (context unavailable):", error);
+          return;
+        }
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_POPUP",
+            errorDescription: (error as Error).message,
+          },
+          {},
+          contextRef.current,
+        );
+      }
     },
-    [audience, clientId, redirectUri],
+    [
+      audience,
+      clientId,
+      redirectUri,
+      popupOptions,
+      mergedCallbacks,
+      domain,
+      scope,
+      setLoading,
+    ],
   );
 
   const register = useCallback(
     async (
       options: LoginMethodParams & { state?: Record<string, string> } = {},
     ) => {
+      setLoading(true);
       const optionsState: Record<string, string> = options.state || {};
 
       options.state = undefined;
@@ -211,87 +473,144 @@ export const KindeProvider = ({
           }),
         ),
         supportsReauth: true,
-        audience: (await storeState.memoryStorage.getSessionItem(
-          storeState.LocalKeys.audience,
-        )) as string,
-        clientId: (await storeState.memoryStorage.getSessionItem(
-          storeState.LocalKeys.clientId,
-        )) as string,
+        audience,
+        clientId,
         redirectURL: getRedirectUrl(options?.redirectURL || redirectUri),
         prompt: PromptTypes.create,
       };
 
       try {
-        const domain = (await storeState.memoryStorage.getSessionItem(
-          storeState.LocalKeys.domain,
-        )) as string;
-
         const authUrl = await generateAuthUrl(
           domain,
           IssuerRouteTypes.register,
           authProps,
         );
-        document.location = authUrl.url.toString();
+        try {
+          navigateToKinde({
+            url: authUrl.url.toString(),
+            popupOptions,
+            handleResult: processAuthResult,
+          });
+        } catch (error) {
+          setLoading(false);
+          if (!contextRef.current) {
+            console.error("Register error (context unavailable):", error);
+            return;
+          }
+          mergedCallbacks.onError?.(
+            {
+              error: "ERR_POPUP",
+              errorDescription: (error as Error).message,
+            },
+            {},
+            contextRef.current,
+          );
+        }
       } catch (error) {
+        setLoading(false);
         console.error("Register error:", error);
+        if (!contextRef.current) {
+          return;
+        }
         mergedCallbacks.onError?.(
           {
             error: "ERR_REGISTER",
             errorDescription: String(error),
           },
           {},
-          contextValue,
+          contextRef.current,
         );
       }
     },
-    [redirectUri],
+    [
+      redirectUri,
+      popupOptions,
+      mergedCallbacks,
+      audience,
+      clientId,
+      domain,
+      setLoading,
+    ],
   );
 
-  const logout = useCallback(async (options?: string | LogoutOptions) => {
-    try {
-      const domain = (await storeState.memoryStorage.getSessionItem(
-        storeState.LocalKeys.domain,
-      )) as string;
+  const logout = useCallback(
+    async (options?: string | LogoutOptions) => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
 
-      const params = new URLSearchParams();
-
-      if (options) {
-        if (options && typeof options === "string") {
-          params.append("redirect", options);
-        } else if (typeof options === "object") {
-          if (options.redirectUrl || logoutUri) {
-            params.append("redirect", options.redirectUrl || logoutUri || "");
+        if (options) {
+          if (options && typeof options === "string") {
+            params.append("redirect", options);
+          } else if (typeof options === "object") {
+            if (options.redirectUrl || logoutUri) {
+              params.append("redirect", options.redirectUrl || logoutUri || "");
+            }
+            if (options.allSessions) {
+              params.append("all_sessions", String(options.allSessions));
+            }
           }
-          if (options.allSessions) {
-            params.append("all_sessions", String(options.allSessions));
-          }
+        } else {
+          params.append("redirect", logoutUri || "");
         }
-      } else {
-        params.append("redirect", logoutUri || "");
+
+        await Promise.all([
+          store.removeSessionItem(StorageKeys.idToken),
+          store.removeSessionItem(StorageKeys.accessToken),
+          store.removeSessionItem(StorageKeys.refreshToken),
+          storeState.localStorage.removeSessionItem(StorageKeys.refreshToken),
+        ]);
+
+        setState((val) => {
+          return { ...val, user: undefined, isAuthenticated: false };
+        });
+
+        await storeState.localStorage.setSessionItem(
+          storeState.LocalKeys.performingLogout,
+          "true",
+        );
+
+        try {
+          await navigateToKinde({
+            url: `${domain}/logout?${params.toString()}`,
+            popupOptions,
+            handleResult: async () => {
+              setLoading(false);
+            },
+          });
+        } catch (error) {
+          setLoading(false);
+          if (!contextRef.current) {
+            console.error("Logout error (context unavailable):", error);
+            return;
+          }
+          mergedCallbacks.onError?.(
+            {
+              error: "ERR_POPUP",
+              errorDescription: (error as Error).message,
+            },
+            {},
+            contextRef.current,
+          );
+        }
+      } catch (error) {
+        setLoading(false);
+        console.error("Logout error:", error);
+        if (!contextRef.current) {
+          return;
+        }
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_LOGOUT",
+            errorDescription: String(error),
+          },
+          {},
+          contextRef.current,
+        );
       }
-
-      setState((val) => {
-        return { ...val, user: undefined, isAuthenticated: false };
-      });
-
-      await Promise.all([
-        storeState.memoryStorage.destroySession(),
-        storeState.localStorage.destroySession(),
-      ]);
-
-      document.location = `${domain}/logout?${params.toString()}`;
-    } catch (error) {
-      console.error("Logout error:", error);
-      mergedCallbacks.onError?.(
-        {
-          error: "ERR_LOGOUT",
-          errorDescription: String(error),
-        },
-        {},
-        contextValue,
-      );
-    }
-  }, []);
+    },
+    [store, popupOptions, mergedCallbacks, logoutUri, domain, setLoading],
+  );
 
   const contextValue = useMemo((): KindeContextProps => {
     return {
@@ -320,8 +639,9 @@ export const KindeProvider = ({
 
       getClaim: async <T, V = string | number | string[]>(
         keyName: keyof T,
+        tokenType?: "accessToken" | "idToken",
       ): Promise<{ name: keyof T; value: V } | null> => {
-        return getClaim<T, V>(keyName);
+        return getClaim<T, V>(keyName, tokenType);
       },
       getClaims: async <T = undefined,>(
         ...args: Parameters<typeof getClaims>
@@ -341,11 +661,7 @@ export const KindeProvider = ({
         return await getFlag<T>(name);
       },
 
-      getUserProfile: async <T = undefined,>(): Promise<
-        (UserProfile & T) | null
-      > => {
-        return getUserProfile<T>();
-      },
+      getUserProfile,
 
       getPermission: async <T = string,>(
         permissionKey: T,
@@ -381,6 +697,9 @@ export const KindeProvider = ({
     };
   }, [state, login, logout, register]);
 
+  // Keep contextRef in sync with the latest contextValue
+  contextRef.current = contextValue;
+
   const onRefresh = useCallback(
     (data: RefreshTokenResult): void => {
       if (mergedCallbacks.onEvent) {
@@ -390,46 +709,197 @@ export const KindeProvider = ({
     [mergedCallbacks, contextValue],
   );
 
+  // Function to process authentication result from popup
+  const processAuthResult = useCallback(
+    async (searchParams: URLSearchParams) => {
+      const decoded = atob(searchParams.get("state") || "");
+      let returnedState: StateWithKinde;
+      let kindeState: KindeState;
+      try {
+        returnedState = JSON.parse(decoded);
+        kindeState = Object.assign(
+          returnedState.kinde || { event: PromptTypes.login },
+        );
+      } catch (error) {
+        console.error("Error parsing state:", error);
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_STATE_PARSE",
+            errorDescription: String(error),
+          },
+          {},
+          contextValue,
+        );
+        returnedState = {} as StateWithKinde;
+        kindeState = { event: AuthEvent.login };
+      }
+      try {
+        const codeResponse = await exchangeAuthCode({
+          urlParams: searchParams,
+          domain,
+          clientId,
+          redirectURL: getRedirectUrl(redirectUri),
+          autoRefresh: true,
+          onRefresh,
+        });
+
+        if (codeResponse.success) {
+          const user = await getUserProfile();
+          if (user) {
+            setState((val) => ({ ...val, user, isAuthenticated: true }));
+            mergedCallbacks.onSuccess?.(
+              user,
+              {
+                ...returnedState,
+                kinde: undefined,
+              },
+              contextValue,
+            );
+            if (mergedCallbacks.onEvent) {
+              mergedCallbacks.onEvent(
+                kindeState.event,
+                {
+                  ...returnedState,
+                  kinde: undefined,
+                },
+                contextValue,
+              );
+            }
+          }
+        } else {
+          mergedCallbacks.onError?.(
+            {
+              error: "ERR_CODE_EXCHANGE",
+              errorDescription: codeResponse.error,
+            },
+            returnedState,
+            contextValue,
+          );
+        }
+      } catch (error) {
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_POPUP_AUTH",
+            errorDescription: String(error),
+          },
+          returnedState,
+          contextValue,
+        );
+      } finally {
+        // Clear loading state appropriately based on forceChildrenRender
+        if (forceChildrenRender) {
+          // When forceChildrenRender is true, use setLoading to manage state
+          setLoading(false);
+        } else {
+          // When forceChildrenRender is false, directly update state
+          setState((val) => ({ ...val, isLoading: false }));
+        }
+      }
+    },
+    [
+      domain,
+      clientId,
+      redirectUri,
+      onRefresh,
+      mergedCallbacks,
+      contextValue,
+      setLoading,
+      forceChildrenRender,
+    ],
+  );
+
   const handleFocus = useCallback(() => {
-    if (document.visibilityState === "visible" && state.isAuthenticated) {
+    if (
+      document.visibilityState === "visible" &&
+      state.isAuthenticated &&
+      refreshOnFocus
+    ) {
       refreshToken({ domain, clientId, onRefresh }).catch((error) => {
         console.error("Error refreshing token:", error);
       });
     }
-  }, [state.isAuthenticated, domain, clientId, onRefresh]);
+  }, [state.isAuthenticated, domain, clientId, onRefresh, refreshOnFocus]);
 
   useEffect(() => {
     // remove any existing event listener before adding a new one
+
     document.removeEventListener("visibilitychange", handleFocus);
-    document.addEventListener("visibilitychange", handleFocus);
-    return () => {
-      document.removeEventListener("visibilitychange", handleFocus);
-    };
-  }, [handleFocus]);
+    if (refreshOnFocus) {
+      document.addEventListener("visibilitychange", handleFocus);
+      return () => {
+        document.removeEventListener("visibilitychange", handleFocus);
+      };
+    }
+  }, [handleFocus, refreshOnFocus]);
 
   const init = useCallback(async () => {
     if (initRef.current) return;
-    await checkAuth({ domain, clientId });
-    initRef.current = true;
-    const params = new URLSearchParams(window.location.search);
-    let returnedState: StateWithKinde;
-    let kindeState: KindeState;
+    if (forceChildrenRender) {
+      setInitStarted(true);
+    }
+    try {
+      try {
+        initRef.current = true;
+        await checkAuth({ domain, clientId });
+      } catch (err) {
+        console.warn("checkAuth failed:", err);
+        setState((v: ProviderState) => ({ ...v, isLoading: false }));
+      }
+      const params = new URLSearchParams(window.location.search);
 
-    if (params.has("error")) {
-      const errorCode = params.get("error");
-      if (errorCode?.toLowerCase() === "login_link_expired") {
-        const reauthState = params.get("reauth_state");
-        if (reauthState) {
-          login({ reauthState: reauthState });
+      if (params.has("error")) {
+        const errorCode = params.get("error");
+        if (errorCode?.toLowerCase() === "login_link_expired") {
+          const reauthState = params.get("reauth_state");
+          if (reauthState) {
+            login({ reauthState: reauthState });
+          }
+          return;
         }
+        setState((val: ProviderState) => ({ ...val, isLoading: false }));
         return;
       }
-      setState((val: ProviderState) => ({ ...val, isLoading: false }));
-      return;
-    }
 
-    const hasCode = params.has("code");
-    if (!hasCode) {
+      if (
+        (await storeState.localStorage.getSessionItem(
+          storeState.LocalKeys.performingLogout,
+        )) === "true"
+      ) {
+        await storeState.localStorage.removeSessionItem(
+          storeState.LocalKeys.performingLogout,
+        );
+        if (isSameOriginOpener()) {
+          window.close();
+        }
+      }
+
+      const currentUrlObject = new URL(window.location.href);
+      const redirectUrlObject = new URL(redirectUri);
+
+      const isKindeRedirectUri =
+        currentUrlObject.origin === redirectUrlObject.origin &&
+        currentUrlObject.pathname === redirectUrlObject.pathname;
+
+      const kindeShouldHandle = isKindeRedirectUri && params.has("code");
+
+      if (kindeShouldHandle) {
+        if (isSameOriginOpener()) {
+          const searchParams = new URLSearchParams(window.location.search);
+          window.opener.postMessage(
+            {
+              type: "KINDE_AUTH_RESULT",
+              result: Object.fromEntries(searchParams.entries()),
+            },
+            window.location.origin,
+          );
+          window.close();
+          return;
+        }
+        await processAuthResult(new URLSearchParams(window.location.search));
+
+        return;
+      }
+
       try {
         const user = await getUserProfile();
         if (user) {
@@ -444,80 +914,22 @@ export const KindeProvider = ({
       } finally {
         setState((val: ProviderState) => ({ ...val, isLoading: false }));
       }
-      return;
-    }
-
-    const decoded = atob(params.get("state") || "");
-
-    try {
-      returnedState = JSON.parse(decoded);
-      kindeState = Object.assign(
-        returnedState.kinde || { event: PromptTypes.login },
-      );
-    } catch (error) {
-      console.error("Error parsing state:", error);
-      mergedCallbacks.onError?.(
-        {
-          error: "ERR_STATE_PARSE",
-          errorDescription: String(error),
-        },
-        {},
-        contextValue,
-      );
-      returnedState = {} as StateWithKinde;
-      kindeState = { event: AuthEvent.login };
-    }
-    try {
-      const redirectURL = (await storeState.memoryStorage.getSessionItem(
-        storeState.LocalKeys.redirectUri,
-      )) as string;
-
-      const codeResponse = await exchangeAuthCode({
-        urlParams: new URLSearchParams(window.location.search),
-        domain,
-        clientId,
-        redirectURL: getRedirectUrl(redirectURL || redirectUri),
-        autoRefresh: true,
-        onRefresh,
-      });
-
-      if (codeResponse.success) {
-        const user = await getUserProfile();
-        if (user) {
-          setState((val) => ({ ...val, user, isAuthenticated: true }));
-          mergedCallbacks.onSuccess?.(
-            user,
-            {
-              ...returnedState,
-              kinde: undefined,
-            },
-            contextValue,
-          );
-          if (mergedCallbacks.onEvent) {
-            mergedCallbacks.onEvent(
-              kindeState.event,
-              {
-                ...returnedState,
-                kinde: undefined,
-              },
-              contextValue,
-            );
-          }
-        }
-      } else {
-        mergedCallbacks.onError?.(
-          {
-            error: "ERR_CODE_EXCHANGE",
-            errorDescription: codeResponse.error,
-          },
-          returnedState,
-          contextValue,
-        );
-      }
     } finally {
-      setState((val) => ({ ...val, isLoading: false }));
+      if (isSameOriginOpener()) {
+        window.close();
+      }
     }
-  }, [clientId, domain, redirectUri, mergedCallbacks, contextValue, onRefresh]);
+  }, [
+    clientId,
+    domain,
+    redirectUri,
+    mergedCallbacks,
+    contextValue,
+    onRefresh,
+    login,
+    processAuthResult,
+    forceChildrenRender,
+  ]);
 
   useEffect(() => {
     const mounted = { current: true };
@@ -531,7 +943,11 @@ export const KindeProvider = ({
     };
   }, [init]);
 
-  return forceChildrenRender || initRef.current ? (
+  const shouldRenderChildren = forceChildrenRender
+    ? initStarted
+    : initRef.current;
+
+  return shouldRenderChildren ? (
     <KindeContext.Provider value={contextValue}>
       {children}
     </KindeContext.Provider>
