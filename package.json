@@ -52,23 +52,23 @@
   "license": "MIT",
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
-    "@eslint/js": "^9.21.0",
+    "@eslint/js": "^9.39.3",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
-    "@types/node": "^22.13.5",
-    "@types/react": "19.1.4",
-    "@typescript-eslint/eslint-plugin": "8.32.1",
-    "@typescript-eslint/parser": "8.32.1",
+    "@types/node": "^22.19.11",
+    "@types/react": "19.2.14",
+    "@typescript-eslint/eslint-plugin": "8.56.0",
+    "@typescript-eslint/parser": "8.56.0",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^3.0.7",
-    "eslint": "9.32.0",
+    "eslint": "9.39.3",
     "eslint-config-prettier": "^10.0.2",
     "eslint-plugin-react": "^7.37.4",
     "globals": "^17.0.0",
     "jsdom": "^27.0.0",
     "prettier": "^3.5.2",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "release-it": "^19.0.0",
     "typescript": "5.9.3",
     "vite": "^6.2.0",
@@ -96,5 +96,5 @@
   "dependencies": {
     "@kinde/js-utils": "0.29.0"
   },
-  "packageManager": "pnpm@10.11.0+sha512.6540583f41cc5f628eb3d9773ecee802f4f9ef9923cc45b69890fb47991d4b092964694ec3a4f738a420c918a333062c8b925d312f42e4f0c263eb603551f977"
+  "packageManager": "pnpm@10.30.1"
 }
