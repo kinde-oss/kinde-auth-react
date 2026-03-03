@@ -19,11 +19,11 @@ export default defineConfig({
     lib: {
       entry: {
         index: resolve(__dirname, "src/index.ts"),
-        components: resolve(__dirname, "src/components/index.ts"),
-        utils: resolve(__dirname, "src/utils/index.ts"),
+        "components/index": resolve(__dirname, "src/components/index.ts"),
+        "utils/index": resolve(__dirname, "src/utils/index.ts"),
         "react-router": resolve(
           __dirname,
-          "src/components/react-router-dom/index.ts",
+          "src/components/react-router-dom/index.ts"
         ),
       },
       formats: ["es", "cjs"],
@@ -39,6 +39,7 @@ export default defineConfig({
       external: [
         "react",
         "react-native",
+        "react-dom",
         "react/jsx-runtime",
         "react/jsx-dev-runtime",
         "react-router-dom",
