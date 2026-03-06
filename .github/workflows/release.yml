@@ -2,6 +2,8 @@ name: Release and Publish to NPM
 on: workflow_dispatch
 jobs:
   release:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
