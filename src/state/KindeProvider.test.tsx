@@ -169,11 +169,10 @@ describe("KindeProvider", () => {
 
   afterEach(async () => {
     vi.unstubAllEnvs();
-    const { resetActiveStorage } = (await import(
-      "@kinde/js-utils"
-    )) as unknown as {
-      resetActiveStorage: () => void;
-    };
+    const { resetActiveStorage } =
+      (await import("@kinde/js-utils")) as unknown as {
+        resetActiveStorage: () => void;
+      };
     resetActiveStorage();
   });
 
