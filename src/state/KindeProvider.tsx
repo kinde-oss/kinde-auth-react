@@ -400,6 +400,7 @@ export const KindeProvider = ({
       const optionsState: Record<string, string> = options.state || {};
 
       options.state = undefined;
+
       const authProps: LoginOptions = {
         audience,
         clientId,
