@@ -6,6 +6,7 @@ import {
   storageSettings,
   checkAuth,
   base64UrlEncode,
+  base64UrlDecode,
   PromptTypes,
   StorageKeys,
   IssuerRouteTypes,
@@ -712,7 +713,22 @@ export const KindeProvider = ({
   // Function to process authentication result from popup
   const processAuthResult = useCallback(
     async (searchParams: URLSearchParams) => {
-      const decoded = atob(searchParams.get("state") || "");
+      const rawState = searchParams.get("state") || "";
+      let decoded: string;
+      try {
+        decoded = base64UrlDecode(rawState);
+      } catch (decodeError) {
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_STATE_DECODE",
+            errorDescription: `Invalid state parameter: ${String(decodeError)}`,
+          },
+          {},
+          contextValue,
+        );
+        setState((val) => ({ ...val, isLoading: false }));
+        return;
+      }
       let returnedState: StateWithKinde;
       let kindeState: KindeState;
       try {

@@ -75,6 +75,9 @@ vi.mock("@kinde/js-utils", () => {
   const base64UrlEncode = (value: string) =>
     Buffer.from(value).toString("base64url");
 
+  const base64UrlDecode = (value: string) =>
+    Buffer.from(value, "base64url").toString("utf8");
+
   const noopAsync = async () => undefined;
 
   return {
@@ -89,6 +92,7 @@ vi.mock("@kinde/js-utils", () => {
     checkAuth: (...args: Parameters<typeof checkAuthMock>) =>
       checkAuthMock(...args),
     base64UrlEncode,
+    base64UrlDecode,
     PromptTypes: { login: "login", register: "register" },
     StorageKeys: {
       idToken: "idToken",
@@ -169,11 +173,10 @@ describe("KindeProvider", () => {
 
   afterEach(async () => {
     vi.unstubAllEnvs();
-    const { resetActiveStorage } = (await import(
-      "@kinde/js-utils"
-    )) as unknown as {
-      resetActiveStorage: () => void;
-    };
+    const { resetActiveStorage } =
+      (await import("@kinde/js-utils")) as unknown as {
+        resetActiveStorage: () => void;
+      };
     resetActiveStorage();
   });
 
