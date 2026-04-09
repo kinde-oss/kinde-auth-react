@@ -706,6 +706,16 @@ export const KindeProvider = ({
       if (mergedCallbacks.onEvent) {
         mergedCallbacks.onEvent(AuthEvent.tokenRefreshed, data, contextValue);
       }
+      if (mergedCallbacks.onError) {
+        mergedCallbacks.onError(
+          {
+            error: "ERR_REFRESH_TOKEN",
+            errorDescription: data.error as string,
+          },
+          {},
+          contextValue,
+        );
+      }
     },
     [mergedCallbacks, contextValue],
   );
@@ -832,6 +842,14 @@ export const KindeProvider = ({
     ) {
       refreshToken({ domain, clientId, onRefresh }).catch((error) => {
         console.error("Error refreshing token:", error);
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_REFRESH_TOKEN",
+            errorDescription: (error as Error).message,
+          },
+          {},
+          contextValue,
+        );
       });
     }
   }, [state.isAuthenticated, domain, clientId, onRefresh, refreshOnFocus]);
@@ -859,6 +877,14 @@ export const KindeProvider = ({
         await checkAuth({ domain, clientId });
       } catch (err) {
         console.warn("checkAuth failed:", err);
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_CHECK_AUTH",
+            errorDescription: (err as Error).message,
+          },
+          {},
+          contextValue,
+        );
         setState((v: ProviderState) => ({ ...v, isLoading: false }));
       }
       const params = new URLSearchParams(window.location.search);
