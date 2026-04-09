@@ -706,7 +706,7 @@ export const KindeProvider = ({
       if (mergedCallbacks.onEvent) {
         mergedCallbacks.onEvent(AuthEvent.tokenRefreshed, data, contextValue);
       }
-      if (mergedCallbacks.onError) {
+      if (data.error && mergedCallbacks.onError) {
         mergedCallbacks.onError(
           {
             error: "ERR_REFRESH_TOKEN",
