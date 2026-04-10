@@ -852,7 +852,15 @@ export const KindeProvider = ({
         );
       });
     }
-  }, [state.isAuthenticated, domain, clientId, onRefresh, refreshOnFocus]);
+  }, [
+    state.isAuthenticated,
+    domain,
+    clientId,
+    onRefresh,
+    refreshOnFocus,
+    mergedCallbacks,
+    contextValue,
+  ]);
 
   useEffect(() => {
     // remove any existing event listener before adding a new one
