@@ -710,7 +710,8 @@ export const KindeProvider = ({
         mergedCallbacks.onError(
           {
             error: "ERR_REFRESH_TOKEN",
-            errorDescription: data.error as string,
+            errorDescription:
+              typeof data.error === "string" ? data.error : String(data.error),
           },
           {},
           contextValue,
@@ -845,7 +846,7 @@ export const KindeProvider = ({
         mergedCallbacks.onError?.(
           {
             error: "ERR_REFRESH_TOKEN",
-            errorDescription: (error as Error).message,
+            errorDescription: error instanceof Error ? error.message : String(error),
           },
           {},
           contextValue,
@@ -888,7 +889,7 @@ export const KindeProvider = ({
         mergedCallbacks.onError?.(
           {
             error: "ERR_CHECK_AUTH",
-            errorDescription: (err as Error).message,
+            errorDescription: err instanceof Error ? err.message : String(err),
           },
           {},
           contextValue,
