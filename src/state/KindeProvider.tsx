@@ -706,6 +706,17 @@ export const KindeProvider = ({
       if (mergedCallbacks.onEvent) {
         mergedCallbacks.onEvent(AuthEvent.tokenRefreshed, data, contextValue);
       }
+      if (data.error && mergedCallbacks.onError) {
+        mergedCallbacks.onError(
+          {
+            error: "ERR_REFRESH_TOKEN",
+            errorDescription:
+              typeof data.error === "string" ? data.error : String(data.error),
+          },
+          {},
+          contextValue,
+        );
+      }
     },
     [mergedCallbacks, contextValue],
   );
@@ -832,9 +843,25 @@ export const KindeProvider = ({
     ) {
       refreshToken({ domain, clientId, onRefresh }).catch((error) => {
         console.error("Error refreshing token:", error);
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_REFRESH_TOKEN",
+            errorDescription: error instanceof Error ? error.message : String(error),
+          },
+          {},
+          contextValue,
+        );
       });
     }
-  }, [state.isAuthenticated, domain, clientId, onRefresh, refreshOnFocus]);
+  }, [
+    state.isAuthenticated,
+    domain,
+    clientId,
+    onRefresh,
+    refreshOnFocus,
+    mergedCallbacks,
+    contextValue,
+  ]);
 
   useEffect(() => {
     // remove any existing event listener before adding a new one
@@ -859,6 +886,14 @@ export const KindeProvider = ({
         await checkAuth({ domain, clientId });
       } catch (err) {
         console.warn("checkAuth failed:", err);
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_CHECK_AUTH",
+            errorDescription: err instanceof Error ? err.message : String(err),
+          },
+          {},
+          contextValue,
+        );
         setState((v: ProviderState) => ({ ...v, isLoading: false }));
       }
       const params = new URLSearchParams(window.location.search);
