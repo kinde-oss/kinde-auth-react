@@ -231,7 +231,8 @@ export const KindeProvider = ({
   const invitationCodeRef = useRef<string | null>(
     hasInvitationCode ? params.get("invitation_code") : null,
   );
-  const isRedirectingRef = useRef(hasInvitationCode);
+  const [isInvitationRedirectPending, setIsInvitationRedirectPending] =
+    useState(hasInvitationCode);
 
   const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
   // Track if activity tracking is currently enabled
@@ -438,7 +439,7 @@ export const KindeProvider = ({
   // Handle invitation_code redirect immediately, before any render
   useEffect(() => {
     if (
-      isRedirectingRef.current &&
+      isInvitationRedirectPending &&
       invitationCodeRef.current &&
       login &&
       !redirectInitiatedRef.current
@@ -449,11 +450,11 @@ export const KindeProvider = ({
         invitationCode: invitationCodeRef.current,
       }).catch((error) => {
         console.error("Error processing invitation code:", error);
-        isRedirectingRef.current = false;
         redirectInitiatedRef.current = false;
+        setIsInvitationRedirectPending(false);
       });
     }
-  }, [login]); // Include login to ensure it's ready when it becomes available
+  }, [login, isInvitationRedirectPending]); // Include login to ensure it's ready when it becomes available
 
   const register = useCallback(
     async (
@@ -788,7 +789,7 @@ export const KindeProvider = ({
       const params = new URLSearchParams(window.location.search);
 
       // Skip initialization if redirecting for invitation (handled in useEffect above)
-      if (isRedirectingRef.current) {
+      if (isInvitationRedirectPending) {
         return;
       }
 
@@ -873,6 +874,7 @@ export const KindeProvider = ({
     onRefresh,
     login,
     processAuthResult,
+    isInvitationRedirectPending,
   ]);
 
   useEffect(() => {
@@ -888,7 +890,7 @@ export const KindeProvider = ({
   }, [init]);
 
   // Don't render children if redirecting for invitation
-  if (isRedirectingRef.current && !forceChildrenRender) {
+  if (isInvitationRedirectPending && !forceChildrenRender) {
     return <></>;
   }
 
