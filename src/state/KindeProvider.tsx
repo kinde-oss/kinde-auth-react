@@ -236,14 +236,24 @@ export const KindeProvider = ({
   activityTimeout,
   refreshOnFocus = false,
 }: KindeProviderProps) => {
-  // Check for invitation_code synchronously before any hooks/rendering
-  const params = new URLSearchParams(window.location.search);
-  const hasInvitationCode = params.has("invitation_code");
-  const invitationCodeRef = useRef<string | null>(
-    hasInvitationCode ? params.get("invitation_code") : null,
-  );
+  // Invitation: read invitation_code once on mount (client). No window → safe defaults (SSR/tests).
+  const [invitationSnapshot] = useState(() => {
+    if (typeof window === "undefined") {
+      return {
+        invitationCode: null as string | null,
+        redirectPending: false,
+      };
+    }
+    const params = new URLSearchParams(window.location.search);
+    const invitationCode = params.get("invitation_code");
+    return {
+      invitationCode,
+      redirectPending: params.has("invitation_code"),
+    };
+  });
+  const invitationCodeRef = useRef(invitationSnapshot.invitationCode);
   const [isInvitationRedirectPending, setIsInvitationRedirectPending] =
-    useState(hasInvitationCode);
+    useState(() => invitationSnapshot.redirectPending);
   const mergedCallbacks = useMemo(
     () => ({ ...defaultCallbacks, ...callbacks }),
     [callbacks],
@@ -469,7 +479,7 @@ export const KindeProvider = ({
   // Store login in ref for immediate access
   loginRef.current = login;
 
-  // Handle invitation_code redirect immediately, before any render
+  // Handle invitation_code redirect after mount (login triggers navigation / popup)
   useEffect(() => {
     if (
       isInvitationRedirectPending &&

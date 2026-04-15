@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { KindeProvider } from "./KindeProvider";
 import React, { useContext } from "react";
 import { KindeContext } from "./KindeContext";
@@ -212,6 +213,26 @@ describe("KindeProvider", () => {
     });
 
     expect(checkAuthMock).toHaveBeenCalled();
+  });
+
+  it("does not throw when window is undefined during first render (SSR-style)", () => {
+    const prevWindow = globalThis.window;
+    vi.stubGlobal("window", undefined);
+    try {
+      expect(() =>
+        renderToString(
+          <KindeProvider
+            clientId="test"
+            domain="test.com"
+            redirectUri="http://localhost:3000"
+          >
+            <span>child</span>
+          </KindeProvider>,
+        ),
+      ).not.toThrow();
+    } finally {
+      vi.stubGlobal("window", prevWindow);
+    }
   });
 
   it("does not render children while init is pending unless explicitly enabled", async () => {
