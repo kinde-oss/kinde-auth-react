@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, act, fireEvent } from "@testing-library/react";
+import { render, act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { KindeProvider } from "./KindeProvider";
 import React, { useContext } from "react";
 import { KindeContext } from "./KindeContext";
@@ -94,7 +94,7 @@ vi.mock("@kinde/js-utils", () => {
       checkAuthMock(...args),
     base64UrlEncode,
     base64UrlDecode,
-    PromptTypes: { login: "login", register: "register" },
+    PromptTypes: { none: "none", create: "create", login: "login" },
     StorageKeys: {
       idToken: "idToken",
       accessToken: "accessToken",
@@ -148,6 +148,15 @@ const TestConsumer = () => {
   );
 };
 
+const stubWindowLocalStorage = () => ({
+  getItem: vi.fn().mockReturnValue(null),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+  key: vi.fn(),
+  length: 0,
+});
+
 describe("KindeProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -168,18 +177,14 @@ describe("KindeProvider", () => {
     global.window = Object.create(window);
     Object.defineProperty(window, "location", {
       writable: true,
+      configurable: true,
       value: {
         origin: "http://localhost:3000",
         href: "http://localhost:3000",
         search: "",
         pathname: "/",
       },
-      writable: true,
-      configurable: true,
     });
-    vi.mocked(generateAuthUrl).mockImplementation((...args) =>
-      kindeReal.generateAuthUrl(...args),
-    );
   });
 
   afterEach(async () => {
@@ -316,41 +321,46 @@ describe("KindeProvider", () => {
   });
 
   it("initializes the SDK after invitation login fails so children render", async () => {
-    vi.mocked(generateAuthUrl).mockImplementation(() =>
-      Promise.reject(new Error("simulated invitation failure")),
-    );
-
-    Object.defineProperty(window, "location", {
-      value: {
-        origin: "http://localhost:3000",
-        href: "http://localhost:3000/?invitation_code=inv-1",
-        pathname: "/",
-        search: "?invitation_code=inv-1",
-      },
-      writable: true,
-      configurable: true,
-    });
-
-    await act(async () => {
-      render(
-        <KindeProvider
-          clientId="test"
-          domain="test.com"
-          redirectUri="http://localhost:3000"
-        >
-          <div>Test Child</div>
-        </KindeProvider>,
-      );
-    });
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
 
     try {
+      generateAuthUrlMock.mockImplementation(() =>
+        Promise.reject(new Error("simulated invitation failure")),
+      );
+
+      Object.defineProperty(window, "location", {
+        value: {
+          origin: "http://localhost:3000",
+          href: "http://localhost:3000/?invitation_code=inv-1",
+          pathname: "/",
+          search: "?invitation_code=inv-1",
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      await act(async () => {
+        render(
+          <KindeProvider
+            clientId="test"
+            domain="test.com"
+            redirectUri="http://localhost:3000"
+          >
+            <div>Test Child</div>
+          </KindeProvider>,
+        );
+      });
+
       await waitFor(() => {
         expect(screen.getByText("Test Child")).toBeInTheDocument();
       });
     } finally {
-      vi.mocked(generateAuthUrl).mockImplementation((...args) =>
-        kindeReal.generateAuthUrl(...args),
-      );
+      consoleErrorSpy.mockRestore();
+      generateAuthUrlMock.mockImplementation(async () => ({
+        url: new URL("https://example.com/login"),
+      }));
     }
   });
 });

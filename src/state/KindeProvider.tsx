@@ -249,7 +249,6 @@ export const KindeProvider = ({
     [callbacks],
   );
 
-  const mergedCallbacks = { ...defaultCallbacks, ...callbacks };
   // Track if activity tracking is currently enabled
   const [isActivityTrackingEnabled, setIsActivityTrackingEnabled] =
     useState(false);
@@ -880,7 +879,8 @@ export const KindeProvider = ({
         mergedCallbacks.onError?.(
           {
             error: "ERR_REFRESH_TOKEN",
-            errorDescription: error instanceof Error ? error.message : String(error),
+            errorDescription:
+              error instanceof Error ? error.message : String(error),
           },
           {},
           contextValue,
@@ -1040,7 +1040,6 @@ export const KindeProvider = ({
     return <></>;
   }
 
-  return forceChildrenRender || initRef.current ? (
   const shouldRenderChildren = forceChildrenRender
     ? initStarted
     : initRef.current;
