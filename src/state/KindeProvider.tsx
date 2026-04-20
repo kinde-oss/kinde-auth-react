@@ -880,6 +880,7 @@ export const KindeProvider = ({
     if (forceChildrenRender) {
       setInitStarted(true);
     }
+    if (!domain || !clientId || !redirectUri) return;
     try {
       try {
         initRef.current = true;
