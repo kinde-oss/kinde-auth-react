@@ -846,7 +846,8 @@ export const KindeProvider = ({
         mergedCallbacks.onError?.(
           {
             error: "ERR_REFRESH_TOKEN",
-            errorDescription: error instanceof Error ? error.message : String(error),
+            errorDescription:
+              error instanceof Error ? error.message : String(error),
           },
           {},
           contextValue,
