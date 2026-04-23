@@ -384,4 +384,72 @@ describe("KindeProvider", () => {
       }));
     }
   });
+
+  it("clears invitation pending after successful popup auth so init runs and children render", async () => {
+    let handleResult:
+      | ((searchParams: URLSearchParams) => void | Promise<void>)
+      | undefined;
+
+    navigateToKindeMock.mockImplementation(
+      (opts: { handleResult?: (p: URLSearchParams) => void | Promise<void> }) => {
+        handleResult = opts.handleResult;
+      },
+    );
+
+    exchangeAuthCodeMock.mockResolvedValue({ success: true, error: "" });
+    getUserProfileMock.mockResolvedValue({
+      id: "user-invite-success",
+      email: "invited@example.com",
+    } as never);
+
+    const invitationState = Buffer.from(
+      JSON.stringify({ kinde: { event: "login" } }),
+    ).toString("base64url");
+
+    Object.defineProperty(window, "location", {
+      value: {
+        origin: "http://localhost:3000",
+        href: "http://localhost:3000/?invitation_code=inv-1",
+        pathname: "/",
+        search: "?invitation_code=inv-1",
+      },
+      writable: true,
+      configurable: true,
+    });
+
+    await act(async () => {
+      render(
+        <KindeProvider
+          clientId="test"
+          domain="test.com"
+          redirectUri="http://localhost:3000"
+        >
+          <div>Test Child</div>
+        </KindeProvider>,
+      );
+    });
+
+    expect(screen.queryByText("Test Child")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(navigateToKindeMock).toHaveBeenCalled();
+    });
+    expect(handleResult).toBeDefined();
+
+    await act(async () => {
+      await handleResult!(
+        new URLSearchParams({
+          code: "auth-code-from-popup",
+          state: invitationState,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Child")).toBeInTheDocument();
+    });
+
+    expect(checkAuthMock).toHaveBeenCalled();
+    expect(exchangeAuthCodeMock).toHaveBeenCalled();
+  });
 });

@@ -409,7 +409,6 @@ export const KindeProvider = ({
   storageSettings.useInsecureForRefreshToken = useInsecureForRefreshToken;
 
   const initRef = useRef(false);
-  const loginRef = useRef<typeof login | null>(null);
   const redirectInitiatedRef = useRef(false);
 
   const login = useCallback(
@@ -475,9 +474,6 @@ export const KindeProvider = ({
       setLoading,
     ],
   );
-
-  // Store login in ref for immediate access
-  loginRef.current = login;
 
   // Handle invitation_code redirect after mount (login triggers navigation / popup)
   useEffect(() => {
