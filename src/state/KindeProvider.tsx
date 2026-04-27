@@ -480,7 +480,6 @@ export const KindeProvider = ({
     if (
       isInvitationRedirectPending &&
       invitationCodeRef.current &&
-      login &&
       !redirectInitiatedRef.current
     ) {
       redirectInitiatedRef.current = true;
@@ -489,11 +488,24 @@ export const KindeProvider = ({
         invitationCode: invitationCodeRef.current,
       }).catch((error) => {
         console.error("Error processing invitation code:", error);
+        if (!contextRef.current) {
+          console.error("Invitation redirect error (context unavailable):", error);
+        } else {
+          mergedCallbacks.onError?.(
+            {
+              error: "ERR_INVITATION_REDIRECT",
+              errorDescription:
+                error instanceof Error ? error.message : String(error),
+            },
+            {},
+            contextRef.current,
+          );
+        }
         redirectInitiatedRef.current = false;
         setIsInvitationRedirectPending(false);
       });
     }
-  }, [login, isInvitationRedirectPending]); // Include login to ensure it's ready when it becomes available
+  }, [login, isInvitationRedirectPending, mergedCallbacks]); // Include login to ensure it's ready when it becomes available
 
   const register = useCallback(
     async (
@@ -927,12 +939,14 @@ export const KindeProvider = ({
       setInitStarted(true);
     }
     try {
-      const params = new URLSearchParams(window.location.search);
-
       // Skip initialization if redirecting for invitation (handled in useEffect above)
+      // ⚠️ Do NOT set initRef.current = true here.
+      // The idempotency guard must remain unset so init() can re-run
+      // once setIsInvitationRedirectPending(false) triggers a re-render.
       if (isInvitationRedirectPending) {
         return;
       }
+      const params = new URLSearchParams(window.location.search);
 
       try {
         initRef.current = true;

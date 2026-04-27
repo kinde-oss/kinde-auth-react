@@ -168,6 +168,7 @@ describe("KindeProvider", () => {
     });
     navigateToKindeMock.mockImplementation(() => undefined);
     isAuthenticatedMock.mockResolvedValue(false);
+    exchangeAuthCodeMock.mockResolvedValueOnce({ success: true, error: "" });
 
     vi.stubEnv("VITE_KINDE_REDIRECT_URL", "http://localhost:3000");
     Object.defineProperty(window, "localStorage", {
@@ -396,7 +397,6 @@ describe("KindeProvider", () => {
       },
     );
 
-    exchangeAuthCodeMock.mockResolvedValue({ success: true, error: "" });
     getUserProfileMock.mockResolvedValue({
       id: "user-invite-success",
       email: "invited@example.com",
