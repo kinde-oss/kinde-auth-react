@@ -236,6 +236,24 @@ export const KindeProvider = ({
   activityTimeout,
   refreshOnFocus = false,
 }: KindeProviderProps) => {
+  // Invitation: read invitation_code once on mount (client). No window → safe defaults (SSR/tests).
+  const [invitationSnapshot] = useState(() => {
+    if (typeof window === "undefined") {
+      return {
+        invitationCode: null as string | null,
+        redirectPending: false,
+      };
+    }
+    const params = new URLSearchParams(window.location.search);
+    const invitationCode = params.get("invitation_code");
+    return {
+      invitationCode,
+      redirectPending: params.has("invitation_code"),
+    };
+  });
+  const invitationCodeRef = useRef(invitationSnapshot.invitationCode);
+  const [isInvitationRedirectPending, setIsInvitationRedirectPending] =
+    useState(() => invitationSnapshot.redirectPending);
   const mergedCallbacks = useMemo(
     () => ({ ...defaultCallbacks, ...callbacks }),
     [callbacks],
@@ -391,6 +409,7 @@ export const KindeProvider = ({
   storageSettings.useInsecureForRefreshToken = useInsecureForRefreshToken;
 
   const initRef = useRef(false);
+  const redirectInitiatedRef = useRef(false);
 
   const login = useCallback(
     async (
@@ -455,6 +474,38 @@ export const KindeProvider = ({
       setLoading,
     ],
   );
+
+  // Handle invitation_code redirect after mount (login triggers navigation / popup)
+  useEffect(() => {
+    if (
+      isInvitationRedirectPending &&
+      invitationCodeRef.current &&
+      !redirectInitiatedRef.current
+    ) {
+      redirectInitiatedRef.current = true;
+      login({
+        prompt: PromptTypes.create,
+        invitationCode: invitationCodeRef.current,
+      }).catch((error) => {
+        console.error("Error processing invitation code:", error);
+        if (!contextRef.current) {
+          console.error("Invitation redirect error (context unavailable):", error);
+        } else {
+          mergedCallbacks.onError?.(
+            {
+              error: "ERR_INVITATION_REDIRECT",
+              errorDescription:
+                error instanceof Error ? error.message : String(error),
+            },
+            {},
+            contextRef.current,
+          );
+        }
+        redirectInitiatedRef.current = false;
+        setIsInvitationRedirectPending(false);
+      });
+    }
+  }, [login, isInvitationRedirectPending, mergedCallbacks]); // Include login to ensure it's ready when it becomes available
 
   const register = useCallback(
     async (
@@ -724,103 +775,108 @@ export const KindeProvider = ({
   // Function to process authentication result from popup
   const processAuthResult = useCallback(
     async (searchParams: URLSearchParams) => {
-      const rawState = searchParams.get("state") || "";
-      let decoded: string;
       try {
-        decoded = base64UrlDecode(rawState);
-      } catch (decodeError) {
-        mergedCallbacks.onError?.(
-          {
-            error: "ERR_STATE_DECODE",
-            errorDescription: `Invalid state parameter: ${String(decodeError)}`,
-          },
-          {},
-          contextValue,
-        );
-        setState((val) => ({ ...val, isLoading: false }));
-        return;
-      }
-      let returnedState: StateWithKinde;
-      let kindeState: KindeState;
-      try {
-        returnedState = JSON.parse(decoded);
-        kindeState = Object.assign(
-          returnedState.kinde || { event: PromptTypes.login },
-        );
-      } catch (error) {
-        console.error("Error parsing state:", error);
-        mergedCallbacks.onError?.(
-          {
-            error: "ERR_STATE_PARSE",
-            errorDescription: String(error),
-          },
-          {},
-          contextValue,
-        );
-        returnedState = {} as StateWithKinde;
-        kindeState = { event: AuthEvent.login };
-      }
-      try {
-        const codeResponse = await exchangeAuthCode({
-          urlParams: searchParams,
-          domain,
-          clientId,
-          redirectURL: getRedirectUrl(redirectUri),
-          autoRefresh: true,
-          onRefresh,
-        });
+        const rawState = searchParams.get("state") || "";
+        let decoded: string;
+        try {
+          decoded = base64UrlDecode(rawState);
+        } catch (decodeError) {
+          mergedCallbacks.onError?.(
+            {
+              error: "ERR_STATE_DECODE",
+              errorDescription: `Invalid state parameter: ${String(decodeError)}`,
+            },
+            {},
+            contextValue,
+          );
+          setState((val) => ({ ...val, isLoading: false }));
+          return;
+        }
+        let returnedState: StateWithKinde;
+        let kindeState: KindeState;
+        try {
+          returnedState = JSON.parse(decoded);
+          kindeState = Object.assign(
+            returnedState.kinde || { event: PromptTypes.login },
+          );
+        } catch (error) {
+          console.error("Error parsing state:", error);
+          mergedCallbacks.onError?.(
+            {
+              error: "ERR_STATE_PARSE",
+              errorDescription: String(error),
+            },
+            {},
+            contextValue,
+          );
+          returnedState = {} as StateWithKinde;
+          kindeState = { event: AuthEvent.login };
+        }
+        try {
+          const codeResponse = await exchangeAuthCode({
+            urlParams: searchParams,
+            domain,
+            clientId,
+            redirectURL: getRedirectUrl(redirectUri),
+            autoRefresh: true,
+            onRefresh,
+          });
 
-        if (codeResponse.success) {
-          const user = await getUserProfile();
-          if (user) {
-            setState((val) => ({ ...val, user, isAuthenticated: true }));
-            mergedCallbacks.onSuccess?.(
-              user,
-              {
-                ...returnedState,
-                kinde: undefined,
-              },
-              contextValue,
-            );
-            if (mergedCallbacks.onEvent) {
-              mergedCallbacks.onEvent(
-                kindeState.event,
+          if (codeResponse.success) {
+            const user = await getUserProfile();
+            if (user) {
+              setState((val) => ({ ...val, user, isAuthenticated: true }));
+              mergedCallbacks.onSuccess?.(
+                user,
                 {
                   ...returnedState,
                   kinde: undefined,
                 },
                 contextValue,
               );
+              if (mergedCallbacks.onEvent) {
+                mergedCallbacks.onEvent(
+                  kindeState.event,
+                  {
+                    ...returnedState,
+                    kinde: undefined,
+                  },
+                  contextValue,
+                );
+              }
             }
+          } else {
+            mergedCallbacks.onError?.(
+              {
+                error: "ERR_CODE_EXCHANGE",
+                errorDescription: codeResponse.error,
+              },
+              returnedState,
+              contextValue,
+            );
           }
-        } else {
+        } catch (error) {
           mergedCallbacks.onError?.(
             {
-              error: "ERR_CODE_EXCHANGE",
-              errorDescription: codeResponse.error,
+              error: "ERR_POPUP_AUTH",
+              errorDescription: String(error),
             },
             returnedState,
             contextValue,
           );
+        } finally {
+          // Clear loading state appropriately based on forceChildrenRender
+          if (forceChildrenRender) {
+            // When forceChildrenRender is true, use setLoading to manage state
+            setLoading(false);
+          } else {
+            // When forceChildrenRender is false, directly update state
+            setState((val) => ({ ...val, isLoading: false }));
+          }
         }
-      } catch (error) {
-        mergedCallbacks.onError?.(
-          {
-            error: "ERR_POPUP_AUTH",
-            errorDescription: String(error),
-          },
-          returnedState,
-          contextValue,
-        );
       } finally {
-        // Clear loading state appropriately based on forceChildrenRender
-        if (forceChildrenRender) {
-          // When forceChildrenRender is true, use setLoading to manage state
-          setLoading(false);
-        } else {
-          // When forceChildrenRender is false, directly update state
-          setState((val) => ({ ...val, isLoading: false }));
-        }
+        // Invitation flow: login() resolves before popup completes; clear so init runs and the provider renders after processAuthResult (success or failure).
+        setIsInvitationRedirectPending(false);
       }
     },
     [
@@ -832,6 +888,7 @@ export const KindeProvider = ({
       contextValue,
       setLoading,
       forceChildrenRender,
+      setIsInvitationRedirectPending,
     ],
   );
 
@@ -846,7 +903,8 @@ export const KindeProvider = ({
         mergedCallbacks.onError?.(
           {
             error: "ERR_REFRESH_TOKEN",
-            errorDescription: error instanceof Error ? error.message : String(error),
+            errorDescription:
+              error instanceof Error ? error.message : String(error),
           },
           {},
           contextValue,
@@ -882,6 +940,15 @@ export const KindeProvider = ({
     }
     if (!domain || !clientId || !redirectUri) return;
     try {
+      // Skip initialization if redirecting for invitation (handled in useEffect above)
+      // ⚠️ Do NOT set initRef.current = true here.
+      // The idempotency guard must remain unset so init() can re-run
+      // once setIsInvitationRedirectPending(false) triggers a re-render.
+      if (isInvitationRedirectPending) {
+        return;
+      }
+      const params = new URLSearchParams(window.location.search);
+
       try {
         initRef.current = true;
         await checkAuth({ domain, clientId });
@@ -897,7 +964,6 @@ export const KindeProvider = ({
         );
         setState((v: ProviderState) => ({ ...v, isLoading: false }));
       }
-      const params = new URLSearchParams(window.location.search);
 
       if (params.has("error")) {
         const errorCode = params.get("error");
@@ -980,6 +1046,7 @@ export const KindeProvider = ({
     onRefresh,
     login,
     processAuthResult,
+    isInvitationRedirectPending,
     forceChildrenRender,
   ]);
 
@@ -994,6 +1061,11 @@ export const KindeProvider = ({
       mounted.current = false;
     };
   }, [init]);
+
+  // Don't render children if redirecting for invitation
+  if (isInvitationRedirectPending && !forceChildrenRender) {
+    return <></>;
+  }
 
   const shouldRenderChildren = forceChildrenRender
     ? initStarted
