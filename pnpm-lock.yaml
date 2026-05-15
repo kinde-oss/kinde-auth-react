@@ -1241,10 +1241,9 @@ packages:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
     engines: {node: 18 || 20 || >=22}
 
-  basic-ftp@5.2.0:
-    resolution: {integrity: sha512-VoMINM2rqJwJgfdHq6RiUudKt2BV+FY5ZFezP/ypmwayk68+NzzAQy4XXLlqsGD4MCzq3DrmNFD/uUmBJuGoXw==}
+  basic-ftp@5.3.1:
+    resolution: {integrity: sha512-bopVNp6ugyA150DDuZfPFdt1KZ5a94ZDiwX4hMgZDzF+GttD80lEy8kj98kbyhLXnPvhtIo93mdnLIjpCAeeOw==}
     engines: {node: '>=10.0.0'}
-    deprecated: Security vulnerability fixed in 5.2.1, please upgrade
 
   before-after-hook@4.0.0:
     resolution: {integrity: sha512-q6tR3RPqIB1pMiTRMFcZwuG5T8vwp+vUvEG0vuI6B+Rikh5BfPp2fQ82c925FOs+b0lcFQ8CFrL+KbilfZFhOQ==}
@@ -4006,7 +4005,7 @@ snapshots:
 
   balanced-match@4.0.4: {}
 
-  basic-ftp@5.2.0: {}
+  basic-ftp@5.3.1: {}
 
   before-after-hook@4.0.0: {}
 
@@ -4569,7 +4568,7 @@ snapshots:
 
   get-uri@7.0.0:
     dependencies:
-      basic-ftp: 5.2.0
+      basic-ftp: 5.3.1
       data-uri-to-buffer: 7.0.0
       debug: 4.4.3
     transitivePeerDependencies:
