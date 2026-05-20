@@ -489,7 +489,10 @@ export const KindeProvider = ({
       }).catch((error) => {
         console.error("Error processing invitation code:", error);
         if (!contextRef.current) {
-          console.error("Invitation redirect error (context unavailable):", error);
+          console.error(
+            "Invitation redirect error (context unavailable):",
+            error,
+          );
         } else {
           mergedCallbacks.onError?.(
             {
