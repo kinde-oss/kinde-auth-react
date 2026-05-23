@@ -843,7 +843,6 @@ export const KindeProvider = ({
         await checkAuth({ domain, clientId });
       } catch (err) {
         console.warn("checkAuth failed:", err);
-        setState((v: ProviderState) => ({ ...v, isLoading: false }));
       }
       const params = new URLSearchParams(window.location.search);
 
