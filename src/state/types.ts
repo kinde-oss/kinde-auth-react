@@ -17,26 +17,28 @@ export type State = {
 };
 
 export interface LoginLinkProps
-  extends Partial<LoginMethodParams>,
+  extends
+    Partial<LoginMethodParams>,
     React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
 }
 
 export interface RegisterLinkProps
-  extends Partial<LoginMethodParams>,
+  extends
+    Partial<LoginMethodParams>,
     React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
 }
 
-export interface LogoutLinkProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface LogoutLinkProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   redirectUrl?: string;
   allSessions?: boolean;
 }
 
 export interface PortalLinkProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
     Partial<Omit<GeneratePortalUrlParams, "domain">> {
   children: React.ReactNode;
 }

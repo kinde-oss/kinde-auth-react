@@ -1,5 +1,7 @@
+import "@testing-library/jest-dom/vitest";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, act, fireEvent } from "@testing-library/react";
+import { render, act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { KindeProvider } from "./KindeProvider";
 import React, { useContext } from "react";
 import { KindeContext } from "./KindeContext";
@@ -75,6 +77,9 @@ vi.mock("@kinde/js-utils", () => {
   const base64UrlEncode = (value: string) =>
     Buffer.from(value).toString("base64url");
 
+  const base64UrlDecode = (value: string) =>
+    Buffer.from(value, "base64url").toString("utf8");
+
   const noopAsync = async () => undefined;
 
   return {
@@ -89,7 +94,8 @@ vi.mock("@kinde/js-utils", () => {
     checkAuth: (...args: Parameters<typeof checkAuthMock>) =>
       checkAuthMock(...args),
     base64UrlEncode,
-    PromptTypes: { login: "login", register: "register" },
+    base64UrlDecode,
+    PromptTypes: { none: "none", create: "create", login: "login" },
     StorageKeys: {
       idToken: "idToken",
       accessToken: "accessToken",
@@ -156,6 +162,15 @@ const AuthStateConsumer = () => {
   );
 };
 
+const stubWindowLocalStorage = () => ({
+  getItem: vi.fn().mockReturnValue(null),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+  key: vi.fn(),
+  length: 0,
+});
+
 describe("KindeProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -166,11 +181,18 @@ describe("KindeProvider", () => {
     });
     navigateToKindeMock.mockImplementation(() => undefined);
     isAuthenticatedMock.mockResolvedValue(false);
+    exchangeAuthCodeMock.mockResolvedValueOnce({ success: true, error: "" });
 
     vi.stubEnv("VITE_KINDE_REDIRECT_URL", "http://localhost:3000");
+    Object.defineProperty(window, "localStorage", {
+      value: stubWindowLocalStorage(),
+      configurable: true,
+      writable: true,
+    });
     global.window = Object.create(window);
     Object.defineProperty(window, "location", {
       writable: true,
+      configurable: true,
       value: {
         origin: "http://localhost:3000",
         href: "http://localhost:3000",
@@ -182,11 +204,10 @@ describe("KindeProvider", () => {
 
   afterEach(async () => {
     vi.unstubAllEnvs();
-    const { resetActiveStorage } = (await import(
-      "@kinde/js-utils"
-    )) as unknown as {
-      resetActiveStorage: () => void;
-    };
+    const { resetActiveStorage } =
+      (await import("@kinde/js-utils")) as unknown as {
+        resetActiveStorage: () => void;
+      };
     resetActiveStorage();
   });
 
@@ -206,6 +227,26 @@ describe("KindeProvider", () => {
     });
 
     expect(checkAuthMock).toHaveBeenCalled();
+  });
+
+  it("does not throw when window is undefined during first render (SSR-style)", () => {
+    const prevWindow = globalThis.window;
+    vi.stubGlobal("window", undefined);
+    try {
+      expect(() =>
+        renderToString(
+          <KindeProvider
+            clientId="test"
+            domain="test.com"
+            redirectUri="http://localhost:3000"
+          >
+            <span>child</span>
+          </KindeProvider>,
+        ),
+      ).not.toThrow();
+    } finally {
+      vi.stubGlobal("window", prevWindow);
+    }
   });
 
   it("does not render children while init is pending unless explicitly enabled", async () => {
@@ -312,6 +353,117 @@ describe("KindeProvider", () => {
     );
 
     viewWithoutFlag.unmount();
+  });
+
+  it("initializes the SDK after invitation login fails so children render", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    try {
+      generateAuthUrlMock.mockImplementation(() =>
+        Promise.reject(new Error("simulated invitation failure")),
+      );
+
+      Object.defineProperty(window, "location", {
+        value: {
+          origin: "http://localhost:3000",
+          href: "http://localhost:3000/?invitation_code=inv-1",
+          pathname: "/",
+          search: "?invitation_code=inv-1",
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      await act(async () => {
+        render(
+          <KindeProvider
+            clientId="test"
+            domain="test.com"
+            redirectUri="http://localhost:3000"
+          >
+            <div>Test Child</div>
+          </KindeProvider>,
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("Test Child")).toBeInTheDocument();
+      });
+    } finally {
+      consoleErrorSpy.mockRestore();
+      generateAuthUrlMock.mockImplementation(async () => ({
+        url: new URL("https://example.com/login"),
+      }));
+    }
+  });
+
+  it("clears invitation pending after successful popup auth so init runs and children render", async () => {
+    let handleResult:
+      | ((searchParams: URLSearchParams) => void | Promise<void>)
+      | undefined;
+
+    navigateToKindeMock.mockImplementation(
+      (opts: { handleResult?: (p: URLSearchParams) => void | Promise<void> }) => {
+        handleResult = opts.handleResult;
+      },
+    );
+
+    getUserProfileMock.mockResolvedValue({
+      id: "user-invite-success",
+      email: "invited@example.com",
+    } as never);
+
+    const invitationState = Buffer.from(
+      JSON.stringify({ kinde: { event: "login" } }),
+    ).toString("base64url");
+
+    Object.defineProperty(window, "location", {
+      value: {
+        origin: "http://localhost:3000",
+        href: "http://localhost:3000/?invitation_code=inv-1",
+        pathname: "/",
+        search: "?invitation_code=inv-1",
+      },
+      writable: true,
+      configurable: true,
+    });
+
+    await act(async () => {
+      render(
+        <KindeProvider
+          clientId="test"
+          domain="test.com"
+          redirectUri="http://localhost:3000"
+        >
+          <div>Test Child</div>
+        </KindeProvider>,
+      );
+    });
+
+    expect(screen.queryByText("Test Child")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(navigateToKindeMock).toHaveBeenCalled();
+    });
+    expect(handleResult).toBeDefined();
+
+    await act(async () => {
+      await handleResult!(
+        new URLSearchParams({
+          code: "auth-code-from-popup",
+          state: invitationState,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Child")).toBeInTheDocument();
+    });
+
+    expect(checkAuthMock).toHaveBeenCalled();
+    expect(exchangeAuthCodeMock).toHaveBeenCalled();
   });
 });
 

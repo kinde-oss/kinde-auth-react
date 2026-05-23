@@ -14,7 +14,7 @@
     "target": "ES6",
     "lib": ["dom", "dom.iterable", "esnext"],
     "jsx": "react",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "strict": true
