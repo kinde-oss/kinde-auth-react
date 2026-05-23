@@ -1,6 +1,12 @@
 import "@testing-library/jest-dom/vitest";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  render,
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { KindeProvider } from "./KindeProvider";
 import React, { useContext } from "react";
@@ -405,7 +411,9 @@ describe("KindeProvider", () => {
       | undefined;
 
     navigateToKindeMock.mockImplementation(
-      (opts: { handleResult?: (p: URLSearchParams) => void | Promise<void> }) => {
+      (opts: {
+        handleResult?: (p: URLSearchParams) => void | Promise<void>;
+      }) => {
         handleResult = opts.handleResult;
       },
     );
@@ -489,7 +497,10 @@ describe("isLoading timing — checkAuth failure path", () => {
 
   afterEach(async () => {
     vi.unstubAllEnvs();
-    const { resetActiveStorage } = (await import("@kinde/js-utils")) as any;
+    const { resetActiveStorage } =
+      (await import("@kinde/js-utils")) as unknown as {
+        resetActiveStorage: () => void;
+      };
     resetActiveStorage();
   });
 
