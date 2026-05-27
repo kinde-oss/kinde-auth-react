@@ -8,6 +8,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import React from "react";
 import { PortalLink } from ".";
 import { useKindeAuth } from "../hooks/useKindeAuth";
 
