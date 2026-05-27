@@ -155,6 +155,19 @@ const TestConsumer = () => {
   );
 };
 
+// Extended consumer that surfaces all three fields relevant to the bug
+const AuthStateConsumer = () => {
+  const ctx = useContext(KindeContext);
+  if (!ctx) return null;
+  return (
+    <div>
+      <div data-testid="is-loading">{String(ctx.isLoading)}</div>
+      <div data-testid="is-authenticated">{String(ctx.isAuthenticated)}</div>
+      <div data-testid="user-id">{ctx.user?.id ?? "null"}</div>
+    </div>
+  );
+};
+
 const stubWindowLocalStorage = () => ({
   getItem: vi.fn().mockReturnValue(null),
   setItem: vi.fn(),
@@ -459,5 +472,161 @@ describe("KindeProvider", () => {
 
     expect(checkAuthMock).toHaveBeenCalled();
     expect(exchangeAuthCodeMock).toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Bug fix: isLoading must not become false before user/isAuthenticated resolve
+// ---------------------------------------------------------------------------
+describe("isLoading timing — checkAuth failure path", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    checkAuthMock.mockResolvedValue(undefined);
+    getUserProfileMock.mockResolvedValue(undefined);
+    vi.stubEnv("VITE_KINDE_REDIRECT_URL", "http://localhost:3000");
+    Object.defineProperty(window, "location", {
+      writable: true,
+      value: {
+        origin: "http://localhost:3000",
+        href: "http://localhost:3000",
+        search: "",
+        pathname: "/",
+      },
+    });
+  });
+
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    const { resetActiveStorage } =
+      (await import("@kinde/js-utils")) as unknown as {
+        resetActiveStorage: () => void;
+      };
+    resetActiveStorage();
+  });
+
+  it("keeps isLoading true while getUserProfile is pending after checkAuth throws", async () => {
+    let resolveUser: (u: any) => void;
+
+    // checkAuth throws — this is the scenario fixed by removing setState from catch
+    checkAuthMock.mockRejectedValueOnce(new Error("token refresh failed"));
+
+    // getUserProfile resolves only when we explicitly trigger it
+    getUserProfileMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveUser = resolve;
+        }),
+    );
+
+    const view = render(
+      <KindeProvider
+        clientId="client"
+        domain="domain"
+        redirectUri="http://localhost:3000"
+        forceChildrenRender
+      >
+        <AuthStateConsumer />
+      </KindeProvider>,
+    );
+
+    // Wait for initStarted → children are in DOM
+    await view.findByTestId("is-loading");
+
+    // isLoading must still be true — getUserProfile hasn't resolved yet
+    // Before the fix this would already be "false"
+    expect(view.getByTestId("is-loading").textContent).toBe("true");
+    expect(view.getByTestId("is-authenticated").textContent).toBe("false");
+    expect(view.getByTestId("user-id").textContent).toBe("null");
+
+    // Now resolve getUserProfile with a real user
+    await act(async () => {
+      resolveUser!({
+        id: "user_01",
+        given_name: "Jane",
+        family_name: "Doe",
+        email: "jane@example.com",
+        picture: null,
+      });
+    });
+
+    // After getUserProfile resolves: isLoading false, user populated
+    expect(view.getByTestId("is-loading").textContent).toBe("false");
+    expect(view.getByTestId("is-authenticated").textContent).toBe("true");
+    expect(view.getByTestId("user-id").textContent).toBe("user_01");
+
+    view.unmount();
+  });
+
+  it("keeps isLoading true while getUserProfile is pending when checkAuth succeeds", async () => {
+    let resolveUser: (u: any) => void;
+
+    // checkAuth resolves normally — baseline / regression check
+    checkAuthMock.mockResolvedValueOnce(undefined);
+
+    getUserProfileMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveUser = resolve;
+        }),
+    );
+
+    const view = render(
+      <KindeProvider
+        clientId="client"
+        domain="domain"
+        redirectUri="http://localhost:3000"
+        forceChildrenRender
+      >
+        <AuthStateConsumer />
+      </KindeProvider>,
+    );
+
+    await view.findByTestId("is-loading");
+    expect(view.getByTestId("is-loading").textContent).toBe("true");
+
+    await act(async () => {
+      resolveUser!({
+        id: "user_02",
+        given_name: "John",
+        family_name: "Smith",
+        email: "john@example.com",
+        picture: null,
+      });
+    });
+
+    expect(view.getByTestId("is-loading").textContent).toBe("false");
+    expect(view.getByTestId("is-authenticated").textContent).toBe("true");
+    expect(view.getByTestId("user-id").textContent).toBe("user_02");
+
+    view.unmount();
+  });
+
+  it("sets isLoading false with user null when getUserProfile returns nothing (unauthenticated)", async () => {
+    checkAuthMock.mockResolvedValueOnce(undefined);
+    // getUserProfile returns undefined → user is not authenticated
+    getUserProfileMock.mockResolvedValueOnce(undefined);
+
+    const view = render(
+      <KindeProvider
+        clientId="client"
+        domain="domain"
+        redirectUri="http://localhost:3000"
+        forceChildrenRender
+      >
+        <AuthStateConsumer />
+      </KindeProvider>,
+    );
+
+    await view.findByTestId("is-loading");
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(view.getByTestId("is-loading").textContent).toBe("false");
+    expect(view.getByTestId("is-authenticated").textContent).toBe("false");
+    expect(view.getByTestId("user-id").textContent).toBe("null");
+
+    view.unmount();
   });
 });

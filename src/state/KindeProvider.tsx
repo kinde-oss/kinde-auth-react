@@ -965,7 +965,6 @@ export const KindeProvider = ({
           {},
           contextValue,
         );
-        setState((v: ProviderState) => ({ ...v, isLoading: false }));
       }
 
       if (params.has("error")) {
