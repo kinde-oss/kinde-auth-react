@@ -22,6 +22,7 @@ const isAuthenticatedMock = vi.fn(async () => false);
 const exchangeAuthCodeMock = vi
   .fn()
   .mockResolvedValue({ success: false, error: "" });
+const refreshTokenMock = vi.fn(async () => ({ success: true }) as unknown);
 
 vi.mock("@kinde/js-utils", () => {
   class MemoryStorage {
@@ -110,7 +111,8 @@ vi.mock("@kinde/js-utils", () => {
     IssuerRouteTypes: { login: "login", register: "register" },
     getActiveStorage,
     Permissions: {} as unknown,
-    refreshToken: vi.fn(noopAsync),
+    refreshToken: (...args: Parameters<typeof refreshTokenMock>) =>
+      refreshTokenMock(...args),
     PermissionAccess: {} as unknown,
     UserProfile: {} as unknown,
     LoginMethodParams: {} as unknown,
@@ -626,6 +628,145 @@ describe("isLoading timing — checkAuth failure path", () => {
     expect(view.getByTestId("is-loading").textContent).toBe("false");
     expect(view.getByTestId("is-authenticated").textContent).toBe("false");
     expect(view.getByTestId("user-id").textContent).toBe("null");
+
+    view.unmount();
+  });
+});
+
+describe("onError on token refresh failure paths", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    checkAuthMock.mockResolvedValue(undefined);
+    getUserProfileMock.mockResolvedValue(undefined);
+    isAuthenticatedMock.mockResolvedValue(false);
+    refreshTokenMock.mockResolvedValue({ success: true });
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+    vi.stubEnv("VITE_KINDE_REDIRECT_URL", "http://localhost:3000");
+    Object.defineProperty(window, "location", {
+      writable: true,
+      configurable: true,
+      value: {
+        origin: "http://localhost:3000",
+        href: "http://localhost:3000",
+        search: "",
+        pathname: "/",
+      },
+    });
+  });
+
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    const { resetActiveStorage } =
+      (await import("@kinde/js-utils")) as unknown as {
+        resetActiveStorage: () => void;
+      };
+    resetActiveStorage();
+  });
+
+  it("invokes onError when checkAuth resolves with a failure result", async () => {
+    const onError = vi.fn();
+    checkAuthMock.mockResolvedValueOnce({
+      success: false,
+      error: "refresh token expired",
+    });
+
+    render(
+      <KindeProvider
+        clientId="client"
+        domain="domain"
+        redirectUri="http://localhost:3000"
+        callbacks={{ onError }}
+      >
+        <div>child</div>
+      </KindeProvider>,
+    );
+
+    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    expect(onError).toHaveBeenCalledWith(
+      { error: "ERR_CHECK_AUTH", errorDescription: "refresh token expired" },
+      {},
+      expect.anything(),
+    );
+  });
+
+  it("does not invoke onError when checkAuth resolves successfully", async () => {
+    const onError = vi.fn();
+    checkAuthMock.mockResolvedValueOnce({ success: true });
+
+    render(
+      <KindeProvider
+        clientId="client"
+        domain="domain"
+        redirectUri="http://localhost:3000"
+        callbacks={{ onError }}
+      >
+        <div>child</div>
+      </KindeProvider>,
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("invokes onError exactly once when a focus refresh fails (refreshOnFocus)", async () => {
+    const onError = vi.fn();
+
+    // Authenticated so handleFocus passes its guard.
+    isAuthenticatedMock.mockResolvedValue(true);
+    getUserProfileMock.mockResolvedValue({
+      id: "user_focus",
+      given_name: "F",
+      family_name: "L",
+      email: "f@example.com",
+      picture: null,
+    });
+
+    // js-utils resolves with a failure result AND invokes the supplied
+    // onRefresh with it (mirroring the real implementation).
+    refreshTokenMock.mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async ({ onRefresh }: any) => {
+        const result = { success: false, error: "focus refresh failed" };
+        onRefresh?.(result);
+        return result;
+      },
+    );
+
+    const view = render(
+      <KindeProvider
+        clientId="client"
+        domain="domain"
+        redirectUri="http://localhost:3000"
+        refreshOnFocus
+        callbacks={{ onError }}
+      >
+        <AuthStateConsumer />
+      </KindeProvider>,
+    );
+
+    await waitFor(() =>
+      expect(view.getByTestId("is-authenticated").textContent).toBe("true"),
+    );
+
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    await waitFor(() => expect(refreshTokenMock).toHaveBeenCalled());
+
+    // Surfaced through onRefresh (single source) — not double-fired.
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      { error: "ERR_REFRESH_TOKEN", errorDescription: "focus refresh failed" },
+      {},
+      expect.anything(),
+    );
 
     view.unmount();
   });

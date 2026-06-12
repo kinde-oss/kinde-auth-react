@@ -760,12 +760,11 @@ export const KindeProvider = ({
       if (mergedCallbacks.onEvent) {
         mergedCallbacks.onEvent(AuthEvent.tokenRefreshed, data, contextValue);
       }
-      if (data.error && mergedCallbacks.onError) {
+      if (!data.success && mergedCallbacks.onError) {
         mergedCallbacks.onError(
           {
             error: "ERR_REFRESH_TOKEN",
-            errorDescription:
-              typeof data.error === "string" ? data.error : String(data.error),
+            errorDescription: data.error ?? "Token refresh failed",
           },
           {},
           contextValue,
@@ -901,18 +900,28 @@ export const KindeProvider = ({
       state.isAuthenticated &&
       refreshOnFocus
     ) {
-      refreshToken({ domain, clientId, onRefresh }).catch((error) => {
-        console.error("Error refreshing token:", error);
-        mergedCallbacks.onError?.(
-          {
-            error: "ERR_REFRESH_TOKEN",
-            errorDescription:
-              error instanceof Error ? error.message : String(error),
-          },
-          {},
-          contextValue,
-        );
-      });
+      // `refreshToken` resolves with a `RefreshTokenResult` (it does not reject)
+      // on failure, so check the resolved result here. Resolved failures are
+      // surfaced through `onError` via `onRefresh`; the `.catch` only guards
+      // against an unexpected thrown error.
+      refreshToken({ domain, clientId, onRefresh })
+        .then((result) => {
+          if (!result.success) {
+            console.error("Error refreshing token:", result.error);
+          }
+        })
+        .catch((error) => {
+          console.error("Error refreshing token:", error);
+          mergedCallbacks.onError?.(
+            {
+              error: "ERR_REFRESH_TOKEN",
+              errorDescription:
+                error instanceof Error ? error.message : String(error),
+            },
+            {},
+            contextValue,
+          );
+        });
     }
   }, [
     state.isAuthenticated,
@@ -954,7 +963,20 @@ export const KindeProvider = ({
 
       try {
         initRef.current = true;
-        await checkAuth({ domain, clientId });
+        const checkAuthResult = await checkAuth({ domain, clientId });
+        // `checkAuth` resolves (it does not throw) with `{ success: false, error }`
+        // when a token refresh fails, so surface that through `onError`.
+        if (checkAuthResult && !checkAuthResult.success) {
+          mergedCallbacks.onError?.(
+            {
+              error: "ERR_CHECK_AUTH",
+              errorDescription:
+                checkAuthResult.error ?? "Authentication check failed",
+            },
+            {},
+            contextValue,
+          );
+        }
       } catch (err) {
         console.warn("checkAuth failed:", err);
         mergedCallbacks.onError?.(
