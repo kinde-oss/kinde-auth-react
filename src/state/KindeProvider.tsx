@@ -1069,9 +1069,12 @@ export const KindeProvider = ({
     return <></>;
   }
 
-  const shouldRenderChildren = forceChildrenRender
-    ? initStarted
-    : initRef.current;
+  const isServer = typeof window === "undefined";
+  const shouldRenderChildren = isServer
+    ? forceChildrenRender
+    : forceChildrenRender
+      ? initStarted
+      : initRef.current;
 
   return shouldRenderChildren ? (
     <KindeContext.Provider value={contextValue}>

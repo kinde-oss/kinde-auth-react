@@ -255,6 +255,45 @@ describe("KindeProvider", () => {
     }
   });
 
+  it("renders children in SSR output when forceChildrenRender is true", () => {
+    const prevWindow = globalThis.window;
+    vi.stubGlobal("window", undefined);
+    try {
+      const html = renderToString(
+        <KindeProvider
+          clientId="test"
+          domain="test.com"
+          redirectUri="http://localhost:3000"
+          forceChildrenRender
+        >
+          <span data-testid="ssr-child">ssr content</span>
+        </KindeProvider>,
+      );
+      expect(html).toContain("ssr content");
+    } finally {
+      vi.stubGlobal("window", prevWindow);
+    }
+  });
+
+  it("does not render children in SSR output when forceChildrenRender is false", () => {
+    const prevWindow = globalThis.window;
+    vi.stubGlobal("window", undefined);
+    try {
+      const html = renderToString(
+        <KindeProvider
+          clientId="test"
+          domain="test.com"
+          redirectUri="http://localhost:3000"
+        >
+          <span data-testid="ssr-child">ssr content</span>
+        </KindeProvider>,
+      );
+      expect(html).not.toContain("ssr content");
+    } finally {
+      vi.stubGlobal("window", prevWindow);
+    }
+  });
+
   it("does not render children while init is pending unless explicitly enabled", async () => {
     let resolveDefault: (() => void) | undefined;
     checkAuthMock.mockImplementationOnce(
