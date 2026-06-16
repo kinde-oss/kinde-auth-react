@@ -269,7 +269,7 @@ export const KindeProvider = ({
     isLoading: true,
   });
 
-  const [initStarted, setInitStarted] = useState(false);
+  const [initStarted, setInitStarted] = useState(forceChildrenRender);
   const contextRef = useRef<KindeContextProps | null>(null);
 
   const setLoading = useCallback(
@@ -1069,12 +1069,7 @@ export const KindeProvider = ({
     return <></>;
   }
 
-  const isServer = typeof window === "undefined";
-  const shouldRenderChildren = isServer
-    ? forceChildrenRender
-    : forceChildrenRender
-      ? initStarted
-      : initRef.current;
+  const shouldRenderChildren = forceChildrenRender ? initStarted : initRef.current;
 
   return shouldRenderChildren ? (
     <KindeContext.Provider value={contextValue}>
