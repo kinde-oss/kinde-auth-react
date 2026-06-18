@@ -269,7 +269,7 @@ export const KindeProvider = ({
     isLoading: true,
   });
 
-  const [initStarted, setInitStarted] = useState(false);
+  const [initStarted, setInitStarted] = useState(forceChildrenRender);
   const contextRef = useRef<KindeContextProps | null>(null);
 
   const setLoading = useCallback(
