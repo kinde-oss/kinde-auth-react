@@ -82,7 +82,7 @@ vi.mock("@kinde/js-utils", () => {
   };
   const setInsecureStorage = () => undefined;
   const isCustomDomain = (domain: string) =>
-    !domain.match(/^(?:https?:\/\/)?[a-zA-Z0-9][.-a-zA-Z0-9]*\.kinde\.com$/i);
+    !domain.match(/^(?:https?:\/\/)?[a-zA-Z0-9][a-zA-Z0-9.-]*\.kinde\.com$/i);
 
   const base64UrlEncode = (value: string) =>
     Buffer.from(value).toString("base64url");
