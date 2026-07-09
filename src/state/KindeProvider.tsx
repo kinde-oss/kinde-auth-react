@@ -34,6 +34,8 @@ import {
   updateActivityTimestamp,
   switchOrg,
   OrgCode,
+  isCustomDomain,
+  RefreshType,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -270,6 +272,22 @@ export const KindeProvider = ({
     isAuthenticated: false,
     isLoading: true,
   });
+
+  const refreshTokenWithProviderDefaults = useCallback(
+    (params: Parameters<typeof refreshToken>[0]) => {
+      const shouldUseCookieRefresh =
+        params.refreshType === undefined &&
+        isCustomDomain(params.domain) &&
+        !useInsecureForRefreshToken;
+
+      return refreshToken(
+        shouldUseCookieRefresh
+          ? { ...params, refreshType: RefreshType.cookie }
+          : params,
+      );
+    },
+    [useInsecureForRefreshToken],
+  );
 
   const [initStarted, setInitStarted] = useState(forceChildrenRender);
   const contextRef = useRef<KindeContextProps | null>(null);
@@ -756,12 +774,21 @@ export const KindeProvider = ({
       refreshToken: async (
         ...args: Parameters<typeof refreshToken>
       ): ReturnType<typeof refreshToken> => {
-        const result = await refreshToken(...args);
+        const result = await refreshTokenWithProviderDefaults(args[0]);
         return result;
       },
       ...state,
     };
-  }, [state, login, logout, register, domain, clientId, redirectUri]);
+  }, [
+    state,
+    login,
+    logout,
+    register,
+    domain,
+    clientId,
+    redirectUri,
+    refreshTokenWithProviderDefaults,
+  ]);
 
   // Keep contextRef in sync with the latest contextValue
   contextRef.current = contextValue;
@@ -915,7 +942,7 @@ export const KindeProvider = ({
       // on failure, so check the resolved result here. Resolved failures are
       // surfaced through `onError` via `onRefresh`; the `.catch` only guards
       // against an unexpected thrown error.
-      refreshToken({ domain, clientId, onRefresh })
+      refreshTokenWithProviderDefaults({ domain, clientId, onRefresh })
         .then((result) => {
           if (!result.success) {
             console.error("Error refreshing token:", result.error);
@@ -939,6 +966,7 @@ export const KindeProvider = ({
     domain,
     clientId,
     onRefresh,
+    refreshTokenWithProviderDefaults,
     refreshOnFocus,
     mergedCallbacks,
     contextValue,
