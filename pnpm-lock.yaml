@@ -36,6 +36,9 @@ importers:
       '@typescript-eslint/parser':
         specifier: 8.65.0
         version: 8.65.0(eslint@10.7.0(jiti@2.7.0)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@7.0.2)
+      '@typescript/typescript6':
+        specifier: 6.0.2
+        version: 6.0.2
       '@vitejs/plugin-react':
         specifier: ^6.0.0
         version: 6.0.2(vite@8.1.5(@types/node@24.13.3)(esbuild@0.27.3)(jiti@2.7.0))
@@ -1147,6 +1150,10 @@ packages:
     engines: {node: '>=16.20.0'}
     cpu: [x64]
     os: [win32]
+
+  '@typescript/typescript6@6.0.2':
+    resolution: {integrity: sha512-mbCddXd+jm7hfx7w2YU64/Av4/NqqeG3GoRZgxPcgoTxYjhrcfJRw9ULch71SS4G+Q3bOXFhRvPqjguN0Hyp5w==}
+    hasBin: true
 
   '@vitejs/plugin-react@6.0.2':
     resolution: {integrity: sha512-DlSMqo4WhThw4vB8Mpn0Woe9J+Jfq1geJ61AKW0QEgLzGMNwtIMdxbDUzLxcun8W7NbJO0e2Jg/Nxm3cCSVzzg==}
@@ -2827,6 +2834,11 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  typescript@6.0.3:
+    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   typescript@7.0.2:
     resolution: {integrity: sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==}
     engines: {node: '>=16.20.0'}
@@ -3962,6 +3974,10 @@ snapshots:
 
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
+
+  '@typescript/typescript6@6.0.2':
+    dependencies:
+      '@typescript/old': typescript@6.0.3
 
   '@vitejs/plugin-react@6.0.2(vite@8.1.5(@types/node@24.13.3)(esbuild@0.27.3)(jiti@2.7.0))':
     dependencies:
@@ -5918,6 +5934,8 @@ snapshots:
 
   typescript@5.8.2:
     optional: true
+
+  typescript@6.0.3: {}
 
   typescript@7.0.2:
     optionalDependencies:
