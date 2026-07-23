@@ -32,6 +32,8 @@ import {
   setActiveStorage,
   isAuthenticated,
   updateActivityTimestamp,
+  switchOrg,
+  OrgCode,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -741,6 +743,15 @@ export const KindeProvider = ({
           returnUrl: options.returnUrl || window.location.href,
           subNav: options.subNav,
         });
+      },
+      switchOrg: async (orgCode: OrgCode): Promise<void> => {
+        const result = await switchOrg({
+          domain,
+          clientId,
+          orgCode,
+          redirectURL: redirectUri,
+        });
+        window.location.href = result.url.toString();
       },
       refreshToken: async (
         ...args: Parameters<typeof refreshToken>

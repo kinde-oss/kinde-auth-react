@@ -1,6 +1,7 @@
 import {
   GeneratePortalUrlParams,
   LoginMethodParams,
+  OrgCode,
   UserProfile,
 } from "@kinde/js-utils";
 
@@ -41,6 +42,12 @@ export interface PortalLinkProps
     React.ButtonHTMLAttributes<HTMLButtonElement>,
     Partial<Omit<GeneratePortalUrlParams, "domain">> {
   children: React.ReactNode;
+}
+
+export interface SwitchOrgLinkProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+  orgCode: OrgCode;
 }
 
 export type ErrorProps = {
