@@ -10,7 +10,8 @@ import {
 import { renderToString } from "react-dom/server";
 import { KindeProvider } from "./KindeProvider";
 import React, { useContext } from "react";
-import { KindeContext } from "./KindeContext";
+import { KindeContext, KindeContextProps } from "./KindeContext";
+import { RefreshType } from "@kinde/js-utils";
 
 const checkAuthMock = vi.fn(() => Promise.resolve());
 const getUserProfileMock = vi.fn(() => Promise.resolve(undefined));
@@ -80,6 +81,8 @@ vi.mock("@kinde/js-utils", () => {
     activeStorage = null;
   };
   const setInsecureStorage = () => undefined;
+  const isCustomDomain = (domain: string) =>
+    !domain.match(/^(?:https?:\/\/)?[a-zA-Z0-9][a-zA-Z0-9.-]*\.kinde\.com$/i);
 
   const base64UrlEncode = (value: string) =>
     Buffer.from(value).toString("base64url");
@@ -137,6 +140,8 @@ vi.mock("@kinde/js-utils", () => {
     isAuthenticated: (...args: Parameters<typeof isAuthenticatedMock>) =>
       isAuthenticatedMock(...args),
     updateActivityTimestamp: vi.fn(),
+    isCustomDomain,
+    RefreshType: { refreshToken: 0, cookie: 1 },
     MemoryStorage,
     LocalStorage,
     setInsecureStorage,
@@ -168,6 +173,17 @@ const AuthStateConsumer = () => {
       <div data-testid="user-id">{ctx.user?.id ?? "null"}</div>
     </div>
   );
+};
+
+const ContextProbe = ({
+  onReady,
+}: {
+  onReady: (ctx: KindeContextProps) => void;
+}) => {
+  const ctx = useContext(KindeContext);
+  if (!ctx) return null;
+  onReady(ctx);
+  return null;
 };
 
 const stubWindowLocalStorage = () => ({
@@ -683,6 +699,7 @@ describe("onError on token refresh failure paths", () => {
       configurable: true,
       get: () => "visible",
     });
+
     vi.stubEnv("VITE_KINDE_REDIRECT_URL", "http://localhost:3000");
     Object.defineProperty(window, "location", {
       writable: true,
@@ -693,6 +710,118 @@ describe("onError on token refresh failure paths", () => {
         search: "",
         pathname: "/",
       },
+    });
+  });
+
+  describe("refreshToken defaults for custom domains", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      checkAuthMock.mockResolvedValue(undefined);
+      getUserProfileMock.mockResolvedValue(undefined);
+      refreshTokenMock.mockResolvedValue({ success: true });
+      Object.defineProperty(window, "location", {
+        writable: true,
+        configurable: true,
+        value: {
+          origin: "http://localhost:3000",
+          href: "http://localhost:3000",
+          search: "",
+          pathname: "/",
+        },
+      });
+    });
+
+    afterEach(async () => {
+      const { resetActiveStorage } =
+        (await import("@kinde/js-utils")) as unknown as {
+          resetActiveStorage: () => void;
+        };
+      resetActiveStorage();
+    });
+
+    it("uses cookie refresh type by default for custom domains", async () => {
+      let ctx: KindeContextProps | null = null;
+      render(
+        <KindeProvider
+          clientId="client"
+          domain="domain"
+          redirectUri="http://localhost:3000"
+        >
+          <ContextProbe onReady={(value) => (ctx = value)} />
+        </KindeProvider>,
+      );
+
+      await waitFor(() => expect(ctx).not.toBeNull());
+
+      await act(async () => {
+        await ctx!.refreshToken({
+          domain: "https://acme.example.com",
+          clientId: "client",
+        });
+      });
+
+      expect(refreshTokenMock).toHaveBeenLastCalledWith({
+        domain: "https://acme.example.com",
+        clientId: "client",
+        refreshType: RefreshType.cookie,
+      });
+    });
+
+    it("does not override explicitly provided refreshType", async () => {
+      let ctx: KindeContextProps | null = null;
+      render(
+        <KindeProvider
+          clientId="client"
+          domain="domain"
+          redirectUri="http://localhost:3000"
+        >
+          <ContextProbe onReady={(value) => (ctx = value)} />
+        </KindeProvider>,
+      );
+
+      await waitFor(() => expect(ctx).not.toBeNull());
+
+      await act(async () => {
+        await ctx!.refreshToken({
+          domain: "https://acme.example.com",
+          clientId: "client",
+          refreshType: RefreshType.refreshToken,
+        });
+      });
+
+      expect(refreshTokenMock).toHaveBeenLastCalledWith({
+        domain: "https://acme.example.com",
+        clientId: "client",
+        refreshType: RefreshType.refreshToken,
+      });
+    });
+
+    it("does not force cookie refresh when useInsecureForRefreshToken is enabled", async () => {
+      let ctx: KindeContextProps | null = null;
+      render(
+        <KindeProvider
+          clientId="client"
+          domain="domain"
+          redirectUri="http://localhost:3000"
+          useInsecureForRefreshToken
+        >
+          <ContextProbe onReady={(value) => (ctx = value)} />
+        </KindeProvider>,
+      );
+
+      await waitFor(() => expect(ctx).not.toBeNull());
+
+      await act(async () => {
+        await ctx!.refreshToken({
+          domain: "https://acme.example.com",
+          clientId: "client",
+        });
+      });
+
+      expect(refreshTokenMock).toHaveBeenLastCalledWith({
+        domain: "https://acme.example.com",
+        clientId: "client",
+      });
     });
   });
 
