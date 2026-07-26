@@ -761,7 +761,7 @@ export const KindeProvider = ({
       },
       ...state,
     };
-  }, [state, login, logout, register]);
+  }, [state, login, logout, register, domain, clientId, redirectUri]);
 
   // Keep contextRef in sync with the latest contextValue
   contextRef.current = contextValue;
