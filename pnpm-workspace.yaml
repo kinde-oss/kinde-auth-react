@@ -1,2 +1,4 @@
 packages:
   - "playground" # Add the playground
+allowBuilds:
+  esbuild: true
