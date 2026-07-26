@@ -5,7 +5,7 @@ import { SwitchOrgLinkProps } from "../state/types";
 export function SwitchOrgLink({ children, orgCode, ...props }: SwitchOrgLinkProps) {
   const auth = useKindeAuth();
 
-  const handleSwitchOrg = useCallback(async () => {
+  const switchOrg = useCallback(async () => {
     try {
       await auth.switchOrg(orgCode);
     } catch (error) {
@@ -13,14 +13,15 @@ export function SwitchOrgLink({ children, orgCode, ...props }: SwitchOrgLinkProp
     }
   }, [auth, orgCode]);
 
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (props.onClick) {
+      props.onClick(event);
+    }
+    switchOrg();
+  };
+
   return (
-    <button
-      type="button"
-      {...props}
-      onClick={async () => {
-        await handleSwitchOrg();
-      }}
-    >
+    <button type="button" {...props} onClick={handleClick}>
       {children}
     </button>
   );

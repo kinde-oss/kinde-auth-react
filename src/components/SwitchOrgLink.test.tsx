@@ -23,7 +23,7 @@ describe("SwitchOrgLink Component", () => {
     vi.clearAllMocks();
     vi.mocked(useKindeAuth).mockReturnValue({
       switchOrg: mockSwitchOrg,
-    });
+    } as any);
   });
 
   afterEach(() => {
@@ -84,5 +84,24 @@ describe("SwitchOrgLink Component", () => {
     });
 
     consoleSpy.mockRestore();
+  });
+
+  it("calls the provided onClick prop when clicked", async () => {
+    const mockOnClick = vi.fn();
+    render(
+      <SwitchOrgLink orgCode="org_123" onClick={mockOnClick}>
+        Switch Org
+      </SwitchOrgLink>,
+    );
+
+    const button = screen.getByRole("button", { name: "Switch Org" });
+    fireEvent.click(button);
+
+    expect(mockOnClick).toHaveBeenCalledTimes(1);
+    expect(mockOnClick).toHaveBeenCalledWith(expect.anything());
+
+    await waitFor(() => {
+      expect(mockSwitchOrg).toHaveBeenCalledTimes(1);
+    });
   });
 });
