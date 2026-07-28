@@ -32,6 +32,8 @@ import {
   setActiveStorage,
   isAuthenticated,
   updateActivityTimestamp,
+  switchOrg,
+  OrgCode,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -742,6 +744,15 @@ export const KindeProvider = ({
           subNav: options.subNav,
         });
       },
+      switchOrg: async (orgCode: OrgCode): Promise<void> => {
+        const result = await switchOrg({
+          domain,
+          clientId,
+          orgCode,
+          redirectURL: redirectUri,
+        });
+        window.location.href = result.url.toString();
+      },
       refreshToken: async (
         ...args: Parameters<typeof refreshToken>
       ): ReturnType<typeof refreshToken> => {
@@ -750,7 +761,7 @@ export const KindeProvider = ({
       },
       ...state,
     };
-  }, [state, login, logout, register]);
+  }, [state, login, logout, register, domain, clientId, redirectUri]);
 
   // Keep contextRef in sync with the latest contextValue
   contextRef.current = contextValue;

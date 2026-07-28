@@ -11,6 +11,7 @@ import type {
   getUserOrganizations,
   getUserProfile,
   LoginMethodParams,
+  OrgCode,
   refreshToken,
   GeneratePortalUrlParams,
 } from "@kinde/js-utils";
@@ -40,6 +41,7 @@ export interface KindeContextProps extends State {
   generatePortalUrl: (
     options: Omit<GeneratePortalUrlParams, "domain">,
   ) => Promise<{ url: URL }>;
+  switchOrg: (orgCode: OrgCode) => Promise<void>;
 }
 
 export const KindeContext = createContext<KindeContextProps | null>(null);
