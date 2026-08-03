@@ -32,18 +32,14 @@ describe("SwitchOrgLink Component", () => {
 
   it("should render correctly", async () => {
     await act(async () => {
-      render(
-        <SwitchOrgLink orgCode="org_123">Switch Org</SwitchOrgLink>,
-      );
+      render(<SwitchOrgLink orgCode="org_123">Switch Org</SwitchOrgLink>);
     });
     const linkElement = screen.getByText("Switch Org");
     expect(linkElement).toBeInTheDocument();
   });
 
   it("calls switchOrg with the correct orgCode when clicked", async () => {
-    render(
-      <SwitchOrgLink orgCode="org_123">Switch Org</SwitchOrgLink>,
-    );
+    render(<SwitchOrgLink orgCode="org_123">Switch Org</SwitchOrgLink>);
 
     const button = screen.getByRole("button", { name: "Switch Org" });
     fireEvent.click(button);
@@ -72,9 +68,7 @@ describe("SwitchOrgLink Component", () => {
 
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    render(
-      <SwitchOrgLink orgCode="org_123">Switch Org</SwitchOrgLink>,
-    );
+    render(<SwitchOrgLink orgCode="org_123">Switch Org</SwitchOrgLink>);
     const button = screen.getByRole("button", { name: "Switch Org" });
 
     fireEvent.click(button);
