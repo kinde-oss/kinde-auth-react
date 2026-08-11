@@ -44,8 +44,7 @@ export interface PortalLinkProps
   children: React.ReactNode;
 }
 
-export interface SwitchOrgLinkProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface SwitchOrgLinkProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   orgCode: OrgCode;
 }

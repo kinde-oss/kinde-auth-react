@@ -448,8 +448,7 @@ describe("KindeProvider", () => {
 
   it("clears invitation pending after successful popup auth so init runs and children render", async () => {
     let handleResult:
-      | ((searchParams: URLSearchParams) => void | Promise<void>)
-      | undefined;
+      ((searchParams: URLSearchParams) => void | Promise<void>) | undefined;
 
     navigateToKindeMock.mockImplementation(
       (opts: {
