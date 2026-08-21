@@ -822,6 +822,33 @@ describe("onError on token refresh failure paths", () => {
         clientId: "client",
       });
     });
+
+    it("does not force cookie refresh type for kinde.com domains", async () => {
+      let ctx: KindeContextProps | null = null;
+      render(
+        <KindeProvider
+          clientId="client"
+          domain="domain"
+          redirectUri="http://localhost:3000"
+        >
+          <ContextProbe onReady={(value) => (ctx = value)} />
+        </KindeProvider>,
+      );
+
+      await waitFor(() => expect(ctx).not.toBeNull());
+
+      await act(async () => {
+        await ctx!.refreshToken({
+          domain: "https://acme.kinde.com",
+          clientId: "client",
+        });
+      });
+
+      expect(refreshTokenMock).toHaveBeenLastCalledWith({
+        domain: "https://acme.kinde.com",
+        clientId: "client",
+      });
+    });
   });
 
   afterEach(async () => {

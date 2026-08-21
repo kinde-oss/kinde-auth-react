@@ -273,6 +273,13 @@ export const KindeProvider = ({
     isLoading: true,
   });
 
+  // Compat shim for a bug in @kinde/js-utils <= 0.32.0: the body-based (default)
+  // refresh always sent `credentials: "include"` on custom domains, so a stale
+  // refresh_token cookie could be sent alongside the one in the request body,
+  // causing "more than one refresh token provided". The real fix now lives in
+  // js-utils (refreshToken no longer sends credentials outside cookie mode);
+  // this default can be removed once this package depends on a version that
+  // includes it.
   const refreshTokenWithProviderDefaults = useCallback(
     (params: Parameters<typeof refreshToken>[0]) => {
       const shouldUseCookieRefresh =
