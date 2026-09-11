@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@kinde/js-utils':
-        specifier: 0.32.0
-        version: 0.32.0
+        specifier: 0.32.1
+        version: 0.32.1
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.3.1
@@ -556,8 +556,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@kinde/js-utils@0.32.0':
-    resolution: {integrity: sha512-rio1Th67SmbYieJSaBi/W+3W6Rf5edoaJ8oR921X+M40EZX0NvzYSu42WyikesPiqCgWlTMu78WbM12hzyvEnQ==}
+  '@kinde/js-utils@0.32.1':
+    resolution: {integrity: sha512-sh65zgj+pvc0K38zF1FytRQOpkzJy2qmth0u+vSzgbcLdCDYfEpswcnnbqqiwK6CXIkAMGiOlQGe5wPLpNoHfw==}
 
   '@kinde/jwt-decoder@0.2.0':
     resolution: {integrity: sha512-dqtwCmAvywOVLkkUfp4UbqdvVLsK0cvHsJhU3gDY9rgjAdZhGw0vCreBW6j3MFLxbi6cZm7pMU7/O5SJgvN5Rw==}
@@ -3431,7 +3431,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@kinde/js-utils@0.32.0':
+  '@kinde/js-utils@0.32.1':
     dependencies:
       '@kinde/jwt-decoder': 0.2.0
 
