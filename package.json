@@ -97,5 +97,5 @@
   "dependencies": {
     "@kinde/js-utils": "0.32.0"
   },
-  "packageManager": "pnpm@11.25.0"
+  "packageManager": "pnpm@12.3.4"
 }
