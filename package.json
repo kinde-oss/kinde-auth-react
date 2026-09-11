@@ -95,7 +95,7 @@
   ],
   "private": false,
   "dependencies": {
-    "@kinde/js-utils": "0.32.0"
+    "@kinde/js-utils": "0.32.1"
   },
   "packageManager": "pnpm@11.25.0"
 }
