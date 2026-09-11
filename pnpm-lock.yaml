@@ -56,7 +56,7 @@ importers:
         version: 7.37.5(eslint@10.7.0(jiti@2.7.0)(supports-color@8.1.1))
       globals:
         specifier: ^17.0.0
-        version: 17.11.0
+        version: 17.12.0
       jsdom:
         specifier: ^29.0.0
         version: 29.1.1
@@ -1794,8 +1794,8 @@ packages:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
     engines: {node: '>=18'}
 
-  globals@17.11.0:
-    resolution: {integrity: sha512-Z2I8hM+PbJDXQDq3Icgpzv+mPdwr68iZUU9d5WW4FuXfDUQfkZaZuvjMv42/5crNyw154+9+VWXbYrUgDXbxNw==}
+  globals@17.12.0:
+    resolution: {integrity: sha512-cezEd/DTyyht9cvSSURyygXPfy04GtWO/5e6ZPvH7fCtjKz9PYOmuawphw1Ctd1f6C+5JypXfGD7ahNMXvevBA==}
     engines: {node: '>=18'}
 
   globalthis@1.0.4:
@@ -4746,7 +4746,7 @@ snapshots:
 
   globals@14.0.0: {}
 
-  globals@17.11.0: {}
+  globals@17.12.0: {}
 
   globalthis@1.0.4:
     dependencies:
