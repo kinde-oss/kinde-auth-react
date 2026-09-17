@@ -81,4 +81,22 @@ describe("ProfileLink Component", () => {
 
     consoleSpy.mockRestore();
   });
+
+  it("does not spread custom props (subNav, returnUrl) as HTML attributes on the button", async () => {
+    render(
+      <PortalLink subNav="profile" returnUrl="https://example.com/redirect">
+        Profile
+      </PortalLink>,
+    );
+
+    const button = screen.getByRole("button", { name: "Profile" });
+
+    // subNav and returnUrl are not valid HTML button attributes — they must not appear on the DOM element
+    expect(button).not.toHaveAttribute("subNav");
+    expect(button).not.toHaveAttribute("returnUrl");
+
+    // Standard HTML button attributes should still work
+    expect(button).toBeEnabled();
+  });
+
 });
