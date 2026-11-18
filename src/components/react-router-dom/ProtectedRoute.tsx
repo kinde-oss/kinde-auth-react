@@ -1,13 +1,60 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useKindeAuth } from "../../hooks/useKindeAuth";
-import { has } from "@kinde/js-utils";
+import { has, type AcrValue } from "@kinde/js-utils";
 import React from "react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   has?: Parameters<typeof has>[0];
+  /**
+   * Authentication context the route requires: `mfa` or `phr` (passkey).
+   * A signed-in user who doesn't meet it is sent through `stepUp`.
+   */
+  acr?: AcrValue;
+  /** Maximum age, in seconds, of the user's last authentication. */
+  maxAge?: number;
   fallbackPath?: string;
 }
+
+// Marks a step-up started by this route, so a failed or unmet step-up goes to
+// `fallbackPath` instead of starting another one: Kinde's answer is final.
+const STEP_UP_ATTEMPT_KEY = "kinde_protected_route_step_up";
+const STEP_UP_ATTEMPT_TTL_MS = 10 * 60 * 1000;
+
+const currentRoute = () =>
+  `${window.location.pathname}${window.location.search}`;
+
+const markStepUpAttempt = () => {
+  try {
+    window.sessionStorage.setItem(
+      STEP_UP_ATTEMPT_KEY,
+      JSON.stringify({ route: currentRoute(), at: Date.now() }),
+    );
+  } catch {
+    // Storage unavailable: the guard is best effort.
+  }
+};
+
+/** Whether this route already started a step-up recently. Clears the marker. */
+const consumeStepUpAttempt = (): boolean => {
+  try {
+    const raw = window.sessionStorage.getItem(STEP_UP_ATTEMPT_KEY);
+    window.sessionStorage.removeItem(STEP_UP_ATTEMPT_KEY);
+    if (!raw) return false;
+    const { route, at } = JSON.parse(raw);
+    return route === currentRoute() && Date.now() - at < STEP_UP_ATTEMPT_TTL_MS;
+  } catch {
+    return false;
+  }
+};
+
+const clearStepUpAttempt = () => {
+  try {
+    window.sessionStorage.removeItem(STEP_UP_ATTEMPT_KEY);
+  } catch {
+    // Storage unavailable.
+  }
+};
 
 // Fallback component when react-router-dom is not available
 function ProtectedRouteFallback({ children }: { children: React.ReactNode }) {
@@ -42,10 +89,15 @@ function ProtectedRouteFallback({ children }: { children: React.ReactNode }) {
 export default function ProtectedRoute({
   children,
   has: hasParams,
+  acr,
+  maxAge,
   fallbackPath = "/",
 }: ProtectedRouteProps) {
-  const { isLoading, isAuthenticated } = useKindeAuth();
+  const { isLoading, isAuthenticated, hasAuthenticationContext, stepUp } =
+    useKindeAuth();
   const [accessLoading, setAccessLoading] = useState(false);
+  // Set once a step-up redirect starts, so re-renders don't check again.
+  const stepUpStartedRef = useRef(false);
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const [NavigateComponent, setNavigateComponent] =
     useState<React.ComponentType<{ to: string; replace?: boolean }> | null>(
@@ -75,16 +127,38 @@ export default function ProtectedRoute({
   }, []);
 
   useEffect(() => {
+    const requiresContext = acr !== undefined || maxAge !== undefined;
+
     const checkAccess = async () => {
-      if (!hasParams) {
+      if (stepUpStartedRef.current) return;
+      if (!hasParams && !requiresContext) {
         setHasAccess(true);
         return;
       }
 
       setAccessLoading(true);
       try {
-        const result = await has(hasParams);
-        setHasAccess(result);
+        if (hasParams && !(await has(hasParams))) {
+          setHasAccess(false);
+          return;
+        }
+        if (requiresContext) {
+          const requirement = { acr, maxAge };
+          if (await hasAuthenticationContext(requirement)) {
+            clearStepUpAttempt();
+          } else if (consumeStepUpAttempt()) {
+            // Already stepped up from here and still not met: don't loop.
+            setHasAccess(false);
+            return;
+          } else {
+            markStepUpAttempt();
+            stepUpStartedRef.current = true;
+            // Redirects to Kinde; keep showing the loading state meanwhile.
+            await stepUp(requirement);
+            return;
+          }
+        }
+        setHasAccess(true);
       } catch (error) {
         console.error("Access check failed:", error);
         setHasAccess(false);
@@ -96,7 +170,14 @@ export default function ProtectedRoute({
     if (isAuthenticated) {
       checkAccess();
     }
-  }, [hasParams, isAuthenticated]);
+  }, [
+    hasParams,
+    acr,
+    maxAge,
+    isAuthenticated,
+    hasAuthenticationContext,
+    stepUp,
+  ]);
 
   // Show loading while checking router availability or auth/access
   if (isRouterAvailable === null || isLoading || accessLoading) {

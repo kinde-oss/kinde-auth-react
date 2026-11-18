@@ -10,7 +10,7 @@ import {
 import { renderToString } from "react-dom/server";
 import { KindeProvider } from "./KindeProvider";
 import React, { useContext } from "react";
-import { KindeContext } from "./KindeContext";
+import { KindeContext, KindeContextProps } from "./KindeContext";
 
 const checkAuthMock = vi.fn(() => Promise.resolve());
 const getUserProfileMock = vi.fn(() => Promise.resolve(undefined));
@@ -23,6 +23,10 @@ const exchangeAuthCodeMock = vi
   .fn()
   .mockResolvedValue({ success: false, error: "" });
 const refreshTokenMock = vi.fn(async () => ({ success: true }) as unknown);
+const stepUpMock = vi.fn(async () => ({
+  url: new URL("https://example.com/step-up"),
+}));
+const stepUpRequiredFromResponseMock = vi.fn((): unknown => null);
 
 vi.mock("@kinde/js-utils", () => {
   class MemoryStorage {
@@ -140,6 +144,19 @@ vi.mock("@kinde/js-utils", () => {
     MemoryStorage,
     LocalStorage,
     setInsecureStorage,
+    stepUp: (...args: Parameters<typeof stepUpMock>) => stepUpMock(...args),
+    stepUpRequiredFromResponse: (
+      ...args: Parameters<typeof stepUpRequiredFromResponseMock>
+    ) => stepUpRequiredFromResponseMock(...args),
+    isStepUpSupported: vi.fn(async () => true),
+    getAuthenticationContext: vi.fn(noopAsync),
+    hasAuthenticationContext: vi.fn(async () => false),
+    UnmetAuthenticationRequirementsError: class extends Error {
+      error = "unmet_authentication_requirements";
+      errorDescription = "unmet";
+    },
+    LoginRequiredError: class extends Error {},
+    StepUpRequiredError: class extends Error {},
   };
 });
 
@@ -807,5 +824,217 @@ describe("onError on token refresh failure paths", () => {
     );
 
     view.unmount();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Step-up authentication
+// ---------------------------------------------------------------------------
+describe("step-up authentication", () => {
+  let ctx: KindeContextProps | null = null;
+  const CaptureContext = () => {
+    ctx = useContext(KindeContext);
+    return null;
+  };
+
+  const encodeState = (value: Record<string, unknown>) =>
+    Buffer.from(JSON.stringify(value)).toString("base64url");
+
+  const setLocation = (url: string) => {
+    const { origin, href, pathname, search, hash } = new URL(url);
+    Object.defineProperty(window, "location", {
+      writable: true,
+      configurable: true,
+      value: { origin, href, pathname, search, hash },
+    });
+  };
+
+  const renderProvider = async (
+    callbacks: React.ComponentProps<typeof KindeProvider>["callbacks"] = {},
+  ) => {
+    await act(async () => {
+      render(
+        <KindeProvider
+          clientId="test"
+          domain="https://test.kinde.com"
+          redirectUri="http://localhost:3000/callback"
+          callbacks={callbacks}
+        >
+          <CaptureContext />
+        </KindeProvider>,
+      );
+    });
+    await waitFor(() => expect(ctx).not.toBeNull());
+  };
+
+  // Captures the popup result handler that navigateToKinde receives.
+  const capturePopupHandler = () => {
+    const captured: { handle?: (p: URLSearchParams) => Promise<void> } = {};
+    navigateToKindeMock.mockImplementation(
+      (opts: { handleResult: (p: URLSearchParams) => Promise<void> }) => {
+        captured.handle = opts.handleResult;
+      },
+    );
+    return captured;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ctx = null;
+    getUserProfileMock.mockResolvedValue({ id: "user-1" } as never);
+    navigateToKindeMock.mockImplementation(() => undefined);
+    exchangeAuthCodeMock.mockReset();
+    Object.defineProperty(window, "localStorage", {
+      value: stubWindowLocalStorage(),
+      configurable: true,
+      writable: true,
+    });
+    setLocation("http://localhost:3000/settings/payouts?tab=bank");
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    const { resetActiveStorage } =
+      (await import("@kinde/js-utils")) as unknown as {
+        resetActiveStorage: () => void;
+      };
+    resetActiveStorage();
+  });
+
+  it("builds the URL with js-utils stepUp, carrying returnTo in state", async () => {
+    await renderProvider();
+
+    await act(() => ctx!.stepUp({ acr: "mfa", maxAge: 300 }));
+
+    const [domain, options] = stepUpMock.mock.calls[0] as unknown as [
+      string,
+      Record<string, string>,
+    ];
+    expect(domain).toBe("https://test.kinde.com");
+    expect(options).toMatchObject({
+      clientId: "test",
+      acr: "mfa",
+      maxAge: 300,
+    });
+    expect(
+      JSON.parse(Buffer.from(options.state, "base64url").toString()),
+    ).toEqual({
+      kinde: { event: "stepUp" },
+      returnTo: "/settings/payouts?tab=bank",
+    });
+    expect(navigateToKindeMock).toHaveBeenCalledWith(
+      expect.objectContaining({ url: "https://example.com/step-up" }),
+    );
+  });
+
+  it("hands unmet_authentication_requirements to onError, without a new login", async () => {
+    const { UnmetAuthenticationRequirementsError } =
+      (await import("@kinde/js-utils")) as unknown as {
+        UnmetAuthenticationRequirementsError: new () => Error;
+      };
+    const unmet = new UnmetAuthenticationRequirementsError();
+    exchangeAuthCodeMock.mockRejectedValueOnce(unmet);
+    const onError = vi.fn();
+    const state = encodeState({ kinde: { event: "stepUp" } });
+    setLocation(
+      `http://localhost:3000/callback?error=unmet_authentication_requirements&state=${state}`,
+    );
+
+    await renderProvider({ onError });
+
+    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    expect(onError.mock.calls[0][0]).toEqual({
+      error: "unmet_authentication_requirements",
+      errorDescription: "unmet",
+      cause: unmet,
+    });
+    expect(exchangeAuthCodeMock).toHaveBeenCalledTimes(1);
+    expect(generateAuthUrlMock).not.toHaveBeenCalled();
+    expect(navigateToKindeMock).not.toHaveBeenCalled();
+    expect(ctx!.isAuthenticated).toBe(true);
+  });
+
+  it("forwards a step-up error from a popup to the opener", async () => {
+    setLocation(
+      "http://localhost:3000/callback?error=unmet_authentication_requirements&state=abc",
+    );
+    const postMessage = vi.fn();
+    Object.defineProperty(window, "opener", {
+      configurable: true,
+      writable: true,
+      value: { closed: false, location: window.location, postMessage },
+    });
+    Object.defineProperty(window, "close", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(),
+    });
+
+    try {
+      await act(async () => {
+        render(
+          <KindeProvider
+            clientId="test"
+            domain="https://test.kinde.com"
+            redirectUri="http://localhost:3000/callback"
+          >
+            <div />
+          </KindeProvider>,
+        );
+      });
+      await waitFor(() =>
+        expect(postMessage).toHaveBeenCalledWith(
+          {
+            type: "KINDE_AUTH_RESULT",
+            result: {
+              error: "unmet_authentication_requirements",
+              state: "abc",
+            },
+          },
+          "http://localhost:3000",
+        ),
+      );
+    } finally {
+      window.opener = null;
+    }
+  });
+
+  it("returns to returnTo after a successful step-up", async () => {
+    const popup = capturePopupHandler();
+    exchangeAuthCodeMock.mockResolvedValue({ success: true });
+    await renderProvider();
+    await act(() => ctx!.stepUp({ acr: "mfa" }));
+    const replaceStateSpy = vi.spyOn(window.history, "replaceState");
+
+    const { state } = (
+      stepUpMock.mock.calls[0] as unknown as [string, { state: string }]
+    )[1];
+    await act(() => popup.handle!(new URLSearchParams({ code: "c", state })));
+
+    expect(replaceStateSpy).toHaveBeenLastCalledWith(
+      {},
+      expect.any(String),
+      "/settings/payouts?tab=bank",
+    );
+  });
+
+  it("starts a step-up from an API challenge, and ignores other responses", async () => {
+    await renderProvider();
+    const response = { status: 401, headers: new Headers() };
+
+    await expect(ctx!.handleStepUpChallenge(response)).resolves.toBe(false);
+    expect(stepUpMock).not.toHaveBeenCalled();
+
+    stepUpRequiredFromResponseMock.mockReturnValueOnce({
+      acr: "phr",
+      maxAge: null,
+    });
+    await act(async () => {
+      await expect(ctx!.handleStepUpChallenge(response)).resolves.toBe(true);
+    });
+    expect(stepUpMock).toHaveBeenCalledWith(
+      "https://test.kinde.com",
+      expect.objectContaining({ acr: "phr", maxAge: undefined }),
+    );
   });
 });

@@ -34,6 +34,14 @@ import {
   updateActivityTimestamp,
   switchOrg,
   OrgCode,
+  stepUp as buildStepUpUrl,
+  getAuthenticationContext,
+  hasAuthenticationContext,
+  isStepUpSupported,
+  UnmetAuthenticationRequirementsError,
+  LoginRequiredError,
+  StepUpRequiredError,
+  stepUpRequiredFromResponse,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -52,6 +60,7 @@ import {
   PopupOptions,
   ActivityTimeoutConfig,
   TimeoutActivityType,
+  StepUpParams,
 } from "./types";
 import type {
   RefreshTokenResult,
@@ -70,8 +79,37 @@ enum AuthEvent {
   login = "login",
   logout = "logout",
   register = "register",
+  stepUp = "stepUp",
   tokenRefreshed = "tokenRefreshed",
 }
+
+/** Callback errors that come back from a step-up (or `prompt=none`) request. */
+const STEP_UP_CALLBACK_ERRORS = [
+  "unmet_authentication_requirements",
+  "login_required",
+];
+
+const isStepUpCallbackError = (error: string | null): boolean =>
+  error !== null && STEP_UP_CALLBACK_ERRORS.includes(error);
+
+/** Current location as a path, used as the default step-up `returnTo`. */
+const currentPath = (): string =>
+  `${window.location.pathname ?? "/"}${window.location.search ?? ""}${window.location.hash ?? ""}`;
+
+/**
+ * Resolves `returnTo` to a same-origin path, or null when it is missing or
+ * points at another origin.
+ */
+const toSameOriginPath = (value: unknown): string | null => {
+  if (typeof value !== "string" || value === "") return null;
+  try {
+    const url = new URL(value, window.location.origin);
+    if (url.origin !== window.location.origin) return null;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return null;
+  }
+};
 
 type EventTypes = {
   (
@@ -590,6 +628,82 @@ export const KindeProvider = ({
     ],
   );
 
+  const stepUp = useCallback(
+    async ({
+      acr,
+      maxAge,
+      returnTo,
+      state: optionsState = {},
+      ...options
+    }: StepUpParams) => {
+      const requestedReturnTo = returnTo ?? optionsState.returnTo;
+      const resolvedReturnTo = toSameOriginPath(
+        requestedReturnTo ?? currentPath(),
+      );
+      if (requestedReturnTo !== undefined && resolvedReturnTo === null) {
+        throw new Error("stepUp returnTo must be a same-origin path.");
+      }
+
+      setLoading(true);
+      let authUrl: { url: URL };
+      try {
+        // Validation, prompt=none rejection and the discovery check live in js-utils.
+        authUrl = await buildStepUpUrl(domain, {
+          audience,
+          clientId,
+          ...options,
+          acr,
+          maxAge,
+          supportsReauth: true,
+          scope: scope?.split(" ") as Scopes[],
+          state: base64UrlEncode(
+            JSON.stringify({
+              kinde: { event: AuthEvent.stepUp },
+              ...optionsState,
+              ...(resolvedReturnTo ? { returnTo: resolvedReturnTo } : {}),
+            }),
+          ),
+          redirectURL: getRedirectUrl(options.redirectURL || redirectUri),
+        });
+      } catch (error) {
+        setLoading(false);
+        throw error;
+      }
+
+      try {
+        navigateToKinde({
+          url: authUrl.url.toString(),
+          popupOptions,
+          handleResult: processAuthResult,
+        });
+      } catch (error) {
+        setLoading(false);
+        if (!contextRef.current) {
+          console.error("Step-up error (context unavailable):", error);
+          return;
+        }
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_POPUP",
+            errorDescription: (error as Error).message,
+          },
+          {},
+          contextRef.current,
+        );
+      }
+    },
+    [
+      audience,
+      clientId,
+      redirectUri,
+      popupOptions,
+      mergedCallbacks,
+      domain,
+      scope,
+      setLoading,
+    ],
+  );
+
   const logout = useCallback(
     async (options?: string | LogoutOptions) => {
       setLoading(true);
@@ -735,6 +849,24 @@ export const KindeProvider = ({
       getRoles: async (): Promise<Role[]> => {
         return await getRoles();
       },
+      stepUp,
+      getAuthenticationContext: () => getAuthenticationContext(),
+      hasAuthenticationContext: (requirement) =>
+        hasAuthenticationContext(requirement),
+      isStepUpSupported: () => isStepUpSupported(domain),
+      handleStepUpChallenge: async (challenge, options = {}) => {
+        const required =
+          challenge instanceof StepUpRequiredError
+            ? challenge
+            : stepUpRequiredFromResponse(challenge);
+        if (!required) return false;
+        await stepUp({
+          ...options,
+          acr: required.acr ?? undefined,
+          maxAge: required.maxAge ?? undefined,
+        });
+        return true;
+      },
       generatePortalUrl: async (
         options: Omit<GeneratePortalUrlParams, "domain">,
       ): Promise<{ url: URL }> => {
@@ -761,7 +893,7 @@ export const KindeProvider = ({
       },
       ...state,
     };
-  }, [state, login, logout, register, domain, clientId, redirectUri]);
+  }, [state, login, logout, register, stepUp, domain, clientId, redirectUri]);
 
   // Keep contextRef in sync with the latest contextValue
   contextRef.current = contextValue;
@@ -857,6 +989,20 @@ export const KindeProvider = ({
                   contextValue,
                 );
               }
+              // With the default onSuccess, bring the user back to where the
+              // step-up started. A custom onSuccess gets `state.returnTo` and
+              // navigates itself.
+              if (
+                kindeState.event === AuthEvent.stepUp &&
+                !callbacks.onSuccess
+              ) {
+                const returnTo = toSameOriginPath(returnedState.returnTo);
+                if (returnTo) {
+                  window.history.replaceState({}, document.title, returnTo);
+                  // Routers listen for popstate, not replaceState.
+                  window.dispatchEvent(new PopStateEvent("popstate"));
+                }
+              }
             }
           } else {
             mergedCallbacks.onError?.(
@@ -869,14 +1015,31 @@ export const KindeProvider = ({
             );
           }
         } catch (error) {
-          mergedCallbacks.onError?.(
-            {
-              error: "ERR_POPUP_AUTH",
-              errorDescription: String(error),
-            },
-            returnedState,
-            contextValue,
-          );
+          // A step-up Kinde could not complete is a final answer: report it,
+          // never retry or start a new login.
+          if (
+            error instanceof UnmetAuthenticationRequirementsError ||
+            error instanceof LoginRequiredError
+          ) {
+            mergedCallbacks.onError?.(
+              {
+                error: error.error,
+                errorDescription: error.errorDescription,
+                cause: error,
+              },
+              returnedState,
+              contextValue,
+            );
+          } else {
+            mergedCallbacks.onError?.(
+              {
+                error: "ERR_POPUP_AUTH",
+                errorDescription: String(error),
+              },
+              returnedState,
+              contextValue,
+            );
+          }
         } finally {
           // Clear loading state appropriately based on forceChildrenRender
           if (forceChildrenRender) {
@@ -898,6 +1061,7 @@ export const KindeProvider = ({
       redirectUri,
       onRefresh,
       mergedCallbacks,
+      callbacks.onSuccess,
       contextValue,
       setLoading,
       forceChildrenRender,
@@ -1000,6 +1164,27 @@ export const KindeProvider = ({
         );
       }
 
+      const isOnRedirectUri = () => {
+        const currentUrlObject = new URL(window.location.href);
+        const redirectUrlObject = new URL(redirectUri);
+        return (
+          currentUrlObject.origin === redirectUrlObject.origin &&
+          currentUrlObject.pathname === redirectUrlObject.pathname
+        );
+      };
+
+      const postResultToOpener = () => {
+        const searchParams = new URLSearchParams(window.location.search);
+        window.opener.postMessage(
+          {
+            type: "KINDE_AUTH_RESULT",
+            result: Object.fromEntries(searchParams.entries()),
+          },
+          window.location.origin,
+        );
+        window.close();
+      };
+
       if (params.has("error")) {
         const errorCode = params.get("error");
         if (errorCode?.toLowerCase() === "login_link_expired") {
@@ -1007,6 +1192,37 @@ export const KindeProvider = ({
           if (reauthState) {
             login({ reauthState: reauthState });
           }
+          return;
+        }
+        // A step-up Kinde could not meet comes back as a callback error. Hand
+        // it to the app through onError (js-utils validates state first).
+        // Never retry and never start a new login: that would loop.
+        if (isStepUpCallbackError(errorCode) && isOnRedirectUri()) {
+          if (isSameOriginOpener()) {
+            postResultToOpener();
+            return;
+          }
+          // The user keeps their existing session.
+          try {
+            const user = await getUserProfile();
+            if (user) {
+              setState((val: ProviderState) => ({
+                ...val,
+                user,
+                isAuthenticated: true,
+              }));
+            }
+          } catch (error) {
+            console.warn("Error getting user profile", error);
+          }
+          await processAuthResult(params);
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.search = "";
+          window.history.replaceState(
+            window.history.state,
+            "",
+            cleanUrl.toString(),
+          );
           return;
         }
         setState((val: ProviderState) => ({ ...val, isLoading: false }));
@@ -1026,26 +1242,11 @@ export const KindeProvider = ({
         }
       }
 
-      const currentUrlObject = new URL(window.location.href);
-      const redirectUrlObject = new URL(redirectUri);
-
-      const isKindeRedirectUri =
-        currentUrlObject.origin === redirectUrlObject.origin &&
-        currentUrlObject.pathname === redirectUrlObject.pathname;
-
-      const kindeShouldHandle = isKindeRedirectUri && params.has("code");
+      const kindeShouldHandle = isOnRedirectUri() && params.has("code");
 
       if (kindeShouldHandle) {
         if (isSameOriginOpener()) {
-          const searchParams = new URLSearchParams(window.location.search);
-          window.opener.postMessage(
-            {
-              type: "KINDE_AUTH_RESULT",
-              result: Object.fromEntries(searchParams.entries()),
-            },
-            window.location.origin,
-          );
-          window.close();
+          postResultToOpener();
           return;
         }
         await processAuthResult(new URLSearchParams(window.location.search));
