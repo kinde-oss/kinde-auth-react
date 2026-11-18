@@ -3,3 +3,4 @@ export { RegisterLink } from "./RegisterLink";
 export { LogoutLink } from "./LogoutLink";
 export { PortalLink } from "./PortalLink";
 export { SwitchOrgLink } from "./SwitchOrgLink";
+export { StepUpLink } from "./StepUpLink";

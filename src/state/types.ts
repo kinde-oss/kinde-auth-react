@@ -1,4 +1,5 @@
 import {
+  AcrValue,
   GeneratePortalUrlParams,
   LoginMethodParams,
   OrgCode,
@@ -44,6 +45,16 @@ export interface PortalLinkProps
   children: React.ReactNode;
 }
 
+export interface StepUpLinkProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+  /** Authentication context to require: `mfa` or `phr` (passkey). */
+  acr?: AcrValue;
+  /** Maximum age, in seconds, of the user's last authentication. */
+  maxAge?: number;
+  /** Same-origin path to return to. Defaults to the current location. */
+  returnTo?: string;
+}
+
 export interface SwitchOrgLinkProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   orgCode: OrgCode;
@@ -52,6 +63,30 @@ export interface SwitchOrgLinkProps extends React.ButtonHTMLAttributes<HTMLButto
 export type ErrorProps = {
   error: string;
   errorDescription: string;
+  /**
+   * The typed error behind this callback, when there is one.
+   * For `unmet_authentication_requirements` this is an
+   * `UnmetAuthenticationRequirementsError`; for `login_required` a
+   * `LoginRequiredError`. Both carry `state`, `acr` and `maxAge`.
+   */
+  cause?: Error;
+};
+
+/**
+ * Options for `stepUp`. Any other login option can be passed as well.
+ * `acr` or `maxAge` is required.
+ */
+export type StepUpParams = Omit<LoginMethodParams, "acrValues" | "maxAge"> & {
+  /** Authentication context to require: `mfa` or `phr` (passkey). */
+  acr?: AcrValue;
+  /** Maximum age, in seconds, of the user's last authentication. `0` is valid. */
+  maxAge?: number;
+  /**
+   * Same-origin path to return to after the step-up. Defaults to the current
+   * location. Passed to `onSuccess` and `onError` as `state.returnTo`.
+   */
+  returnTo?: string;
+  state?: Record<string, string>;
 };
 
 export type LogoutOptions = {
