@@ -402,6 +402,53 @@ describe("KindeProvider", () => {
     viewWithoutFlag.unmount();
   });
 
+  it("keeps the audience and scope when switching organization", async () => {
+    const SwitchOrgConsumer = () => {
+      const ctx = useContext(KindeContext);
+      if (!ctx) return null;
+      return (
+        <button type="button" onClick={() => ctx.switchOrg("org_456")}>
+          Switch org
+        </button>
+      );
+    };
+
+    const view = render(
+      <KindeProvider
+        clientId="client"
+        domain="domain"
+        redirectUri="http://localhost:3000"
+        audience="https://api.example.com"
+        scope="openid profile email offline"
+        forceChildrenRender
+      >
+        <SwitchOrgConsumer />
+      </KindeProvider>,
+    );
+
+    await act(async () => {
+      fireEvent.click(await view.findByRole("button", { name: /switch org/i }));
+    });
+
+    await waitFor(() => {
+      expect(generateAuthUrlMock).toHaveBeenCalledWith(
+        "domain",
+        "login",
+        expect.objectContaining({
+          clientId: "client",
+          orgCode: "org_456",
+          prompt: "none",
+          audience: "https://api.example.com",
+          scope: ["openid", "profile", "email", "offline"],
+          redirectURL: "http://localhost:3000",
+        }),
+      );
+    });
+    expect(window.location.href).toBe("https://example.com/login");
+
+    view.unmount();
+  });
+
   it("initializes the SDK after invitation login fails so children render", async () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")

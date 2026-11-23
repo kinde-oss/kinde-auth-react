@@ -32,7 +32,6 @@ import {
   setActiveStorage,
   isAuthenticated,
   updateActivityTimestamp,
-  switchOrg,
   OrgCode,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
@@ -745,11 +744,15 @@ export const KindeProvider = ({
         });
       },
       switchOrg: async (orgCode: OrgCode): Promise<void> => {
-        const result = await switchOrg({
-          domain,
+        // Request the same audience and scope as login(), so the token issued
+        // for the new organization is still accepted by the app's API.
+        const result = await generateAuthUrl(domain, IssuerRouteTypes.login, {
           clientId,
           orgCode,
-          redirectURL: redirectUri,
+          prompt: PromptTypes.none,
+          audience,
+          scope: scope?.split(" ") as Scopes[],
+          redirectURL: getRedirectUrl(redirectUri),
         });
         window.location.href = result.url.toString();
       },
@@ -761,7 +764,17 @@ export const KindeProvider = ({
       },
       ...state,
     };
-  }, [state, login, logout, register, domain, clientId, redirectUri]);
+  }, [
+    state,
+    login,
+    logout,
+    register,
+    domain,
+    clientId,
+    redirectUri,
+    audience,
+    scope,
+  ]);
 
   // Keep contextRef in sync with the latest contextValue
   contextRef.current = contextValue;
