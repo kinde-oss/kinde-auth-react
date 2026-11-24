@@ -429,6 +429,41 @@ describe("KindeProvider", () => {
     viewWithoutFlag.unmount();
   });
 
+  it("reports ERR_LOGIN and clears isLoading when the login URL can't be built", async () => {
+    generateAuthUrlMock.mockRejectedValueOnce(
+      new Error("maxAge must be a non-negative integer number of seconds."),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const onError = vi.fn();
+    render(
+      <KindeProvider
+        clientId="client"
+        domain="domain"
+        redirectUri="http://localhost:3000"
+        forceChildrenRender
+        callbacks={{ onError }}
+      >
+        <TestConsumer />
+      </KindeProvider>,
+    );
+
+    await screen.findByTestId("loading-indicator");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /trigger login/i }));
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("loading-indicator").textContent).toBe("false"),
+    );
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0]).toEqual({
+      error: "ERR_LOGIN",
+      errorDescription:
+        "maxAge must be a non-negative integer number of seconds.",
+    });
+    expect(navigateToKindeMock).not.toHaveBeenCalled();
+  });
+
   it("initializes the SDK after invitation login fails so children render", async () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
@@ -935,6 +970,20 @@ describe("step-up authentication", () => {
     expect(navigateToKindeMock).toHaveBeenCalledWith(
       expect.objectContaining({ url: "https://example.com/step-up" }),
     );
+  });
+
+  it("rejects, and reports ERR_POPUP, when the step-up popup can't open", async () => {
+    navigateToKindeMock.mockRejectedValueOnce(
+      new Error("Popup was blocked by the browser"),
+    );
+    const onError = vi.fn();
+    await renderProvider({ onError });
+
+    await expect(ctx!.stepUp({ acr: "mfa" })).rejects.toThrow("blocked");
+    expect(onError.mock.calls[0][0]).toEqual({
+      error: "ERR_POPUP",
+      errorDescription: "Popup was blocked by the browser",
+    });
   });
 
   it("hands unmet_authentication_requirements to onError, without a new login", async () => {

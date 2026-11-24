@@ -35,26 +35,59 @@ const markStepUpAttempt = () => {
   }
 };
 
-/** Whether this route already started a step-up recently. Clears the marker. */
-const consumeStepUpAttempt = (): boolean => {
+type StepUpMarker = { route: string; at: number };
+
+const readMarker = (): StepUpMarker | null => {
+  const raw = window.sessionStorage.getItem(STEP_UP_ATTEMPT_KEY);
+  if (!raw) return null;
   try {
-    const raw = window.sessionStorage.getItem(STEP_UP_ATTEMPT_KEY);
-    window.sessionStorage.removeItem(STEP_UP_ATTEMPT_KEY);
-    if (!raw) return false;
-    const { route, at } = JSON.parse(raw);
-    return route === currentRoute() && Date.now() - at < STEP_UP_ATTEMPT_TTL_MS;
+    const marker = JSON.parse(raw);
+    if (typeof marker?.route === "string" && typeof marker?.at === "number") {
+      return marker;
+    }
   } catch {
-    return false;
+    // Unreadable: treated as expired below.
+  }
+  return { route: "", at: 0 };
+};
+
+/**
+ * Reads the step-up marker:
+ * - `none`: no fresh marker (an expired or unreadable one is removed);
+ * - `thisRoute`: this route already stepped up (the marker is removed);
+ * - `otherRoute`: another route's step-up is outstanding (the marker is kept).
+ */
+const readStepUpAttempt = (): "none" | "thisRoute" | "otherRoute" => {
+  try {
+    const marker = readMarker();
+    if (!marker) return "none";
+    if (Date.now() - marker.at >= STEP_UP_ATTEMPT_TTL_MS) {
+      window.sessionStorage.removeItem(STEP_UP_ATTEMPT_KEY);
+      return "none";
+    }
+    if (marker.route !== currentRoute()) return "otherRoute";
+    window.sessionStorage.removeItem(STEP_UP_ATTEMPT_KEY);
+    return "thisRoute";
+  } catch {
+    return "none";
   }
 };
 
-const clearStepUpAttempt = () => {
+/** Removes the marker only when it belongs to this route. */
+const clearOwnStepUpAttempt = () => {
   try {
-    window.sessionStorage.removeItem(STEP_UP_ATTEMPT_KEY);
+    if (readMarker()?.route === currentRoute()) {
+      window.sessionStorage.removeItem(STEP_UP_ATTEMPT_KEY);
+    }
   } catch {
     // Storage unavailable.
   }
 };
+
+// In an iframe, js-utils `navigateToKinde` opens a popup and resolves after
+// the callback is handled on this page; otherwise the page navigates away.
+// `location.href` can't tell them apart: it keeps the old URL until unload.
+const stepUpRunsInPopup = () => window.self !== window.top;
 
 // Fallback component when react-router-dom is not available
 function ProtectedRouteFallback({ children }: { children: React.ReactNode }) {
@@ -96,7 +129,7 @@ export default function ProtectedRoute({
   const { isLoading, isAuthenticated, hasAuthenticationContext, stepUp } =
     useKindeAuth();
   const [accessLoading, setAccessLoading] = useState(false);
-  // Set once a step-up redirect starts, so re-renders don't check again.
+  // Set while a step-up is in progress, so re-renders don't start another.
   const stepUpStartedRef = useRef(false);
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const [NavigateComponent, setNavigateComponent] =
@@ -111,7 +144,7 @@ export default function ProtectedRoute({
   useEffect(() => {
     const loadRouter = async () => {
       try {
-        // @ts-expect-error - react-router-dom is an optional dependency
+        // Optional for apps (a dev dependency here, for types and tests).
         const { Navigate } = await import("react-router-dom");
         setNavigateComponent(() => Navigate);
         setIsRouterAvailable(true);
@@ -145,17 +178,42 @@ export default function ProtectedRoute({
         if (requiresContext) {
           const requirement = { acr, maxAge };
           if (await hasAuthenticationContext(requirement)) {
-            clearStepUpAttempt();
-          } else if (consumeStepUpAttempt()) {
-            // Already stepped up from here and still not met: don't loop.
-            setHasAccess(false);
-            return;
+            clearOwnStepUpAttempt();
           } else {
+            const attempt = readStepUpAttempt();
+            if (attempt === "thisRoute") {
+              // Already stepped up from here and still not met: don't loop.
+              setHasAccess(false);
+              return;
+            }
+            if (attempt === "otherRoute") {
+              // Another route's step-up is outstanding: wait for its
+              // onSuccess or onError to navigate.
+              return;
+            }
+
             markStepUpAttempt();
             stepUpStartedRef.current = true;
-            // Redirects to Kinde; keep showing the loading state meanwhile.
-            await stepUp(requirement);
-            return;
+            try {
+              await stepUp(requirement);
+            } catch (error) {
+              // Kinde never answered, so a later visit may try again.
+              clearOwnStepUpAttempt();
+              stepUpStartedRef.current = false;
+              throw error;
+            }
+            if (!stepUpRunsInPopup()) {
+              // Full-page redirect under way: keep showing the loading state.
+              return;
+            }
+
+            stepUpStartedRef.current = false;
+            if (!(await hasAuthenticationContext(requirement))) {
+              // Keep the marker so a remount doesn't start another step-up.
+              setHasAccess(false);
+              return;
+            }
+            clearOwnStepUpAttempt();
           }
         }
         setHasAccess(true);

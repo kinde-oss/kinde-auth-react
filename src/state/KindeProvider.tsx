@@ -451,7 +451,9 @@ export const KindeProvider = ({
   const initRef = useRef(false);
   const redirectInitiatedRef = useRef(false);
 
-  const login = useCallback(
+  // Rejects when the authorization URL can't be built. The invitation flow
+  // relies on that rejection; the public `login` reports it through onError.
+  const startLogin = useCallback(
     async (
       options: LoginMethodParams & { state?: Record<string, string> } = {},
     ) => {
@@ -475,11 +477,17 @@ export const KindeProvider = ({
         redirectURL: getRedirectUrl(options.redirectURL || redirectUri),
       };
 
-      const authUrl = await generateAuthUrl(
-        domain,
-        IssuerRouteTypes.login,
-        authProps,
-      );
+      let authUrl: { url: URL };
+      try {
+        authUrl = await generateAuthUrl(
+          domain,
+          IssuerRouteTypes.login,
+          authProps,
+        );
+      } catch (error) {
+        setLoading(false);
+        throw error;
+      }
 
       try {
         navigateToKinde({
@@ -515,6 +523,31 @@ export const KindeProvider = ({
     ],
   );
 
+  const login = useCallback(
+    async (
+      options: LoginMethodParams & { state?: Record<string, string> } = {},
+    ) => {
+      try {
+        await startLogin(options);
+      } catch (error) {
+        console.error("Login error:", error);
+        if (!contextRef.current) {
+          return;
+        }
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_LOGIN",
+            errorDescription:
+              error instanceof Error ? error.message : String(error),
+          },
+          {},
+          contextRef.current,
+        );
+      }
+    },
+    [startLogin, mergedCallbacks],
+  );
+
   // Handle invitation_code redirect after mount (login triggers navigation / popup)
   useEffect(() => {
     if (
@@ -523,7 +556,7 @@ export const KindeProvider = ({
       !redirectInitiatedRef.current
     ) {
       redirectInitiatedRef.current = true;
-      login({
+      startLogin({
         prompt: PromptTypes.create,
         invitationCode: invitationCodeRef.current,
       }).catch((error) => {
@@ -548,7 +581,7 @@ export const KindeProvider = ({
         setIsInvitationRedirectPending(false);
       });
     }
-  }, [login, isInvitationRedirectPending, mergedCallbacks]); // Include login to ensure it's ready when it becomes available
+  }, [startLogin, isInvitationRedirectPending, mergedCallbacks]); // Include startLogin to ensure it's ready when it becomes available
 
   const register = useCallback(
     async (
@@ -670,26 +703,28 @@ export const KindeProvider = ({
         throw error;
       }
 
+      // Redirect: resolves once navigation starts. Popup (in an iframe):
+      // resolves after the callback has been handled, so callers can re-check.
       try {
-        navigateToKinde({
+        await navigateToKinde({
           url: authUrl.url.toString(),
           popupOptions,
           handleResult: processAuthResult,
         });
       } catch (error) {
         setLoading(false);
-        if (!contextRef.current) {
-          console.error("Step-up error (context unavailable):", error);
-          return;
+        if (contextRef.current) {
+          mergedCallbacks.onError?.(
+            {
+              error: "ERR_POPUP",
+              errorDescription: (error as Error).message,
+            },
+            {},
+            contextRef.current,
+          );
         }
-        mergedCallbacks.onError?.(
-          {
-            error: "ERR_POPUP",
-            errorDescription: (error as Error).message,
-          },
-          {},
-          contextRef.current,
-        );
+        // The step-up never started: let the caller know.
+        throw error;
       }
     },
     [
