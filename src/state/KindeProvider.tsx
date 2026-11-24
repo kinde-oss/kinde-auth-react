@@ -850,9 +850,11 @@ export const KindeProvider = ({
         return await getRoles();
       },
       stepUp,
-      getAuthenticationContext: () => getAuthenticationContext(),
+      // `domain` lets js-utils check discovery: `authTime` is null, and a
+      // `maxAge` check fails, where the environment doesn't support step-up.
+      getAuthenticationContext: () => getAuthenticationContext(domain),
       hasAuthenticationContext: (requirement) =>
-        hasAuthenticationContext(requirement),
+        hasAuthenticationContext(requirement, domain),
       isStepUpSupported: () => isStepUpSupported(domain),
       handleStepUpChallenge: async (challenge, options = {}) => {
         const required =

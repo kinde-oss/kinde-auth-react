@@ -2,3 +2,5 @@ packages:
   - "playground" # Add the playground
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - "@kinde/js-utils@0.33.0"

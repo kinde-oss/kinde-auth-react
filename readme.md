@@ -30,7 +30,7 @@ const changePayoutDetails = async () => {
 - `stepUp({ acr, maxAge, returnTo, state })` requires `acr` (`"mfa"` or `"phr"`, a passkey) or `maxAge` (seconds, `0` allowed). It is an interactive login: passing `prompt: "none"` throws. It rejects with "Step-up is not supported on this environment" when `acr` is set and the environment's discovery document has no `acr_values_supported`; a `maxAge`-only request falls back to `prompt=login` there.
 - `login` and `register` also accept `acrValues` and `maxAge`. Unset values are left off the URL.
 - `getAuthenticationContext()` returns `{ acr, amr, authTime }` (`acr` is `null` after a single-factor sign-in). `hasAuthenticationContext({ acr, maxAge })` treats `phr` as meeting `mfa`, and a missing `auth_time` as failing `maxAge`. Both read the tokens in the browser, so use them for UI decisions only; your API must check the verified access token.
-- `isStepUpSupported()` reads `acr_values_supported` from the environment's discovery document. Where it is `false`, `authTime` may be the token's issue time; don't use it for recency.
+- `isStepUpSupported()` reads `acr_values_supported` from the environment's discovery document. Where it is `false`, `auth_time` may be the token's issue time, so `getAuthenticationContext()` returns `authTime: null` and a `maxAge` check doesn't pass.
 
 ### Components
 

@@ -27,6 +27,12 @@ const stepUpMock = vi.fn(async () => ({
   url: new URL("https://example.com/step-up"),
 }));
 const stepUpRequiredFromResponseMock = vi.fn((): unknown => null);
+const getAuthenticationContextMock = vi.fn(
+  async (..._args: unknown[]): Promise<unknown> => null,
+);
+const hasAuthenticationContextMock = vi.fn(
+  async (..._args: unknown[]) => false,
+);
 
 vi.mock("@kinde/js-utils", () => {
   class MemoryStorage {
@@ -149,8 +155,12 @@ vi.mock("@kinde/js-utils", () => {
       ...args: Parameters<typeof stepUpRequiredFromResponseMock>
     ) => stepUpRequiredFromResponseMock(...args),
     isStepUpSupported: vi.fn(async () => true),
-    getAuthenticationContext: vi.fn(noopAsync),
-    hasAuthenticationContext: vi.fn(async () => false),
+    getAuthenticationContext: (
+      ...args: Parameters<typeof getAuthenticationContextMock>
+    ) => getAuthenticationContextMock(...args),
+    hasAuthenticationContext: (
+      ...args: Parameters<typeof hasAuthenticationContextMock>
+    ) => hasAuthenticationContextMock(...args),
     UnmetAuthenticationRequirementsError: class extends Error {
       error = "unmet_authentication_requirements";
       errorDescription = "unmet";
@@ -1015,6 +1025,21 @@ describe("step-up authentication", () => {
       {},
       expect.any(String),
       "/settings/payouts?tab=bank",
+    );
+  });
+
+  it("passes the domain to the authentication context helpers", async () => {
+    await renderProvider();
+
+    await ctx!.getAuthenticationContext();
+    await ctx!.hasAuthenticationContext({ acr: "mfa", maxAge: 300 });
+
+    expect(getAuthenticationContextMock).toHaveBeenCalledWith(
+      "https://test.kinde.com",
+    );
+    expect(hasAuthenticationContextMock).toHaveBeenCalledWith(
+      { acr: "mfa", maxAge: 300 },
+      "https://test.kinde.com",
     );
   });
 
