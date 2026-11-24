@@ -24,14 +24,16 @@ const STEP_UP_ATTEMPT_TTL_MS = 10 * 60 * 1000;
 const currentRoute = () =>
   `${window.location.pathname}${window.location.search}`;
 
-const markStepUpAttempt = () => {
+/** Records a step-up from this route. False when storage is unavailable. */
+const markStepUpAttempt = (): boolean => {
   try {
     window.sessionStorage.setItem(
       STEP_UP_ATTEMPT_KEY,
       JSON.stringify({ route: currentRoute(), at: Date.now() }),
     );
+    return true;
   } catch {
-    // Storage unavailable: the guard is best effort.
+    return false;
   }
 };
 
@@ -51,25 +53,33 @@ const readMarker = (): StepUpMarker | null => {
   return { route: "", at: 0 };
 };
 
+type StepUpAttempt =
+  | { kind: "none" }
+  | { kind: "thisRoute" }
+  | { kind: "otherRoute"; expiresInMs: number };
+
 /**
  * Reads the step-up marker:
  * - `none`: no fresh marker (an expired or unreadable one is removed);
  * - `thisRoute`: this route already stepped up (the marker is removed);
  * - `otherRoute`: another route's step-up is outstanding (the marker is kept).
  */
-const readStepUpAttempt = (): "none" | "thisRoute" | "otherRoute" => {
+const readStepUpAttempt = (): StepUpAttempt => {
   try {
     const marker = readMarker();
-    if (!marker) return "none";
-    if (Date.now() - marker.at >= STEP_UP_ATTEMPT_TTL_MS) {
+    if (!marker) return { kind: "none" };
+    const age = Date.now() - marker.at;
+    if (age >= STEP_UP_ATTEMPT_TTL_MS) {
       window.sessionStorage.removeItem(STEP_UP_ATTEMPT_KEY);
-      return "none";
+      return { kind: "none" };
     }
-    if (marker.route !== currentRoute()) return "otherRoute";
+    if (marker.route !== currentRoute()) {
+      return { kind: "otherRoute", expiresInMs: STEP_UP_ATTEMPT_TTL_MS - age };
+    }
     window.sessionStorage.removeItem(STEP_UP_ATTEMPT_KEY);
-    return "thisRoute";
+    return { kind: "thisRoute" };
   } catch {
-    return "none";
+    return { kind: "none" };
   }
 };
 
@@ -132,6 +142,8 @@ export default function ProtectedRoute({
   // Set while a step-up is in progress, so re-renders don't start another.
   const stepUpStartedRef = useRef(false);
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  // Bumped when another route's step-up marker expires, to check again.
+  const [markerExpiryCheck, setMarkerExpiryCheck] = useState(0);
   const [NavigateComponent, setNavigateComponent] =
     useState<React.ComponentType<{ to: string; replace?: boolean }> | null>(
       null,
@@ -161,6 +173,8 @@ export default function ProtectedRoute({
 
   useEffect(() => {
     const requiresContext = acr !== undefined || maxAge !== undefined;
+    let cancelled = false;
+    let expiryTimer: ReturnType<typeof setTimeout> | undefined;
 
     const checkAccess = async () => {
       if (stepUpStartedRef.current) return;
@@ -180,19 +194,33 @@ export default function ProtectedRoute({
           if (await hasAuthenticationContext(requirement)) {
             clearOwnStepUpAttempt();
           } else {
+            // Another run of this effect (StrictMode, or a re-render) may have
+            // started a step-up while this run was awaiting.
+            if (stepUpStartedRef.current) return;
             const attempt = readStepUpAttempt();
-            if (attempt === "thisRoute") {
+            if (attempt.kind === "thisRoute") {
               // Already stepped up from here and still not met: don't loop.
               setHasAccess(false);
               return;
             }
-            if (attempt === "otherRoute") {
+            if (attempt.kind === "otherRoute") {
               // Another route's step-up is outstanding: wait for its
-              // onSuccess or onError to navigate.
+              // onSuccess or onError to navigate. If neither does (the user
+              // abandoned it), check again once its marker expires.
+              if (!cancelled) {
+                expiryTimer = setTimeout(
+                  () => setMarkerExpiryCheck((count) => count + 1),
+                  attempt.expiresInMs,
+                );
+              }
               return;
             }
 
-            markStepUpAttempt();
+            if (!markStepUpAttempt()) {
+              // Without the marker the loop guard can't work: don't step up.
+              setHasAccess(false);
+              return;
+            }
             stepUpStartedRef.current = true;
             try {
               await stepUp(requirement);
@@ -228,10 +256,16 @@ export default function ProtectedRoute({
     if (isAuthenticated) {
       checkAccess();
     }
+
+    return () => {
+      cancelled = true;
+      clearTimeout(expiryTimer);
+    };
   }, [
     hasParams,
     acr,
     maxAge,
+    markerExpiryCheck,
     isAuthenticated,
     hasAuthenticationContext,
     stepUp,

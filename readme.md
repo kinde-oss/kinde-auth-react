@@ -45,7 +45,7 @@ import { ProtectedRoute } from "@kinde-oss/kinde-auth-react/react-router";
 </ProtectedRoute>
 ```
 
-`ProtectedRoute` with `acr` or `maxAge` starts a step-up when a signed-in user doesn't meet the requirement. If the user comes back from a step-up started by that route and still doesn't meet it (for example, Kinde answered `unmet_authentication_requirements`), the route goes to `fallbackPath` instead of starting another step-up, so it never loops. It remembers that attempt in `sessionStorage` for 10 minutes.
+`ProtectedRoute` with `acr` or `maxAge` starts a step-up when a signed-in user doesn't meet the requirement. If the user comes back from a step-up started by that route and still doesn't meet it (for example, Kinde answered `unmet_authentication_requirements`), the route goes to `fallbackPath` instead of starting another step-up, so it never loops. It remembers that attempt in `sessionStorage` for 10 minutes; if `sessionStorage` isn't available, the route goes to `fallbackPath` rather than stepping up without that guard. While another route's step-up is outstanding, the route shows its loading state, and checks again once that attempt expires.
 
 ### API challenges
 
@@ -61,7 +61,7 @@ const response = await fetch("/api/payouts", {
 if (await handleStepUpChallenge(response)) return; // redirecting to Kinde
 ```
 
-After the step-up, retry the request at most once. `parseStepUpChallenge` and `StepUpRequiredError` are also exported if you want to handle the challenge yourself. Allow the browser to read the header: the API's CORS response must include `Access-Control-Expose-Headers: WWW-Authenticate`.
+After the step-up, retry the request at most once. `parseStepUpChallenge`, `stepUpRequiredFromResponse` and `StepUpRequiredError` are also exported from `@kinde-oss/kinde-auth-react` if you want to handle the challenge yourself. Allow the browser to read the header: the API's CORS response must include `Access-Control-Expose-Headers: WWW-Authenticate`.
 
 ### Returning the user
 
@@ -72,6 +72,11 @@ After the step-up, retry the request at most once. `parseStepUpChallenge` and `S
 If the user can't complete the step-up (for example `acr: "phr"` without a passkey, or `acr: "mfa"` without an enrolled factor), Kinde returns `error=unmet_authentication_requirements`. The SDK checks `state` and calls `onError` with `error: "unmet_authentication_requirements"` and `cause`, an `UnmetAuthenticationRequirementsError`. This is a final answer: don't retry and don't send the user to login, which would loop. Tell the user why, for example "Add a passkey to continue". `login_required` (after `prompt=none`) is reported the same way, with a `LoginRequiredError`.
 
 ```tsx
+import {
+  KindeProvider,
+  UnmetAuthenticationRequirementsError,
+} from "@kinde-oss/kinde-auth-react";
+
 <KindeProvider
   callbacks={{
     onError: ({ error, cause }, state) => {
@@ -82,8 +87,10 @@ If the user can't complete the step-up (for example `acr: "phr"` without a passk
     },
   }}
   // ...
-/>
+/>;
 ```
+
+Import the error classes from `@kinde-oss/kinde-auth-react`, not from `@kinde/js-utils`: this package bundles its own copy, so a class from a separate install fails `instanceof`. Checking `error === "unmet_authentication_requirements"` works either way.
 
 The step-up runs as a full-page redirect, so these errors arrive through `onError` rather than as a rejected `stepUp` promise. Unlike other errors (`ERR_*`), their `error` is the OAuth error code.
 

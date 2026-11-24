@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
-import React from "react";
+import React, { StrictMode } from "react";
 import { has } from "@kinde/js-utils";
 import ProtectedRoute from "./ProtectedRoute";
 import { useKindeAuth } from "../../hooks/useKindeAuth";
@@ -182,6 +182,23 @@ describe("ProtectedRoute step-up", () => {
     expect(marker()).toMatchObject({ route: "/other" });
   });
 
+  it("checks again when another route's marker expires while mounted", async () => {
+    setMarker("/other", 10 * 60 * 1000 - 300);
+    renderRoute();
+
+    await waitFor(() =>
+      expect(auth.hasAuthenticationContext).toHaveBeenCalledTimes(1),
+    );
+    expect(auth.stepUp).not.toHaveBeenCalled();
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
+
+    // Once the other route's attempt expires, this route starts its own.
+    await waitFor(() => expect(auth.stepUp).toHaveBeenCalledTimes(1), {
+      timeout: 2000,
+    });
+    expect(marker()).toMatchObject({ route: "/payouts" });
+  });
+
   it("starts a step-up when another route's marker has expired", async () => {
     setMarker("/other", 11 * 60 * 1000);
     renderRoute();
@@ -197,6 +214,36 @@ describe("ProtectedRoute step-up", () => {
     await expectFallback();
     expect(auth.stepUp).not.toHaveBeenCalled();
     expect(marker()).toBeNull();
+  });
+
+  it("starts one step-up under StrictMode, without going to fallbackPath", async () => {
+    auth.hasAuthenticationContext.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(false), 20)),
+    );
+    auth.stepUp.mockReturnValue(new Promise(() => undefined));
+    render(
+      <StrictMode>
+        <ProtectedRoute acr="mfa" fallbackPath="/fallback">
+          <div>Secret</div>
+        </ProtectedRoute>
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(auth.stepUp).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(auth.stepUp).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("navigate")).not.toBeInTheDocument();
+    expect(marker()).toMatchObject({ route: "/payouts" });
+  });
+
+  it("goes to fallbackPath, without a step-up, when the marker can't be stored", async () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("QuotaExceededError");
+    });
+    renderRoute();
+
+    await expectFallback();
+    expect(auth.stepUp).not.toHaveBeenCalled();
   });
 
   it("denies access when has fails, without a step-up", async () => {
