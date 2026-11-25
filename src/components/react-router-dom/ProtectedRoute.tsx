@@ -142,8 +142,9 @@ export default function ProtectedRoute({
   // Set while a step-up is in progress, so re-renders don't start another.
   const stepUpStartedRef = useRef(false);
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
-  // Bumped when another route's step-up marker expires, to check again.
-  const [markerExpiryCheck, setMarkerExpiryCheck] = useState(0);
+  // Bumped to run the access check again: when another route's step-up marker
+  // expires, or when a popup step-up finishes after its run was superseded.
+  const [recheck, setRecheck] = useState(0);
   const [NavigateComponent, setNavigateComponent] =
     useState<React.ComponentType<{ to: string; replace?: boolean }> | null>(
       null,
@@ -184,14 +185,22 @@ export default function ProtectedRoute({
       }
 
       setAccessLoading(true);
+      // Don't let an earlier grant render children while this check runs.
+      setHasAccess(null);
       try {
-        if (hasParams && !(await has(hasParams))) {
+        const hasMet = !hasParams || (await has(hasParams));
+        // A superseded run (unmount, StrictMode, new props) changes nothing:
+        // the newer run makes its own decision.
+        if (cancelled) return;
+        if (!hasMet) {
           setHasAccess(false);
           return;
         }
         if (requiresContext) {
           const requirement = { acr, maxAge };
-          if (await hasAuthenticationContext(requirement)) {
+          const contextMet = await hasAuthenticationContext(requirement);
+          if (cancelled) return;
+          if (contextMet) {
             clearOwnStepUpAttempt();
           } else {
             // Another run of this effect (StrictMode, or a re-render) may have
@@ -209,7 +218,7 @@ export default function ProtectedRoute({
               // abandoned it), check again once its marker expires.
               if (!cancelled) {
                 expiryTimer = setTimeout(
-                  () => setMarkerExpiryCheck((count) => count + 1),
+                  () => setRecheck((count) => count + 1),
                   attempt.expiresInMs,
                 );
               }
@@ -225,10 +234,14 @@ export default function ProtectedRoute({
             try {
               await stepUp(requirement);
             } catch (error) {
-              // Kinde never answered, so a later visit may try again.
+              // Kinde never answered, so a later visit may try again. Newer
+              // runs deferred to this one, so apply the result even if
+              // superseded.
               clearOwnStepUpAttempt();
               stepUpStartedRef.current = false;
-              throw error;
+              console.error("Access check failed:", error);
+              setHasAccess(false);
+              return;
             }
             if (!stepUpRunsInPopup()) {
               // Full-page redirect under way: keep showing the loading state.
@@ -236,7 +249,15 @@ export default function ProtectedRoute({
             }
 
             stepUpStartedRef.current = false;
-            if (!(await hasAuthenticationContext(requirement))) {
+            if (cancelled) {
+              // Newer runs returned early while this step-up was open, so
+              // none is checking: start a fresh check.
+              setRecheck((count) => count + 1);
+              return;
+            }
+            const popupContextMet = await hasAuthenticationContext(requirement);
+            if (cancelled) return;
+            if (!popupContextMet) {
               // Keep the marker so a remount doesn't start another step-up.
               setHasAccess(false);
               return;
@@ -247,7 +268,7 @@ export default function ProtectedRoute({
         setHasAccess(true);
       } catch (error) {
         console.error("Access check failed:", error);
-        setHasAccess(false);
+        if (!cancelled) setHasAccess(false);
       } finally {
         setAccessLoading(false);
       }
@@ -265,7 +286,7 @@ export default function ProtectedRoute({
     hasParams,
     acr,
     maxAge,
-    markerExpiryCheck,
+    recheck,
     isAuthenticated,
     hasAuthenticationContext,
     stepUp,

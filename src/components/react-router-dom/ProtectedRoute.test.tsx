@@ -15,13 +15,11 @@ vi.mock("@kinde/js-utils", async (importOriginal) => ({
   has: vi.fn(async () => true),
 }));
 
-vi.mock("react-router-dom", async () => {
-  const { createElement } = await import("react");
-  return {
-    Navigate: ({ to }: { to: string }) =>
-      createElement("div", { "data-testid": "navigate" }, to),
-  };
-});
+// A synchronous factory: under StrictMode the component imports this module
+// twice at once, and an async factory let the second import load the real one.
+vi.mock("react-router-dom", () => ({
+  Navigate: ({ to }: { to: string }) => <div data-testid="navigate">{to}</div>,
+}));
 
 const MARKER_KEY = "kinde_protected_route_step_up";
 
@@ -234,6 +232,94 @@ describe("ProtectedRoute step-up", () => {
     expect(auth.stepUp).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId("navigate")).not.toBeInTheDocument();
     expect(marker()).toMatchObject({ route: "/payouts" });
+  });
+
+  it("lets only the latest check use this route's marker", async () => {
+    // A superseded check (StrictMode, or new props) must not consume the
+    // marker, or the latest check would find none and step up again.
+    setMarker("/payouts");
+    auth.hasAuthenticationContext.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(false), 20)),
+    );
+    const { rerender } = renderRoute({ has: { roles: ["admin"] } });
+    rerender(
+      <ProtectedRoute
+        acr="mfa"
+        has={{ roles: ["admin"] }}
+        fallbackPath="/fallback"
+      >
+        <div>Secret</div>
+      </ProtectedRoute>,
+    );
+
+    await expectFallback();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(auth.stepUp).not.toHaveBeenCalled();
+  });
+
+  it("doesn't step up when the route unmounts during the check", async () => {
+    let resolveContext: (met: boolean) => void = () => undefined;
+    auth.hasAuthenticationContext.mockReturnValue(
+      new Promise((resolve) => (resolveContext = resolve)),
+    );
+    const { unmount } = renderRoute();
+    await waitFor(() =>
+      expect(auth.hasAuthenticationContext).toHaveBeenCalled(),
+    );
+
+    unmount();
+    resolveContext(false);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(auth.stepUp).not.toHaveBeenCalled();
+    expect(marker()).toBeNull();
+  });
+
+  it("doesn't render children from an earlier grant while a new check waits", async () => {
+    auth.hasAuthenticationContext.mockResolvedValue(true);
+    const { rerender } = renderRoute();
+    expect(await screen.findByText("Secret")).toBeInTheDocument();
+
+    setMarker("/other");
+    auth.hasAuthenticationContext.mockResolvedValue(false);
+    rerender(
+      <ProtectedRoute acr="mfa" maxAge={300} fallbackPath="/fallback">
+        <div>Secret</div>
+      </ProtectedRoute>,
+    );
+
+    await waitFor(() =>
+      expect(auth.hasAuthenticationContext).toHaveBeenCalledTimes(2),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryByText("Secret")).not.toBeInTheDocument();
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
+  });
+
+  it("finishes a popup step-up whose check was superseded by a re-render", async () => {
+    runInIframe();
+    let resolveStepUp: () => void = () => undefined;
+    auth.stepUp.mockReturnValue(
+      new Promise<void>((resolve) => (resolveStepUp = resolve)),
+    );
+    const { rerender } = renderRoute({ has: { roles: ["admin"] } });
+    await waitFor(() => expect(auth.stepUp).toHaveBeenCalledTimes(1));
+
+    // A new `has` object each render re-runs the effect.
+    rerender(
+      <ProtectedRoute
+        acr="mfa"
+        has={{ roles: ["admin"] }}
+        fallbackPath="/fallback"
+      >
+        <div>Secret</div>
+      </ProtectedRoute>,
+    );
+    auth.hasAuthenticationContext.mockResolvedValue(true);
+    resolveStepUp();
+
+    expect(await screen.findByText("Secret")).toBeInTheDocument();
+    expect(auth.stepUp).toHaveBeenCalledTimes(1);
+    expect(marker()).toBeNull();
   });
 
   it("goes to fallbackPath, without a step-up, when the marker can't be stored", async () => {
