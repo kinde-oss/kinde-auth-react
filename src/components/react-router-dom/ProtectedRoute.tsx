@@ -141,9 +141,15 @@ export default function ProtectedRoute({
   const [accessLoading, setAccessLoading] = useState(false);
   // Set while a step-up is in progress, so re-renders don't start another.
   const stepUpStartedRef = useRef(false);
+  // The route and requirement whose `stepUp` call failed in this mount. Its
+  // checks go to `fallbackPath` instead of calling `stepUp` again: with
+  // `forceChildrenRender`, `stepUp` re-renders the provider, which re-runs the
+  // check, so retrying here would loop. A remount (a later visit) may retry.
+  const stepUpFailedRef = useRef<string | null>(null);
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   // Bumped to run the access check again: when another route's step-up marker
-  // expires, or when a popup step-up finishes after its run was superseded.
+  // expires, or when a popup step-up finishes or a step-up fails after its run
+  // was superseded.
   const [recheck, setRecheck] = useState(0);
   const [NavigateComponent, setNavigateComponent] =
     useState<React.ComponentType<{ to: string; replace?: boolean }> | null>(
@@ -198,14 +204,20 @@ export default function ProtectedRoute({
         }
         if (requiresContext) {
           const requirement = { acr, maxAge };
+          const attemptKey = JSON.stringify([currentRoute(), acr, maxAge]);
           const contextMet = await hasAuthenticationContext(requirement);
           if (cancelled) return;
           if (contextMet) {
             clearOwnStepUpAttempt();
+            stepUpFailedRef.current = null;
           } else {
             // Another run of this effect (StrictMode, or a re-render) may have
             // started a step-up while this run was awaiting.
             if (stepUpStartedRef.current) return;
+            if (stepUpFailedRef.current === attemptKey) {
+              setHasAccess(false);
+              return;
+            }
             const attempt = readStepUpAttempt();
             if (attempt.kind === "thisRoute") {
               // Already stepped up from here and still not met: don't loop.
@@ -234,12 +246,18 @@ export default function ProtectedRoute({
             try {
               await stepUp(requirement);
             } catch (error) {
-              // Kinde never answered, so a later visit may try again. Newer
-              // runs deferred to this one, so apply the result even if
-              // superseded.
+              // Kinde never answered, so a later visit may try again; this
+              // mount doesn't.
               clearOwnStepUpAttempt();
+              stepUpFailedRef.current = attemptKey;
               stepUpStartedRef.current = false;
               console.error("Access check failed:", error);
+              if (cancelled) {
+                // Newer runs returned early while this step-up was open, and
+                // the props may have changed: check them again.
+                setRecheck((count) => count + 1);
+                return;
+              }
               setHasAccess(false);
               return;
             }

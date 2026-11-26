@@ -1,7 +1,13 @@
 import "@testing-library/jest-dom/vitest";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
-import React, { StrictMode } from "react";
+import React, {
+  StrictMode,
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 import { has } from "@kinde/js-utils";
 import ProtectedRoute from "./ProtectedRoute";
 import { useKindeAuth } from "../../hooks/useKindeAuth";
@@ -15,8 +21,9 @@ vi.mock("@kinde/js-utils", async (importOriginal) => ({
   has: vi.fn(async () => true),
 }));
 
-// A synchronous factory: under StrictMode the component imports this module
-// twice at once, and an async factory let the second import load the real one.
+// Under StrictMode the component imports this module twice at once, and
+// Vitest returns the real module for the second import. StrictMode tests here
+// must not render <Navigate>.
 vi.mock("react-router-dom", () => ({
   Navigate: ({ to }: { to: string }) => <div data-testid="navigate">{to}</div>,
 }));
@@ -320,6 +327,69 @@ describe("ProtectedRoute step-up", () => {
     expect(await screen.findByText("Secret")).toBeInTheDocument();
     expect(auth.stepUp).toHaveBeenCalledTimes(1);
     expect(marker()).toBeNull();
+  });
+
+  it("doesn't retry a failed stepUp when the provider re-renders", async () => {
+    // Like KindeProvider with forceChildrenRender: stepUp calls setLoading,
+    // which changes the context value and re-runs the check.
+    const Ctx = createContext<unknown>(null);
+    const Provider = ({ children }: { children: React.ReactNode }) => {
+      const [version, setVersion] = useState(0);
+      const value = useMemo(
+        () => ({
+          version,
+          isLoading: false,
+          isAuthenticated: true,
+          hasAuthenticationContext: async () => false,
+          stepUp: async () => {
+            auth.stepUp();
+            if (auth.stepUp.mock.calls.length > 5) {
+              return new Promise(() => undefined);
+            }
+            setVersion((v) => v + 1); // setLoading(true)
+            await Promise.resolve();
+            setVersion((v) => v + 1); // setLoading(false)
+            throw new Error("Step-up is not supported on this environment.");
+          },
+        }),
+        [version],
+      );
+      return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+    };
+    vi.mocked(useKindeAuth).mockImplementation(
+      () => useContext(Ctx) as ReturnType<typeof useKindeAuth>,
+    );
+    render(
+      <Provider>
+        <ProtectedRoute acr="mfa" fallbackPath="/fallback">
+          <div>Secret</div>
+        </ProtectedRoute>
+      </Provider>,
+    );
+
+    await expectFallback();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(auth.stepUp).toHaveBeenCalledTimes(1);
+    expect(marker()).toBeNull();
+  });
+
+  it("renders children when stepUp fails after the requirement was removed", async () => {
+    let rejectStepUp: (error: Error) => void = () => undefined;
+    auth.stepUp.mockReturnValue(
+      new Promise((_, reject) => (rejectStepUp = reject)),
+    );
+    const { rerender } = renderRoute();
+    await waitFor(() => expect(auth.stepUp).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <ProtectedRoute fallbackPath="/fallback">
+        <div>Secret</div>
+      </ProtectedRoute>,
+    );
+    rejectStepUp(new Error("Popup blocked"));
+
+    expect(await screen.findByText("Secret")).toBeInTheDocument();
+    expect(screen.queryByTestId("navigate")).not.toBeInTheDocument();
   });
 
   it("goes to fallbackPath, without a step-up, when the marker can't be stored", async () => {

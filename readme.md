@@ -45,7 +45,7 @@ import { ProtectedRoute } from "@kinde-oss/kinde-auth-react/react-router";
 </ProtectedRoute>
 ```
 
-`ProtectedRoute` with `acr` or `maxAge` starts a step-up when a signed-in user doesn't meet the requirement. If the user comes back from a step-up started by that route and still doesn't meet it (for example, Kinde answered `unmet_authentication_requirements`), the route goes to `fallbackPath` instead of starting another step-up, so it never loops. It remembers that attempt in `sessionStorage` for 10 minutes; if `sessionStorage` isn't available, the route goes to `fallbackPath` rather than stepping up without that guard. While another route's step-up is outstanding, the route shows its loading state, and checks again once that attempt expires.
+`ProtectedRoute` with `acr` or `maxAge` starts a step-up when a signed-in user doesn't meet the requirement. If the user comes back from a step-up started by that route and still doesn't meet it (for example, Kinde answered `unmet_authentication_requirements`), the route goes to `fallbackPath` instead of starting another step-up, so it never loops. If `stepUp` itself fails (for example, step-up isn't supported on the environment, or the popup is blocked), the route goes to `fallbackPath` and tries again only on a later visit. It remembers that attempt in `sessionStorage` for 10 minutes; if `sessionStorage` isn't available, the route goes to `fallbackPath` rather than stepping up without that guard. While another route's step-up is outstanding, the route shows its loading state, and checks again once that attempt expires.
 
 ### API challenges
 
