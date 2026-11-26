@@ -221,6 +221,9 @@ export default function ProtectedRoute({
             const attempt = readStepUpAttempt();
             if (attempt.kind === "thisRoute") {
               // Already stepped up from here and still not met: don't loop.
+              // Reading the marker removed it, so remember the failure for
+              // later checks in this mount.
+              stepUpFailedRef.current = attemptKey;
               setHasAccess(false);
               return;
             }

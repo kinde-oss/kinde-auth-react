@@ -329,6 +329,30 @@ describe("ProtectedRoute step-up", () => {
     expect(marker()).toBeNull();
   });
 
+  it("doesn't step up again after returning unmet, when the route re-renders", async () => {
+    setMarker("/payouts");
+    const { rerender } = renderRoute({ has: { roles: ["admin"] } });
+    await expectFallback();
+    expect(marker()).toBeNull();
+
+    // A new `has` object re-runs the check while the route stays mounted.
+    rerender(
+      <ProtectedRoute
+        acr="mfa"
+        has={{ roles: ["admin"] }}
+        fallbackPath="/fallback"
+      >
+        <div>Secret</div>
+      </ProtectedRoute>,
+    );
+    await waitFor(() =>
+      expect(auth.hasAuthenticationContext).toHaveBeenCalledTimes(2),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(auth.stepUp).not.toHaveBeenCalled();
+    await expectFallback();
+  });
+
   it("doesn't retry a failed stepUp when the provider re-renders", async () => {
     // Like KindeProvider with forceChildrenRender: stepUp calls setLoading,
     // which changes the context value and re-runs the check.
