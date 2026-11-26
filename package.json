@@ -70,6 +70,7 @@
     "prettier": "^3.5.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-router-dom": "^7.18.6",
     "release-it": "^20.0.0",
     "typescript": "7.0.2",
     "vite": "^8.0.0",
@@ -95,7 +96,7 @@
   ],
   "private": false,
   "dependencies": {
-    "@kinde/js-utils": "0.32.1"
+    "@kinde/js-utils": "0.33.0"
   },
   "packageManager": "pnpm@12.21.0"
 }

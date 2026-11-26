@@ -1,13 +1,103 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useKindeAuth } from "../../hooks/useKindeAuth";
-import { has } from "@kinde/js-utils";
+import { has, type AcrValue } from "@kinde/js-utils";
 import React from "react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   has?: Parameters<typeof has>[0];
+  /**
+   * Authentication context the route requires: `mfa` or `phr` (passkey).
+   * A signed-in user who doesn't meet it is sent through `stepUp`.
+   */
+  acr?: AcrValue;
+  /** Maximum age, in seconds, of the user's last authentication. */
+  maxAge?: number;
   fallbackPath?: string;
 }
+
+// Marks a step-up started by this route, so a failed or unmet step-up goes to
+// `fallbackPath` instead of starting another one: Kinde's answer is final.
+const STEP_UP_ATTEMPT_KEY = "kinde_protected_route_step_up";
+const STEP_UP_ATTEMPT_TTL_MS = 10 * 60 * 1000;
+
+const currentRoute = () =>
+  `${window.location.pathname}${window.location.search}`;
+
+/** Records a step-up from this route. False when storage is unavailable. */
+const markStepUpAttempt = (): boolean => {
+  try {
+    window.sessionStorage.setItem(
+      STEP_UP_ATTEMPT_KEY,
+      JSON.stringify({ route: currentRoute(), at: Date.now() }),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+type StepUpMarker = { route: string; at: number };
+
+const readMarker = (): StepUpMarker | null => {
+  const raw = window.sessionStorage.getItem(STEP_UP_ATTEMPT_KEY);
+  if (!raw) return null;
+  try {
+    const marker = JSON.parse(raw);
+    if (typeof marker?.route === "string" && typeof marker?.at === "number") {
+      return marker;
+    }
+  } catch {
+    // Unreadable: treated as expired below.
+  }
+  return { route: "", at: 0 };
+};
+
+type StepUpAttempt =
+  | { kind: "none" }
+  | { kind: "thisRoute" }
+  | { kind: "otherRoute"; expiresInMs: number };
+
+/**
+ * Reads the step-up marker:
+ * - `none`: no fresh marker (an expired or unreadable one is removed);
+ * - `thisRoute`: this route already stepped up (the marker is removed);
+ * - `otherRoute`: another route's step-up is outstanding (the marker is kept).
+ */
+const readStepUpAttempt = (): StepUpAttempt => {
+  try {
+    const marker = readMarker();
+    if (!marker) return { kind: "none" };
+    const age = Date.now() - marker.at;
+    if (age >= STEP_UP_ATTEMPT_TTL_MS) {
+      window.sessionStorage.removeItem(STEP_UP_ATTEMPT_KEY);
+      return { kind: "none" };
+    }
+    if (marker.route !== currentRoute()) {
+      return { kind: "otherRoute", expiresInMs: STEP_UP_ATTEMPT_TTL_MS - age };
+    }
+    window.sessionStorage.removeItem(STEP_UP_ATTEMPT_KEY);
+    return { kind: "thisRoute" };
+  } catch {
+    return { kind: "none" };
+  }
+};
+
+/** Removes the marker only when it belongs to this route. */
+const clearOwnStepUpAttempt = () => {
+  try {
+    if (readMarker()?.route === currentRoute()) {
+      window.sessionStorage.removeItem(STEP_UP_ATTEMPT_KEY);
+    }
+  } catch {
+    // Storage unavailable.
+  }
+};
+
+// In an iframe, js-utils `navigateToKinde` opens a popup and resolves after
+// the callback is handled on this page; otherwise the page navigates away.
+// `location.href` can't tell them apart: it keeps the old URL until unload.
+const stepUpRunsInPopup = () => window.self !== window.top;
 
 // Fallback component when react-router-dom is not available
 function ProtectedRouteFallback({ children }: { children: React.ReactNode }) {
@@ -42,11 +132,25 @@ function ProtectedRouteFallback({ children }: { children: React.ReactNode }) {
 export default function ProtectedRoute({
   children,
   has: hasParams,
+  acr,
+  maxAge,
   fallbackPath = "/",
 }: ProtectedRouteProps) {
-  const { isLoading, isAuthenticated } = useKindeAuth();
+  const { isLoading, isAuthenticated, hasAuthenticationContext, stepUp } =
+    useKindeAuth();
   const [accessLoading, setAccessLoading] = useState(false);
+  // Set while a step-up is in progress, so re-renders don't start another.
+  const stepUpStartedRef = useRef(false);
+  // The route and requirement whose `stepUp` call failed in this mount. Its
+  // checks go to `fallbackPath` instead of calling `stepUp` again: with
+  // `forceChildrenRender`, `stepUp` re-renders the provider, which re-runs the
+  // check, so retrying here would loop. A remount (a later visit) may retry.
+  const stepUpFailedRef = useRef<string | null>(null);
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  // Bumped to run the access check again: when another route's step-up marker
+  // expires, or when a popup step-up finishes or a step-up fails after its run
+  // was superseded.
+  const [recheck, setRecheck] = useState(0);
   const [NavigateComponent, setNavigateComponent] =
     useState<React.ComponentType<{ to: string; replace?: boolean }> | null>(
       null,
@@ -59,7 +163,7 @@ export default function ProtectedRoute({
   useEffect(() => {
     const loadRouter = async () => {
       try {
-        // @ts-expect-error - react-router-dom is an optional dependency
+        // Optional for apps (a dev dependency here, for types and tests).
         const { Navigate } = await import("react-router-dom");
         setNavigateComponent(() => Navigate);
         setIsRouterAvailable(true);
@@ -75,19 +179,117 @@ export default function ProtectedRoute({
   }, []);
 
   useEffect(() => {
+    const requiresContext = acr !== undefined || maxAge !== undefined;
+    let cancelled = false;
+    let expiryTimer: ReturnType<typeof setTimeout> | undefined;
+
     const checkAccess = async () => {
-      if (!hasParams) {
+      if (stepUpStartedRef.current) return;
+      if (!hasParams && !requiresContext) {
         setHasAccess(true);
         return;
       }
 
       setAccessLoading(true);
+      // Don't let an earlier grant render children while this check runs.
+      setHasAccess(null);
       try {
-        const result = await has(hasParams);
-        setHasAccess(result);
+        const hasMet = !hasParams || (await has(hasParams));
+        // A superseded run (unmount, StrictMode, new props) changes nothing:
+        // the newer run makes its own decision.
+        if (cancelled) return;
+        if (!hasMet) {
+          setHasAccess(false);
+          return;
+        }
+        if (requiresContext) {
+          const requirement = { acr, maxAge };
+          const attemptKey = JSON.stringify([currentRoute(), acr, maxAge]);
+          const contextMet = await hasAuthenticationContext(requirement);
+          if (cancelled) return;
+          if (contextMet) {
+            clearOwnStepUpAttempt();
+            stepUpFailedRef.current = null;
+          } else {
+            // Another run of this effect (StrictMode, or a re-render) may have
+            // started a step-up while this run was awaiting.
+            if (stepUpStartedRef.current) return;
+            if (stepUpFailedRef.current === attemptKey) {
+              setHasAccess(false);
+              return;
+            }
+            const attempt = readStepUpAttempt();
+            if (attempt.kind === "thisRoute") {
+              // Already stepped up from here and still not met: don't loop.
+              // Reading the marker removed it, so remember the failure for
+              // later checks in this mount.
+              stepUpFailedRef.current = attemptKey;
+              setHasAccess(false);
+              return;
+            }
+            if (attempt.kind === "otherRoute") {
+              // Another route's step-up is outstanding: wait for its
+              // onSuccess or onError to navigate. If neither does (the user
+              // abandoned it), check again once its marker expires.
+              if (!cancelled) {
+                expiryTimer = setTimeout(
+                  () => setRecheck((count) => count + 1),
+                  attempt.expiresInMs,
+                );
+              }
+              return;
+            }
+
+            if (!markStepUpAttempt()) {
+              // Without the marker the loop guard can't work: don't step up.
+              setHasAccess(false);
+              return;
+            }
+            stepUpStartedRef.current = true;
+            try {
+              await stepUp(requirement);
+            } catch (error) {
+              // Kinde never answered, so a later visit may try again; this
+              // mount doesn't.
+              clearOwnStepUpAttempt();
+              stepUpFailedRef.current = attemptKey;
+              stepUpStartedRef.current = false;
+              console.error("Access check failed:", error);
+              if (cancelled) {
+                // Newer runs returned early while this step-up was open, and
+                // the props may have changed: check them again.
+                setRecheck((count) => count + 1);
+                return;
+              }
+              setHasAccess(false);
+              return;
+            }
+            if (!stepUpRunsInPopup()) {
+              // Full-page redirect under way: keep showing the loading state.
+              return;
+            }
+
+            stepUpStartedRef.current = false;
+            if (cancelled) {
+              // Newer runs returned early while this step-up was open, so
+              // none is checking: start a fresh check.
+              setRecheck((count) => count + 1);
+              return;
+            }
+            const popupContextMet = await hasAuthenticationContext(requirement);
+            if (cancelled) return;
+            if (!popupContextMet) {
+              // Keep the marker so a remount doesn't start another step-up.
+              setHasAccess(false);
+              return;
+            }
+            clearOwnStepUpAttempt();
+          }
+        }
+        setHasAccess(true);
       } catch (error) {
         console.error("Access check failed:", error);
-        setHasAccess(false);
+        if (!cancelled) setHasAccess(false);
       } finally {
         setAccessLoading(false);
       }
@@ -96,7 +298,20 @@ export default function ProtectedRoute({
     if (isAuthenticated) {
       checkAccess();
     }
-  }, [hasParams, isAuthenticated]);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(expiryTimer);
+    };
+  }, [
+    hasParams,
+    acr,
+    maxAge,
+    recheck,
+    isAuthenticated,
+    hasAuthenticationContext,
+    stepUp,
+  ]);
 
   // Show loading while checking router availability or auth/access
   if (isRouterAvailable === null || isLoading || accessLoading) {

@@ -34,6 +34,14 @@ import {
   updateActivityTimestamp,
   switchOrg,
   OrgCode,
+  stepUp as buildStepUpUrl,
+  getAuthenticationContext,
+  hasAuthenticationContext,
+  isStepUpSupported,
+  UnmetAuthenticationRequirementsError,
+  LoginRequiredError,
+  StepUpRequiredError,
+  stepUpRequiredFromResponse,
 } from "@kinde/js-utils";
 import * as storeState from "./store";
 import React, {
@@ -52,6 +60,7 @@ import {
   PopupOptions,
   ActivityTimeoutConfig,
   TimeoutActivityType,
+  StepUpParams,
 } from "./types";
 import type {
   RefreshTokenResult,
@@ -70,8 +79,37 @@ enum AuthEvent {
   login = "login",
   logout = "logout",
   register = "register",
+  stepUp = "stepUp",
   tokenRefreshed = "tokenRefreshed",
 }
+
+/** Callback errors that come back from a step-up (or `prompt=none`) request. */
+const STEP_UP_CALLBACK_ERRORS = [
+  "unmet_authentication_requirements",
+  "login_required",
+];
+
+const isStepUpCallbackError = (error: string | null): boolean =>
+  error !== null && STEP_UP_CALLBACK_ERRORS.includes(error);
+
+/** Current location as a path, used as the default step-up `returnTo`. */
+const currentPath = (): string =>
+  `${window.location.pathname ?? "/"}${window.location.search ?? ""}${window.location.hash ?? ""}`;
+
+/**
+ * Resolves `returnTo` to a same-origin path, or null when it is missing or
+ * points at another origin.
+ */
+const toSameOriginPath = (value: unknown): string | null => {
+  if (typeof value !== "string" || value === "") return null;
+  try {
+    const url = new URL(value, window.location.origin);
+    if (url.origin !== window.location.origin) return null;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return null;
+  }
+};
 
 type EventTypes = {
   (
@@ -413,7 +451,9 @@ export const KindeProvider = ({
   const initRef = useRef(false);
   const redirectInitiatedRef = useRef(false);
 
-  const login = useCallback(
+  // Rejects when the authorization URL can't be built. The invitation flow
+  // relies on that rejection; the public `login` reports it through onError.
+  const startLogin = useCallback(
     async (
       options: LoginMethodParams & { state?: Record<string, string> } = {},
     ) => {
@@ -437,11 +477,17 @@ export const KindeProvider = ({
         redirectURL: getRedirectUrl(options.redirectURL || redirectUri),
       };
 
-      const authUrl = await generateAuthUrl(
-        domain,
-        IssuerRouteTypes.login,
-        authProps,
-      );
+      let authUrl: { url: URL };
+      try {
+        authUrl = await generateAuthUrl(
+          domain,
+          IssuerRouteTypes.login,
+          authProps,
+        );
+      } catch (error) {
+        setLoading(false);
+        throw error;
+      }
 
       try {
         navigateToKinde({
@@ -477,6 +523,31 @@ export const KindeProvider = ({
     ],
   );
 
+  const login = useCallback(
+    async (
+      options: LoginMethodParams & { state?: Record<string, string> } = {},
+    ) => {
+      try {
+        await startLogin(options);
+      } catch (error) {
+        console.error("Login error:", error);
+        if (!contextRef.current) {
+          return;
+        }
+        mergedCallbacks.onError?.(
+          {
+            error: "ERR_LOGIN",
+            errorDescription:
+              error instanceof Error ? error.message : String(error),
+          },
+          {},
+          contextRef.current,
+        );
+      }
+    },
+    [startLogin, mergedCallbacks],
+  );
+
   // Handle invitation_code redirect after mount (login triggers navigation / popup)
   useEffect(() => {
     if (
@@ -485,7 +556,7 @@ export const KindeProvider = ({
       !redirectInitiatedRef.current
     ) {
       redirectInitiatedRef.current = true;
-      login({
+      startLogin({
         prompt: PromptTypes.create,
         invitationCode: invitationCodeRef.current,
       }).catch((error) => {
@@ -510,7 +581,7 @@ export const KindeProvider = ({
         setIsInvitationRedirectPending(false);
       });
     }
-  }, [login, isInvitationRedirectPending, mergedCallbacks]); // Include login to ensure it's ready when it becomes available
+  }, [startLogin, isInvitationRedirectPending, mergedCallbacks]); // Include startLogin to ensure it's ready when it becomes available
 
   const register = useCallback(
     async (
@@ -586,6 +657,84 @@ export const KindeProvider = ({
       audience,
       clientId,
       domain,
+      setLoading,
+    ],
+  );
+
+  const stepUp = useCallback(
+    async ({
+      acr,
+      maxAge,
+      returnTo,
+      state: optionsState = {},
+      ...options
+    }: StepUpParams) => {
+      const requestedReturnTo = returnTo ?? optionsState.returnTo;
+      const resolvedReturnTo = toSameOriginPath(
+        requestedReturnTo ?? currentPath(),
+      );
+      if (requestedReturnTo !== undefined && resolvedReturnTo === null) {
+        throw new Error("stepUp returnTo must be a same-origin path.");
+      }
+
+      setLoading(true);
+      let authUrl: { url: URL };
+      try {
+        // Validation, prompt=none rejection and the discovery check live in js-utils.
+        authUrl = await buildStepUpUrl(domain, {
+          audience,
+          clientId,
+          ...options,
+          acr,
+          maxAge,
+          supportsReauth: true,
+          scope: scope?.split(" ") as Scopes[],
+          state: base64UrlEncode(
+            JSON.stringify({
+              kinde: { event: AuthEvent.stepUp },
+              ...optionsState,
+              ...(resolvedReturnTo ? { returnTo: resolvedReturnTo } : {}),
+            }),
+          ),
+          redirectURL: getRedirectUrl(options.redirectURL || redirectUri),
+        });
+      } catch (error) {
+        setLoading(false);
+        throw error;
+      }
+
+      // Redirect: resolves once navigation starts. Popup (in an iframe):
+      // resolves after the callback has been handled, so callers can re-check.
+      try {
+        await navigateToKinde({
+          url: authUrl.url.toString(),
+          popupOptions,
+          handleResult: processAuthResult,
+        });
+      } catch (error) {
+        setLoading(false);
+        if (contextRef.current) {
+          mergedCallbacks.onError?.(
+            {
+              error: "ERR_POPUP",
+              errorDescription: (error as Error).message,
+            },
+            {},
+            contextRef.current,
+          );
+        }
+        // The step-up never started: let the caller know.
+        throw error;
+      }
+    },
+    [
+      audience,
+      clientId,
+      redirectUri,
+      popupOptions,
+      mergedCallbacks,
+      domain,
+      scope,
       setLoading,
     ],
   );
@@ -735,6 +884,26 @@ export const KindeProvider = ({
       getRoles: async (): Promise<Role[]> => {
         return await getRoles();
       },
+      stepUp,
+      // `domain` lets js-utils check discovery: `authTime` is null, and a
+      // `maxAge` check fails, where the environment doesn't support step-up.
+      getAuthenticationContext: () => getAuthenticationContext(domain),
+      hasAuthenticationContext: (requirement) =>
+        hasAuthenticationContext(requirement, domain),
+      isStepUpSupported: () => isStepUpSupported(domain),
+      handleStepUpChallenge: async (challenge, options = {}) => {
+        const required =
+          challenge instanceof StepUpRequiredError
+            ? challenge
+            : stepUpRequiredFromResponse(challenge);
+        if (!required) return false;
+        await stepUp({
+          ...options,
+          acr: required.acr ?? undefined,
+          maxAge: required.maxAge ?? undefined,
+        });
+        return true;
+      },
       generatePortalUrl: async (
         options: Omit<GeneratePortalUrlParams, "domain">,
       ): Promise<{ url: URL }> => {
@@ -761,7 +930,7 @@ export const KindeProvider = ({
       },
       ...state,
     };
-  }, [state, login, logout, register, domain, clientId, redirectUri]);
+  }, [state, login, logout, register, stepUp, domain, clientId, redirectUri]);
 
   // Keep contextRef in sync with the latest contextValue
   contextRef.current = contextValue;
@@ -857,6 +1026,20 @@ export const KindeProvider = ({
                   contextValue,
                 );
               }
+              // With the default onSuccess, bring the user back to where the
+              // step-up started. A custom onSuccess gets `state.returnTo` and
+              // navigates itself.
+              if (
+                kindeState.event === AuthEvent.stepUp &&
+                !callbacks.onSuccess
+              ) {
+                const returnTo = toSameOriginPath(returnedState.returnTo);
+                if (returnTo) {
+                  window.history.replaceState({}, document.title, returnTo);
+                  // Routers listen for popstate, not replaceState.
+                  window.dispatchEvent(new PopStateEvent("popstate"));
+                }
+              }
             }
           } else {
             mergedCallbacks.onError?.(
@@ -869,14 +1052,31 @@ export const KindeProvider = ({
             );
           }
         } catch (error) {
-          mergedCallbacks.onError?.(
-            {
-              error: "ERR_POPUP_AUTH",
-              errorDescription: String(error),
-            },
-            returnedState,
-            contextValue,
-          );
+          // A step-up Kinde could not complete is a final answer: report it,
+          // never retry or start a new login.
+          if (
+            error instanceof UnmetAuthenticationRequirementsError ||
+            error instanceof LoginRequiredError
+          ) {
+            mergedCallbacks.onError?.(
+              {
+                error: error.error,
+                errorDescription: error.errorDescription,
+                cause: error,
+              },
+              returnedState,
+              contextValue,
+            );
+          } else {
+            mergedCallbacks.onError?.(
+              {
+                error: "ERR_POPUP_AUTH",
+                errorDescription: String(error),
+              },
+              returnedState,
+              contextValue,
+            );
+          }
         } finally {
           // Clear loading state appropriately based on forceChildrenRender
           if (forceChildrenRender) {
@@ -898,6 +1098,7 @@ export const KindeProvider = ({
       redirectUri,
       onRefresh,
       mergedCallbacks,
+      callbacks.onSuccess,
       contextValue,
       setLoading,
       forceChildrenRender,
@@ -1000,6 +1201,27 @@ export const KindeProvider = ({
         );
       }
 
+      const isOnRedirectUri = () => {
+        const currentUrlObject = new URL(window.location.href);
+        const redirectUrlObject = new URL(redirectUri);
+        return (
+          currentUrlObject.origin === redirectUrlObject.origin &&
+          currentUrlObject.pathname === redirectUrlObject.pathname
+        );
+      };
+
+      const postResultToOpener = () => {
+        const searchParams = new URLSearchParams(window.location.search);
+        window.opener.postMessage(
+          {
+            type: "KINDE_AUTH_RESULT",
+            result: Object.fromEntries(searchParams.entries()),
+          },
+          window.location.origin,
+        );
+        window.close();
+      };
+
       if (params.has("error")) {
         const errorCode = params.get("error");
         if (errorCode?.toLowerCase() === "login_link_expired") {
@@ -1007,6 +1229,37 @@ export const KindeProvider = ({
           if (reauthState) {
             login({ reauthState: reauthState });
           }
+          return;
+        }
+        // A step-up Kinde could not meet comes back as a callback error. Hand
+        // it to the app through onError (js-utils validates state first).
+        // Never retry and never start a new login: that would loop.
+        if (isStepUpCallbackError(errorCode) && isOnRedirectUri()) {
+          if (isSameOriginOpener()) {
+            postResultToOpener();
+            return;
+          }
+          // The user keeps their existing session.
+          try {
+            const user = await getUserProfile();
+            if (user) {
+              setState((val: ProviderState) => ({
+                ...val,
+                user,
+                isAuthenticated: true,
+              }));
+            }
+          } catch (error) {
+            console.warn("Error getting user profile", error);
+          }
+          await processAuthResult(params);
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.search = "";
+          window.history.replaceState(
+            window.history.state,
+            "",
+            cleanUrl.toString(),
+          );
           return;
         }
         setState((val: ProviderState) => ({ ...val, isLoading: false }));
@@ -1026,26 +1279,11 @@ export const KindeProvider = ({
         }
       }
 
-      const currentUrlObject = new URL(window.location.href);
-      const redirectUrlObject = new URL(redirectUri);
-
-      const isKindeRedirectUri =
-        currentUrlObject.origin === redirectUrlObject.origin &&
-        currentUrlObject.pathname === redirectUrlObject.pathname;
-
-      const kindeShouldHandle = isKindeRedirectUri && params.has("code");
+      const kindeShouldHandle = isOnRedirectUri() && params.has("code");
 
       if (kindeShouldHandle) {
         if (isSameOriginOpener()) {
-          const searchParams = new URLSearchParams(window.location.search);
-          window.opener.postMessage(
-            {
-              type: "KINDE_AUTH_RESULT",
-              result: Object.fromEntries(searchParams.entries()),
-            },
-            window.location.origin,
-          );
-          window.close();
+          postResultToOpener();
           return;
         }
         await processAuthResult(new URLSearchParams(window.location.search));
